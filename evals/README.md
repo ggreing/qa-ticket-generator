@@ -43,6 +43,7 @@ node evals/cli.mjs run --judge --yes
 #   --model <id>          model to evaluate (default: the Action's default)
 #   --effort a,b          one variant per effort level, e.g. high,medium
 #   --split dev|test|all  default dev
+#   --language <code>     language the reports are written in: en (default), ko, ja, zh-CN
 #   --cases a,b           only these cases, whatever their split
 #   --reps <n>            repetitions per case; the table then shows the pass-rate spread
 #   --concurrency <n>     cases in flight at once (default 3)
@@ -66,6 +67,15 @@ Results go to `evals/results/<timestamp>.json` (every report, the rendered comme
 grades and judge scores) and a Markdown summary table is printed.
 
 `--judge` used to mean the keyword-coverage judge. That one is now `--coverage-judge`.
+
+**Language.** `--language ko` runs the same cases with the reports written in Korean, through the
+Action's own language setting (its aliases work too: `kr`, `jp`, `cn`, `zh`). The language is
+stored in the results file, the round record, the summary and the review pack. A non-English run
+of a round gets its own files (`raw/results.ko.json`, `summary.ko.md`) and its own row in
+`ROUNDS.md`, and a round is only ever compared with a kept round in the same language. The
+must-cover risks are matched by keywords that are mostly English, so "Scenarios (kw)" and the
+pass rate (which needs half of those risks covered) understate a non-English run. Alignment and
+findings are matched by status and AC label and do not depend on the language.
 
 ## An improvement round
 

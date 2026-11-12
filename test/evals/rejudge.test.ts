@@ -76,7 +76,9 @@ describe('--rejudge: plan and cost gate (M3.5 round 2)', () => {
     expect(h.createRubricClient).not.toHaveBeenCalled();
     expect(JSON.stringify(base.files)).toBe(before);
     expect(h.lines[0]).toBe('Re-judge plan — rubric v2');
-    expect(h.out()).toMatch(/source: evals\/rounds\/1\/raw\/results\.json \(prompt \S+, split dev\)/);
+    expect(h.out()).toMatch(
+      /source: evals\/rounds\/1\/raw\/results\.json \(prompt \S+, split dev, language en\)/,
+    );
     expect(h.out()).toContain('judge model: claude-sonnet-5-5');
     expect(h.out()).toContain(`reports to judge: ${DEV.length}`);
     expect(h.out()).toContain('estimated run cost:   $0.00 (no report is generated)');
@@ -294,7 +296,10 @@ describe('--rejudge --round: a baseline for the new rubric (M3.5 round 2)', () =
     expect(v1.variants[0]?.criteria?.coverage).toBeUndefined();
 
     const rows = (base.files['evals/ROUNDS.md'] as string).split('\n').filter((l) => /^\| \d/.test(l));
-    expect(rows.map((r) => r.split(' | ')[5])).toEqual(['v1', 'v2 (re-scored)']);
+    expect(rows.map((r) => r.split(' | ').slice(5, 7))).toEqual([
+      ['en', 'v1'],
+      ['en', 'v2 (re-scored)'],
+    ]);
     expect(rows.every((r) => r.endsWith('| keep |'))).toBe(true);
     const summary = base.files['evals/rounds/1/summary.rubric-v2.md'] as string;
     expect(summary).toContain('- Rubric judge: claude-sonnet-5-5, rubric v2 (re-scored, no new generation)');

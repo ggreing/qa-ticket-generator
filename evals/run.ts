@@ -8,7 +8,7 @@
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
-import { parseRepoConfig, resolveConfig } from '../src/core/config';
+import { parseRepoConfig, type QtgConfig, resolveConfig } from '../src/core/config';
 import type {
   CreatePreprocessEngine,
   Effort,
@@ -42,7 +42,7 @@ import { JUDGE_MODEL, type JudgeClientLike, judgeScenarios } from './judge';
 import { type RegradedVariant, regradeResults } from './regrade';
 import { rejudgeResults } from './rejudge';
 import { buildReviewPack, calibrate } from './review';
-import { decideRound, recordRound } from './rounds';
+import { decideRound, languageSuffix, recordRound } from './rounds';
 import {
   DEFAULT_RUBRIC_MODEL,
   JUDGE_OUTPUT_BASE_TOKENS,
@@ -90,6 +90,8 @@ export interface RunOptions {
   yes: boolean;
   help: boolean;
   /** Path of a saved results file to re-grade offline, or null for a normal run. */
+  /** Output language of the reports, as typed (a code or an alias); null for the Action default. */
+  language: string | null;
   regrade: string | null;
   /** Path of a saved results file whose reports are scored again with the current rubric. */
   rejudge: string | null;
@@ -190,6 +192,8 @@ export interface SavedResults {
   split: string;
   judgeModel: string | null;
   estimateUsd: number;
+  /** Language the reports were written in. Absent in files written before it was recorded (English). */
+  language?: string;
   /** Rubric the scores were judged with. Absent when no judge ran, and in files written under rubric v1. */
   rubricVersion?: number;
   /** Set by --rejudge: the results file whose reports were scored again, and when. */
@@ -220,6 +224,8 @@ Run (prints the plan and the estimated cost; calls the API only with --yes):
   --cases <id,id>       run only these cases, whatever their split
   --reps <n>            repetitions per case and variant (default: 1)
   --concurrency <n>     cases in flight at once (default: 3)
+  --language <code>     language the reports are written in: en (default), ko, ja, zh-CN;
+                        the Action's aliases work too (kr, jp, cn, zh)
   --judge               score every report with the rubric judge (docs/quality/RUBRIC.md)
   --judge-model <id>    rubric judge model (default: ${DEFAULT_RUBRIC_MODEL})
   --coverage-judge      also judge must-cover scenarios with ${JUDGE_MODEL} (cases with ground truth)
@@ -261,6 +267,7 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     coverageJudge: false,
     yes: false,
     help: false,
+    language: null,
     regrade: null,
     rejudge: null,
     edited: [],
@@ -297,6 +304,7 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     else if (flag === '--model') options.model = value();
     else if (flag === '--judge-model') options.judgeModel = value();
     else if (flag === '--cases') options.caseIds = list(value());
+    else if (flag === '--language') options.language = value();
     else if (flag === '--regrade') options.regrade = value();
     else if (flag === '--rejudge') options.rejudge = value();
     else if (flag === '--edited') options.edited = list(value());
@@ -405,13 +413,21 @@ const hasGroundTruth = (c: EvalCase): c is GradedCase => c.expected !== null;
 export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcome> {
   const { print } = deps;
   const none = (exitCode: number): RunOutcome => ({ exitCode, executed: false, estimateUsd: 0 });
-  const cfg = resolveConfig((name) => (name === 'anthropic-api-key' ? 'eval' : ''), parseRepoConfig(null));
+  const configFor = (language: string): QtgConfig =>
+    resolveConfig(
+      (name) => (name === 'anthropic-api-key' ? 'eval' : name === 'language' ? language : ''),
+      parseRepoConfig(null),
+    );
+  const defaults = configFor('');
 
   let options: RunOptions;
+  let cfg: QtgConfig;
   try {
-    options = parseArgs(argv, { model: cfg.model, effort: cfg.effort });
+    options = parseArgs(argv, { model: defaults.model, effort: defaults.effort });
+    // The Action's own language handling: the same codes and aliases, the same error.
+    cfg = configFor(options.language ?? '');
   } catch (err) {
-    print((err as Error).message);
+    print(err instanceof QtgError ? err.userMessage : (err as Error).message);
     print(USAGE);
     return none(2);
   }
@@ -515,7 +531,9 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   const runsPerVariant = cases.length * options.reps;
 
   print(`Eval plan — prompt ${PROMPT_VERSION}`);
-  print(`  model: ${options.model}   effort: ${options.efforts.join(', ')}   reps: ${options.reps}`);
+  print(
+    `  model: ${options.model}   effort: ${options.efforts.join(', ')}   reps: ${options.reps}   language: ${cfg.language}`,
+  );
   print(
     `  split: ${options.caseIds.length > 0 ? 'selected cases' : options.split}   cases: ${cases.length} (${cases.filter(hasGroundTruth).length} with ground truth)`,
   );
@@ -723,6 +741,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
     split: options.caseIds.length > 0 ? 'selected' : options.split,
     judgeModel: options.judge ? options.judgeModel : null,
     ...(options.judge ? { rubricVersion: RUBRIC_VERSION } : {}),
+    language: cfg.language,
     estimateUsd,
     variants: results,
   };
@@ -730,7 +749,13 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   const resultsPath =
     options.round === null
       ? join(deps.resultsRoot, `${started.replace(/[:.]/g, '-')}.json`)
-      : join(deps.evalsRoot, 'rounds', String(options.round), 'raw', 'results.json');
+      : join(
+          deps.evalsRoot,
+          'rounds',
+          String(options.round),
+          'raw',
+          `results${languageSuffix(cfg.language)}.json`,
+        );
   deps.writeFile(resultsPath, json);
 
   print('');

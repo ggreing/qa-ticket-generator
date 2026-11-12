@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import type { LlmUsage } from '../src/core/contracts';
 import { estimateCostUsd } from '../src/llm/pricing';
 import { formatSummaryTable } from './grade';
-import { recordRejudgedRound } from './rounds';
+import { languageSuffix, recordRejudgedRound } from './rounds';
 import {
   buildRubricInput,
   JUDGE_OUTPUT_BASE_TOKENS,
@@ -126,7 +126,9 @@ export async function rejudgeResults(
   const estimate = { runUsd: 0, judgeUsd: estimateUsd };
 
   print(`Re-judge plan — rubric v${RUBRIC_VERSION}`);
-  print(`  source: ${path} (prompt ${saved.promptVersion ?? 'unknown'}, split ${saved.split ?? 'unknown'})`);
+  print(
+    `  source: ${path} (prompt ${saved.promptVersion ?? 'unknown'}, split ${saved.split ?? 'unknown'}, language ${saved.language ?? 'en'})`,
+  );
   print(`  judge model: ${model}`);
   print(
     `  reports to judge: ${jobs.length}${partial ? ` (only ${only.join(', ')}; the other reports keep their scores)` : ''}`,
@@ -255,7 +257,7 @@ export async function rejudgeResults(
           'rounds',
           String(options.round),
           'raw',
-          `results.rubric-v${RUBRIC_VERSION}.json`,
+          `results${languageSuffix(saved.language)}.rubric-v${RUBRIC_VERSION}.json`,
         );
   if (partial) {
     // The file is about to be overwritten; keep what it held.
