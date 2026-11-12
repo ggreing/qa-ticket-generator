@@ -33,6 +33,8 @@ export interface Strings {
   truncated: string;
   runFailed: string;
   errorCode: string;
+  /** What the user should do about an error, by error code (SPEC §10). Codes without a hint show only the message. */
+  errorHint: Partial<Record<string, string>>;
   noFiles: string;
   skipped: string;
   dryRun: string;

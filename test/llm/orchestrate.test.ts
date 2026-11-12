@@ -104,15 +104,34 @@ describe('orchestrate', () => {
     expect(res.skipped).toEqual([{ path: 'b.ts', reason: 'cost_cap' }]);
   });
 
-  it('LLM-10 still analyzes the top chunk when even it exceeds the cap, and says so', async () => {
+  it('LLM-10 makes no LLM call and fails with cost_cap when even the top chunk exceeds max-cost-usd', async () => {
+    const { provider, generateCalls, mergeCalls } = fakeProvider();
+    // (shared prompt + PRD + 100K code) * $4/M + 4K * $20/M ≈ $0.49 for the top chunk alone.
+    const pre = preOutput([chunk('c1', ['a.ts'], 100_000), chunk('c2', ['b.ts'], 100_000)]);
+    const err = await orchestrate(
+      pre,
+      provider,
+      promptContext(),
+      { ...OPTIONS, maxCostUsd: 0.4 },
+      signal(),
+    ).then(
+      () => null,
+      (e: unknown) => e as QtgError,
+    );
+    expect(err).toBeInstanceOf(QtgError);
+    expect(err?.code).toBe('cost_cap');
+    expect(err?.userMessage).toMatch(/\(~\$0\.49\) exceeds max-cost-usd \(\$0\.40\)/);
+    expect(err?.userMessage).toContain('Raise max-cost-usd');
+    expect(err?.usage).toBeUndefined();
+    expect(generateCalls).toHaveLength(0);
+    expect(mergeCalls).toHaveLength(0);
+  });
+
+  it('LLM-10 runs when the estimate is exactly within the cap', async () => {
     const { provider, generateCalls } = fakeProvider();
     const pre = preOutput([chunk('c1', ['a.ts'], 100_000)]);
-    const res = await orchestrate(pre, provider, promptContext(), { ...OPTIONS, maxCostUsd: 0.01 }, signal());
+    await orchestrate(pre, provider, promptContext(), { ...OPTIONS, maxCostUsd: 0.5 }, signal());
     expect(generateCalls).toHaveLength(1);
-    expect(res.skipped).toEqual([]);
-    expect(res.warnings.filter((w) => w.code === 'cost_cap')).toEqual([
-      { code: 'cost_cap', message: expect.stringContaining('analyzed anyway') },
-    ]);
   });
 
   it('LLM-10 stops starting map calls once the actual spend reaches the cap and merges the partial reports', async () => {
@@ -216,6 +235,67 @@ describe('orchestrate', () => {
     expect(mergeCalls.map((c) => c.context.maxScenarios)).toEqual([9, 4]);
     expect(res.report.summary).toBe('merged on retry');
     expect(res.calls).toBe(4);
+  });
+
+  it('LLM-08 a failed run reports everything billed so far: finished map calls plus the failing call', async () => {
+    const { provider } = fakeProvider(async (req) => {
+      if (req.chunk.id === 'c1') return result(fakeReport(), usage(10_000, 1_000));
+      if (req.chunk.id === 'c2') return result(fakeReport(), usage(20_000, 2_000));
+      throw billedError('llm_refusal', 'declined', usage(30_000, 0));
+    });
+    const pre = preOutput([chunk('c1', ['a.ts']), chunk('c2', ['b.ts']), chunk('c3', ['c.ts'])]);
+    const err = await orchestrate(
+      pre,
+      provider,
+      promptContext(),
+      { ...OPTIONS, concurrency: 1 },
+      signal(),
+    ).then(
+      () => null,
+      (e: unknown) => e as QtgError,
+    );
+    expect(err?.code).toBe('llm_refusal');
+    expect(err?.userMessage).toBe('declined');
+    expect(err?.usage).toEqual(usage(60_000, 3_000));
+  });
+
+  it('LLM-08 a failed merge reports the map calls and both merge attempts', async () => {
+    const { provider } = fakeProvider(
+      () => result(fakeReport(), usage(10_000, 1_000)),
+      () => {
+        throw billedError('llm_truncated', 'cut off', usage(5_000, 32_000));
+      },
+    );
+    const pre = preOutput([chunk('c1', ['a.ts']), chunk('c2', ['b.ts'])]);
+    const err = await orchestrate(pre, provider, promptContext(), OPTIONS, signal()).then(
+      () => null,
+      (e: unknown) => e as QtgError,
+    );
+    expect(err?.code).toBe('llm_truncated');
+    expect(err?.usage).toEqual(usage(30_000, 66_000));
+  });
+
+  it('LLM-08 wraps an unexpected error as internal when calls were already billed, keeping the cause', async () => {
+    const bug = new TypeError('bug');
+    const { provider } = fakeProvider(async (req) => {
+      if (req.chunk.id === 'c1') return result(fakeReport(), usage(10_000, 1_000));
+      throw bug;
+    });
+    const pre = preOutput([chunk('c1', ['a.ts']), chunk('c2', ['b.ts'])]);
+    const err = await orchestrate(
+      pre,
+      provider,
+      promptContext(),
+      { ...OPTIONS, concurrency: 1 },
+      signal(),
+    ).then(
+      () => null,
+      (e: unknown) => e as QtgError,
+    );
+    expect(err).toBeInstanceOf(QtgError);
+    expect(err?.code).toBe('internal');
+    expect(err?.cause).toBe(bug);
+    expect(err?.usage).toEqual(usage(10_000, 1_000));
   });
 
   it('SPEC §10 a failing map call aborts its siblings and fails the run with that error', async () => {

@@ -15,7 +15,7 @@ import type {
 import { QtgError } from '../core/errors';
 import { languageInstruction, SYSTEM_PROMPT } from './prompts/system';
 import { buildMetadataSection, buildPrdSection } from './prompts/user';
-import { addUsage, usageFromError, ZERO_USAGE } from './usage';
+import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 
 /** Same conservative estimate the preprocessor uses (PRE-08). */
 const CHARS_PER_TOKEN = 3.2;
@@ -107,9 +107,12 @@ export function normalizeReport(
  *
  * Cost guard: the run's cost is estimated up front from token estimates and
  * `expectedOutputTokens`; while it exceeds `maxCostUsd`, the lowest-priority chunk is dropped and
- * its files are reported as `cost_cap`. The top chunk always runs. During the map phase, once the
- * actual spend reaches the cap no further calls start and the partial reports are merged as is.
+ * its files are reported as `cost_cap`. When the top chunk alone is still over the cap, no call
+ * is made and the run fails with a `cost_cap` error. During the map phase, once the actual spend
+ * reaches the cap no further calls start and the partial reports are merged as is.
  * A truncated reply (`llm_truncated`) is retried once with half the scenario cap (LLM-04).
+ *
+ * A failed run rejects with a QtgError whose `usage` is everything billed up to that point.
  */
 export async function orchestrate(
   pre: PreprocessOutput,
@@ -154,13 +157,13 @@ export async function orchestrate(
   let planned = pre.chunks;
   while (planned.length > 1 && estimateRun(planned) > options.maxCostUsd) planned = planned.slice(0, -1);
   const dropped = pre.chunks.slice(planned.length);
-  let overBudgetAtStart = false;
-  if (estimateRun(planned) > options.maxCostUsd) {
-    overBudgetAtStart = true;
-    warnings.push({
-      code: 'cost_cap',
-      message: `The estimated cost of analyzing even the highest-priority files exceeds max-cost-usd ($${options.maxCostUsd.toFixed(2)}); they were analyzed anyway.`,
-    });
+  const estimate = estimateRun(planned);
+  if (estimate > options.maxCostUsd) {
+    // The cap is a hard limit (SPEC G4): nothing is sent to the model.
+    throw new QtgError(
+      'cost_cap',
+      `The estimated cost of analyzing even the highest-priority files (~$${estimate.toFixed(2)}) exceeds max-cost-usd ($${options.maxCostUsd.toFixed(2)}), so nothing was analyzed. Raise max-cost-usd, or lower token-budget so the change is split into smaller parts.`,
+    );
   }
 
   // ── calls ───────────────────────────────────────────────────────────────────
@@ -245,10 +248,9 @@ export async function orchestrate(
             );
     }
   } catch (err) {
-    if (signal.aborted && !(err instanceof QtgError && err.code === 'cancelled')) {
-      throw new QtgError('cancelled', 'The run was cancelled.', { cause: err });
-    }
-    throw err;
+    const cancelled = signal.aborted && !(err instanceof QtgError && err.code === 'cancelled');
+    const failure = cancelled ? new QtgError('cancelled', 'The run was cancelled.', { cause: err }) : err;
+    throw withBilledUsage(failure, usage); // total billed so far, across every call of this run
   } finally {
     signal.removeEventListener('abort', onAbort);
   }
@@ -265,7 +267,7 @@ export async function orchestrate(
       code: 'cost_cap',
       message: `${skipped.length} lower-priority file(s) were not analyzed because ${why}.`,
     });
-  } else if (!overBudgetAtStart && costUsd > options.maxCostUsd) {
+  } else if (costUsd > options.maxCostUsd) {
     warnings.push({
       code: 'cost_cap',
       message: `The run cost about $${costUsd.toFixed(2)}, above max-cost-usd ($${options.maxCostUsd.toFixed(2)}).`,

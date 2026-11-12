@@ -30,6 +30,10 @@ export const ko: Strings = {
     'GitHub 코멘트 길이 제한에 맞춰 내용을 잘랐습니다. 전체 리포트는 워크플로의 Job Summary와 report.json에 있습니다.',
   runFailed: '실행 실패',
   errorCode: '오류 코드',
+  errorHint: {
+    cost_cap:
+      '예상 비용이 `max-cost-usd` 상한을 넘어 분석을 실행하지 않았습니다. 워크플로에서 `max-cost-usd`를 올리거나, `token-budget`을 낮춰 변경을 더 작은 단위로 나눠 분석하세요.',
+  },
   noFiles:
     '분석할 로직 변경이 없습니다 — 변경 파일이 모두 필터링되었습니다(lock 파일, 자동 생성 코드, 바이너리 등).',
   skipped: '분석을 건너뛰었습니다',

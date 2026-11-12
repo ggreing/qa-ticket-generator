@@ -1,6 +1,6 @@
 /** Token-usage helpers shared by the provider and the orchestrator. Owner: qa-work-session-c(fable). */
 import type { LlmUsage } from '../core/contracts';
-import { QtgError, type QtgErrorCode } from '../core/errors';
+import { QtgError, type QtgErrorCode, toQtgError } from '../core/errors';
 
 export const ZERO_USAGE: Readonly<LlmUsage> = Object.freeze({
   inputTokens: 0,
@@ -18,18 +18,28 @@ export function addUsage(a: LlmUsage, b: LlmUsage): LlmUsage {
   };
 }
 
+export const isBilled = (usage: LlmUsage): boolean =>
+  usage.inputTokens + usage.outputTokens + usage.cacheReadTokens + usage.cacheWriteTokens > 0;
+
 /**
  * Builds a QtgError for a call that was billed but produced no usable report (refusal,
- * truncation, schema failure). The usage rides on `cause` so the caller can still count it.
+ * truncation, schema failure). `usage` is what the failed call(s) cost.
  */
 export function billedError(code: QtgErrorCode, userMessage: string, usage: LlmUsage): QtgError {
-  return new QtgError(code, userMessage, { cause: { usage } });
+  return new QtgError(code, userMessage, { usage });
 }
 
-/** Usage attached by {@link billedError}, or zero when the error carries none. */
+/** Billed usage carried by a QtgError, or zero when the error carries none. */
 export function usageFromError(err: unknown): LlmUsage {
-  const cause = err instanceof QtgError ? (err.cause as { usage?: LlmUsage } | undefined) : undefined;
-  const usage = cause?.usage;
-  if (usage && typeof usage.inputTokens === 'number' && typeof usage.outputTokens === 'number') return usage;
-  return ZERO_USAGE;
+  return err instanceof QtgError && err.usage ? err.usage : ZERO_USAGE;
+}
+
+/**
+ * Returns `err` carrying `usage` as its billed total (replacing any usage it had), so the
+ * pipeline can report real spend for a failed run. Errors with nothing billed pass through.
+ */
+export function withBilledUsage(err: unknown, usage: LlmUsage): unknown {
+  if (!isBilled(usage)) return err;
+  const e = toQtgError(err);
+  return new QtgError(e.code, e.userMessage, { cause: e.cause ?? err, usage });
 }

@@ -10,7 +10,6 @@ import {
   type LlmStream,
   SERVER_FALLBACK_BETA,
 } from '../../src/llm/anthropic';
-import { usageFromError } from '../../src/llm/usage';
 import { fakeReport, silentLogger } from '../helpers/fakes';
 import { chunk, fakeClient, message, promptContext } from './support';
 
@@ -178,7 +177,7 @@ describe('createAnthropicProvider', () => {
     );
     expect(err.code).toBe('llm_refusal');
     expect(err.userMessage).toContain('category: cyber');
-    expect(usageFromError(err).outputTokens).toBe(500);
+    expect(err.usage?.outputTokens).toBe(500);
   });
 
   it('LLM-04 turns stop_reason "max_tokens" into llm_truncated without retrying here', async () => {
@@ -217,7 +216,23 @@ describe('createAnthropicProvider', () => {
     );
     expect(err.code).toBe('llm_schema');
     expect(calls).toHaveLength(2);
-    expect(usageFromError(err).inputTokens).toBe(2_000);
+    expect(err.usage?.inputTokens).toBe(2_000);
+  });
+
+  it('LLM-08 keeps the usage of a billed first attempt when the schema retry itself fails', async () => {
+    const sdkError = new Anthropic.InternalServerError(500, undefined, 'boom', headers);
+    const { client } = fakeClient([message('not json'), sdkError]);
+    const err = await failure(
+      createAnthropicProvider(OPTIONS, { client }).generateReport(request(), signal()),
+    );
+    expect(err.code).toBe('llm_unavailable');
+    expect(err.usage).toEqual({
+      inputTokens: 1_000,
+      outputTokens: 500,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 300,
+    });
+    expect((err.cause as Error).cause ?? err.cause).toBeDefined();
   });
 
   it('LLM-08 maps input, output, cache-read and cache-write tokens, treating absent cache fields as zero', async () => {
