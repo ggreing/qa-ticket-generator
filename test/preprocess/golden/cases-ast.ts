@@ -218,14 +218,9 @@ export const astCases: GoldenCase[] = [
     input: input([
       modified(
         'src/payments/client.ts',
-        tsOld.replace(
-          "import { Money } from './money';",
-          "import { Money } from './money';\nconst STRIPE_KEY = 'sk_live_FAKE00000000';",
-        ),
-        tsNew.replace(
-          "import { Money } from './money';",
-          "import { Money } from './money';\nconst STRIPE_KEY = 'sk_live_FAKE00000000';",
-        ),
+        // The secret sits inside add(), outside the hunk, so it only reaches the output via the context.
+        tsOld.replace("if (sku === 'S0') console.debug('sku 0');", "const key = 'sk_live_FAKE00000000';"),
+        tsNew.replace("if (sku === 'S0') console.debug('sku 0');", "const key = 'sk_live_FAKE00000000';"),
       ),
     ]),
   },

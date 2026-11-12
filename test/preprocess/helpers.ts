@@ -139,10 +139,13 @@ export function unifiedDiff(oldText: string, newText: string, context = 3): stri
   const b = splitText(newText);
   const n = a.length;
   const m = b.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+  const w = m + 1;
+  // dp[i*w + j] = LCS length of a[i..] and b[j..]
+  const dp = new Int32Array((n + 1) * w);
+  const at = (i: number, j: number): number => dp[i * w + j] as number;
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i]![j] = a[i] === b[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+      dp[i * w + j] = a[i] === b[j] ? at(i + 1, j + 1) + 1 : Math.max(at(i + 1, j), at(i, j + 1));
     }
   }
   const ops: Op[] = [];
@@ -150,14 +153,14 @@ export function unifiedDiff(oldText: string, newText: string, context = 3): stri
   let j = 0;
   while (i < n || j < m) {
     if (i < n && j < m && a[i] === b[j]) {
-      ops.push({ kind: ' ', text: a[i]!, oldNo: i + 1, newNo: j + 1 });
+      ops.push({ kind: ' ', text: a[i] as string, oldNo: i + 1, newNo: j + 1 });
       i++;
       j++;
-    } else if (j >= m || (i < n && dp[i + 1]![j]! >= dp[i]![j + 1]!)) {
-      ops.push({ kind: '-', text: a[i]!, oldNo: i + 1, newNo: j });
+    } else if (j >= m || (i < n && at(i + 1, j) >= at(i, j + 1))) {
+      ops.push({ kind: '-', text: a[i] as string, oldNo: i + 1, newNo: j });
       i++;
     } else {
-      ops.push({ kind: '+', text: b[j]!, oldNo: i, newNo: j + 1 });
+      ops.push({ kind: '+', text: b[j] as string, oldNo: i, newNo: j + 1 });
       j++;
     }
   }
@@ -171,13 +174,12 @@ export function unifiedDiff(oldText: string, newText: string, context = 3): stri
   }
   const out: string[] = [];
   for (const [s, e] of groups) {
-    const from = Math.max(0, s - context);
-    const to = Math.min(ops.length - 1, e + context);
-    const slice = ops.slice(from, to + 1);
+    const slice = ops.slice(Math.max(0, s - context), Math.min(ops.length - 1, e + context) + 1);
+    const first = slice[0] as Op;
     const oldOps = slice.filter((o) => o.kind !== '+');
     const newOps = slice.filter((o) => o.kind !== '-');
-    const oldStart = oldOps.length > 0 ? oldOps[0]!.oldNo : slice[0]!.oldNo;
-    const newStart = newOps.length > 0 ? newOps[0]!.newNo : slice[0]!.newNo;
+    const oldStart = (oldOps[0] ?? first).oldNo;
+    const newStart = (newOps[0] ?? first).newNo;
     out.push(`@@ -${oldStart},${oldOps.length} +${newStart},${newOps.length} @@`);
     for (const o of slice) out.push(`${o.kind}${o.text}`);
   }
