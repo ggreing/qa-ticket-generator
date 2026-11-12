@@ -69,7 +69,8 @@ export interface PipelineOutcome {
 
 const ZERO_USAGE: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const PRD_TIMEOUT_MS = 15_000;
-const EXPECTED_OUTPUT_TOKENS = 32_000;
+/** Pre-call output estimate for the cost guard (LLM-10): ~6K visible JSON + adaptive thinking at high effort. */
+const EXPECTED_OUTPUT_TOKENS = 12_000;
 const MAP_CONCURRENCY = 3;
 
 export async function runPipeline(
@@ -192,6 +193,10 @@ export async function runPipeline(
   } catch (err) {
     const e = toQtgError(err);
     logger.error(`${e.code}: ${e.message}`);
+    if (e.usage) {
+      meta.usage = e.usage;
+      meta.costUsd = deps.llm.estimateCostUsd(e.usage);
+    }
     final = { ...base, status: 'error', report: null, error: { code: e.code, message: e.userMessage } };
     if (e.code === 'cancelled') {
       meta.durationMs = deps.now() - started;

@@ -9,6 +9,7 @@ import type {
   PreprocessOutput,
   TriggerEvent,
 } from '../../src/core/contracts';
+import { QtgError } from '../../src/core/errors';
 import { type PipelineDeps, runPipeline } from '../../src/core/pipeline';
 import { fakePr, fakeReport, inputs, silentLogger } from '../helpers/fakes';
 
@@ -192,6 +193,19 @@ describe('runPipeline', () => {
       signal,
     );
     expect(strict.failed).toBe(true);
+  });
+
+  it('reports billed usage from a failed LLM run', async () => {
+    const usage = { inputTokens: 50_000, outputTokens: 1_000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const err = new QtgError('llm_unavailable', 'Anthropic API unavailable.', { usage });
+    const { deps } = makeDeps({
+      orchestrate: vi.fn(async () => Promise.reject(err)),
+      llm: { id: 'fake', generateReport: vi.fn(), mergeReports: vi.fn(), estimateCostUsd: () => 0.22 },
+    });
+    const { final } = await runPipeline(deps, cfg(), fakePr(), labeled, signal);
+    expect(final.status).toBe('error');
+    expect(final.meta.usage).toEqual(usage);
+    expect(final.meta.costUsd).toBe(0.22);
   });
 
   it('publishes nothing when the run is cancelled', async () => {
