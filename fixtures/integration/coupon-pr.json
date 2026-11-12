@@ -1,0 +1,77 @@
+{
+  "_comment": "Synthetic pull request for the end-to-end pipeline tests (no real data).",
+  "repo": {
+    "owner": "acme",
+    "repo": "shop"
+  },
+  "pull": {
+    "number": 42,
+    "title": "Apply a coupon at checkout",
+    "body": "Implements PROJ-123 (coupon at checkout).\n\nDesign notes: https://www.notion.so/acme/Coupon-design-0123456789abcdef0123456789abcdef\n\nCloses #7\n\n<!-- Template example, must be ignored: PROJ-999 https://acme.atlassian.net/browse/PROJ-998 -->",
+    "user": {
+      "login": "dev"
+    },
+    "html_url": "https://github.com/acme/shop/pull/42",
+    "draft": false,
+    "labels": [
+      {
+        "name": "needs-ai-qa"
+      }
+    ],
+    "base": {
+      "ref": "main",
+      "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "repo": {
+        "full_name": "acme/shop"
+      }
+    },
+    "head": {
+      "ref": "feat/coupon",
+      "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "repo": {
+        "full_name": "acme/shop"
+      }
+    }
+  },
+  "files": [
+    {
+      "filename": "src/coupon.ts",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 0,
+      "patch": "@@ -14,6 +14,9 @@ export class CouponService {\n     }\n     const total = 100;\n     const rate = 0.1;\n+    if (coupon.usedBy.has(orderId)) {\n+      throw new Error('coupon already used');\n+    }\n     coupon.usedBy.add(orderId);\n     const discount = Math.round(total * rate);\n     const logged = `${coupon.code}:${discount}`;"
+    },
+    {
+      "filename": "src/checkout/discount.ts",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "patch": "@@ -1,3 +1,3 @@\n export function discount(total: number, pct: number): number {\n-  return total - total * pct;\n+  return Math.max(0, total - total * pct);\n }"
+    },
+    {
+      "filename": "package-lock.json",
+      "status": "modified",
+      "additions": 2,
+      "deletions": 2,
+      "patch": "@@ -10,4 +10,4 @@\n     \"node_modules/left-pad\": {\n-      \"version\": \"1.3.0\"\n+      \"version\": \"1.3.1\"\n     }"
+    }
+  ],
+  "headContents": {
+    "src/coupon.ts": "export interface Coupon {\n  code: string;\n  expiresAt: number;\n  usedBy: Set<string>;\n}\n\nexport class CouponService {\n  constructor(private readonly now: () => number) {}\n\n  apply(coupon: Coupon, orderId: string): number {\n    const now = this.now();\n    if (now > coupon.expiresAt) {\n      return 0;\n    }\n    const total = 100;\n    const rate = 0.1;\n    if (coupon.usedBy.has(orderId)) {\n      throw new Error('coupon already used');\n    }\n    coupon.usedBy.add(orderId);\n    const discount = Math.round(total * rate);\n    const logged = `${coupon.code}:${discount}`;\n    void logged;\n    return discount;\n  }\n\n  describe(coupon: Coupon): string {\n    return `${coupon.code} (${coupon.expiresAt})`;\n  }\n}\n"
+  },
+  "repoConfig": "prd:\n  jiraProjectKeys: [PROJ]\nprompt:\n  extraInstructions: Coupons are single-use per order.\n  glossary:\n    - term: Order\n      meaning: One checkout attempt\n",
+  "issues": {
+    "7": {
+      "number": 7,
+      "title": "Coupons at checkout",
+      "body": "## Acceptance Criteria\n- [ ] A coupon applies once per order\n- [ ] The discount never makes the total negative",
+      "html_url": "https://github.com/acme/shop/issues/7",
+      "state": "open",
+      "labels": [
+        {
+          "name": "prd"
+        }
+      ]
+    }
+  }
+}
