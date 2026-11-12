@@ -30,6 +30,8 @@ export interface AstRuntime {
   grammarDir: string | null;
   /** Load problems (file names / messages only, never content). */
   errors: string[];
+  /** Requested languages whose grammar could not be loaded (PRE-06 `ast_failed` warnings). */
+  failed: AstLanguage[];
 }
 
 /** Candidate grammar directories, in priority order. */
@@ -76,12 +78,13 @@ function loadLanguage(file: string): Promise<Language> {
  * in `errors` and the affected languages use the line-window fallback.
  */
 export async function loadAstRuntime(languages: readonly string[], grammarDir?: string): Promise<AstRuntime> {
-  const runtime: AstRuntime = { parsers: new Map(), grammarDir: null, errors: [] };
+  const runtime: AstRuntime = { parsers: new Map(), grammarDir: null, errors: [], failed: [] };
   const wanted = [...new Set(languages.filter(isAstLanguage))];
   if (wanted.length === 0) return runtime;
   const dir = grammarDir ?? resolveGrammarDir();
   if (!dir || !existsSync(join(dir, RUNTIME_WASM))) {
     runtime.errors.push(`grammar directory not found (${RUNTIME_WASM})`);
+    runtime.failed = wanted;
     return runtime;
   }
   runtime.grammarDir = dir;
@@ -89,6 +92,7 @@ export async function loadAstRuntime(languages: readonly string[], grammarDir?: 
     await initRuntime(dir);
   } catch (err) {
     runtime.errors.push(`runtime init failed: ${errorMessage(err)}`);
+    runtime.failed = wanted;
     return runtime;
   }
   for (const lang of wanted) {
@@ -101,6 +105,7 @@ export async function loadAstRuntime(languages: readonly string[], grammarDir?: 
       runtime.parsers.set(lang, parser);
     } catch (err) {
       runtime.errors.push(`${lang}: ${errorMessage(err)}`);
+      runtime.failed.push(lang);
     }
   }
   return runtime;

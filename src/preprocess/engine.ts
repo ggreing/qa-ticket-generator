@@ -5,7 +5,6 @@
 import type {
   ChangedFile,
   CodeChunk,
-  CodeContext,
   Hunk,
   PackedFile,
   PrdDocument,
@@ -13,8 +12,9 @@ import type {
   PreprocessOutput,
   RedactionCount,
   SkippedFile,
+  Warning,
 } from '../core/contracts';
-import { expandContexts } from './ast/expand';
+import { type ExpandResult, expandContexts } from './ast/expand';
 import { type AstLanguage, astLanguageForPath } from './ast/languages';
 import type { AstRuntime } from './ast/runtime';
 import { parsePatch, sideLines } from './diff';
@@ -104,7 +104,7 @@ function contextsFor(
   hunks: readonly Hunk[],
   language: AstLanguage | null,
   ast: AstRuntime,
-): CodeContext[] {
+): ExpandResult {
   const content = file.headContent as string;
   const parser = language ? (ast.parsers.get(language) ?? null) : null;
   return expandContexts({
@@ -114,7 +114,47 @@ function contextsFor(
     hunks,
     language: parser ? language : null,
     parser,
-  }).contexts;
+  });
+}
+
+const groupDigits = (n: number): string => String(n).replace(/B(?=(d{3})+(?!d))/g, ',');
+
+/**
+ * PRE-06 `ast_failed` warnings: counts and language ids only (never paths or content).
+ * Order: grammar load failures, parse failures, parse budget reached.
+ */
+function astWarnings(
+  ast: AstRuntime,
+  enabled: readonly string[],
+  stats: { loadMissing: number; parseFailed: Map<string, number>; overBudget: number },
+  maxAstParseChars: number,
+): Warning[] {
+  const warnings: Warning[] = [];
+  const failed = ast.failed.filter((l) => enabled.includes(l)).sort(cmp);
+  if (failed.length > 0) {
+    warnings.push({
+      code: 'ast_failed',
+      message: `tree-sitter grammar failed to load (${failed.join(', ')}); ${stats.loadMissing} file(s) used ±20 line context instead.`,
+    });
+  }
+  const parseTotal = [...stats.parseFailed.values()].reduce((a, b) => a + b, 0);
+  if (parseTotal > 0) {
+    const byLang = [...stats.parseFailed.entries()]
+      .sort((a, b) => cmp(a[0], b[0]))
+      .map(([l, n]) => `${l}: ${n}`)
+      .join(', ');
+    warnings.push({
+      code: 'ast_failed',
+      message: `tree-sitter parsing failed for ${parseTotal} file(s) (${byLang}); ±20 line context was used instead.`,
+    });
+  }
+  if (stats.overBudget > 0) {
+    warnings.push({
+      code: 'ast_failed',
+      message: `AST parse budget (${groupDigits(maxAstParseChars)} characters per run) reached; ${stats.overBudget} lower-priority file(s) used ±20 line context.`,
+    });
+  }
+  return warnings;
 }
 
 /** Files that can get contexts: head contents present, modified/renamed, not a manifest. */
@@ -232,14 +272,22 @@ export function runPreprocess(
 
   // PRE-06 — contexts, parsing the highest-scored files first within MAX_AST_PARSE_CHARS.
   let parseBudget = limits.maxAstParseChars;
+  const stats = { loadMissing: 0, parseFailed: new Map<string, number>(), overBudget: 0 };
   const byScore = [...kept].sort((a, b) => b.base.score - a.base.score || cmp(a.base.path, b.base.path));
   for (const k of byScore) {
     if (!wantsContexts(k.file, k.hunks)) continue;
     const size = (k.file.headContent as string).length;
-    const parse = k.language !== null && ast.parsers.has(k.language) && size <= parseBudget;
+    const lang = k.language;
+    const loaded = lang !== null && ast.parsers.has(lang);
+    if (lang !== null && !loaded && ast.failed.includes(lang)) stats.loadMissing++;
+    const parse = loaded && size <= parseBudget;
+    if (loaded && !parse) stats.overBudget++;
     if (parse) parseBudget -= size;
-    k.base.contexts = contextsFor(k.file, k.hunks, parse ? k.language : null, ast);
+    const r = contextsFor(k.file, k.hunks, parse ? lang : null, ast);
+    if (r.astFailed && lang) stats.parseFailed.set(lang, (stats.parseFailed.get(lang) ?? 0) + 1);
+    k.base.contexts = r.contexts;
   }
+  const warnings = astWarnings(ast, options.astLanguages, stats, limits.maxAstParseChars);
   const packed: PackedFile[] = kept.map((k) => sized(k.base));
 
   const budget = codeBudget(options.tokenBudget, options.reservedTokens, prdTokens);
@@ -260,5 +308,14 @@ export function runPreprocess(
 
   const perCall = options.reservedTokens + prdTokens;
   const estimatedTokens = chunks.reduce((s, ch) => s + perCall + ch.estimatedTokens, 0);
-  return { mode: result.mode, chunks, prdDocuments, skipped, redactions, estimatedTokens };
+  return {
+    mode: result.mode,
+    chunks,
+    prdDocuments,
+    skipped,
+    redactions,
+    estimatedTokens,
+    // Omitted when empty so outputs without problems stay byte-identical.
+    ...(warnings.length > 0 ? { warnings } : {}),
+  };
 }
