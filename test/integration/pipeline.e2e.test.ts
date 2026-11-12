@@ -233,8 +233,11 @@ describe('E2E secrets in the PR body and diff (PRE-05)', () => {
   const ghToken = `${['gh', 'p_'].join('')}${'x'.repeat(36)}`;
   const awsKey = `${['AK', 'IA'].join('')}${'Z'.repeat(16)}`;
   const stripeKey = `${['sk', '_live_'].join('')}${'a'.repeat(24)}`;
+  const slackToken = `${['xo', 'xb-'].join('')}1234567890-abcdefghij`;
+  const secrets = [ghToken, awsKey, stripeKey, slackToken];
 
-  it('E2E-4 raw secrets never reach Claude, Slack, the comment or the logs, and the footer counts them', async () => {
+  it('E2E-4 raw secrets never reach Claude, Slack, the comment, report.json or the logs, and the footer counts them', async () => {
+    world.github.pull.title = `Apply a coupon at checkout (debug ${slackToken})`;
     world.github.pull.body = `Implements PROJ-123.\n\nDebug token: ${ghToken}\nAWS: ${awsKey}`;
     world.github.files.push({
       filename: 'src/config.ts',
@@ -247,23 +250,33 @@ describe('E2E secrets in the PR body and diff (PRE-05)', () => {
     expect(outcome.final.status).toBe('ok');
 
     const sent = JSON.stringify(world.anthropic.requests);
-    const published = [
-      sent,
-      world.github.botComment().body,
-      JSON.stringify(world.slack.calls),
-      world.logger.lines.join('\n'),
-      world.summaries.markdown.join('\n'),
-    ];
-    for (const text of published) {
-      for (const secret of [ghToken, awsKey, stripeKey]) expect(text).not.toContain(secret);
+    const reportJson = world.summaries.json.join('\n');
+    const published = {
+      claude: sent,
+      comment: world.github.botComment().body,
+      slack: JSON.stringify(world.slack.calls),
+      logs: world.logger.lines.join('\n'),
+      summary: world.summaries.markdown.join('\n'),
+      'report.json': reportJson, // regression guard for f769dec
+    };
+    for (const [where, text] of Object.entries(published)) {
+      for (const secret of secrets) expect(text, `${where} leaks a secret`).not.toContain(secret);
     }
-    expect(sent).toContain('[REDACTED:github_token]');
-    expect(sent).toContain('[REDACTED:aws_access_key]');
-    expect(sent).toContain('[REDACTED:stripe_key]');
+    for (const type of ['github_token', 'aws_access_key', 'stripe_key', 'slack_token']) {
+      expect(sent).toContain(`[REDACTED:${type}]`);
+    }
+
+    // report.json carries the redacted PR title/body, not the originals.
+    const report = JSON.parse(world.summaries.json.at(-1) ?? '{}') as FinalReport;
+    expect(report.pr.title).toContain('[REDACTED:slack_token]');
+    expect(report.pr.body).toContain('[REDACTED:github_token]');
+    expect(report.pr.body).toContain('[REDACTED:aws_access_key]');
+    // Ref extraction still sees the original body (PROJ-123 is linked).
+    expect(outcome.final.meta.prdSources.map((r) => r.id)).toContain('PROJ-123');
 
     const total = outcome.final.meta.redactions.reduce((n, r) => n + r.count, 0);
-    expect(total).toBe(3);
-    expect(world.github.botComment().body).toContain('3 secret(s) redacted');
+    expect(total).toBe(4);
+    expect(world.github.botComment().body).toContain('4 secret(s) redacted');
   });
 });
 
