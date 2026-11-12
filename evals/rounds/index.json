@@ -54,5 +54,84 @@
         "judgeCostUsd": 0.838576
       }
     ]
+  },
+  {
+    "round": 1,
+    "date": "2026-11-12T08:38:06.292Z",
+    "promptVersion": "2026-11-12.4",
+    "change": "concision: max 8 tickets / 5 P0, decisive line first, evidence conclusion first, no repeated risks (prompt 2026-11-12.4)",
+    "split": "dev",
+    "judgeModel": "claude-sonnet-5-5",
+    "rubricVersion": 2,
+    "rejudged": true,
+    "decision": "keep",
+    "variants": [
+      {
+        "label": "claude-opus-5-5 · high",
+        "runs": 19,
+        "errors": 0,
+        "overall": 1.586058897243108,
+        "scenarioScore": 1.632644110275689,
+        "reportScore": 1.5394736842105263,
+        "graded": 15,
+        "passRate": 0.8666666666666667,
+        "alignmentAccuracy": 0.9333333333333333,
+        "findingRecall": 0.9591836734693877,
+        "injectionFlagged": "1/1",
+        "scenarioRecall": 0.9420289855072463,
+        "avgTickets": 6.7368421052631575,
+        "criteria": {
+          "actionability": 1.9158878504672898,
+          "traceability": 1.766355140186916,
+          "riskRelevance": 1.766355140186916,
+          "priority": 1.7850467289719627,
+          "alignmentCorrectness": 1.8421052631578947,
+          "concision": 1.736842105263158,
+          "honesty": 1.894736842105263,
+          "coverage": 0.6842105263157895
+        },
+        "costUsd": 3.2379626000000004,
+        "judgeCostUsd": 0.8677859999999998
+      }
+    ]
+  },
+  {
+    "round": 2,
+    "date": "2026-11-12T09:03:29.129Z",
+    "promptVersion": "2026-11-12.5",
+    "change": "coverage: a ticket per gap, keep risk classes, one finding per requirement, partial = missing (prompt 2026-11-12.5)",
+    "split": "dev",
+    "judgeModel": "claude-sonnet-5-5",
+    "rubricVersion": 2,
+    "decision": "keep",
+    "variants": [
+      {
+        "label": "claude-opus-5-5 · high",
+        "runs": 19,
+        "errors": 0,
+        "overall": 1.6622102130325813,
+        "scenarioScore": 1.6928414786967418,
+        "reportScore": 1.631578947368421,
+        "graded": 15,
+        "passRate": 1,
+        "alignmentAccuracy": 1,
+        "findingRecall": 1,
+        "injectionFlagged": "1/1",
+        "scenarioRecall": 1,
+        "avgTickets": 7.157894736842105,
+        "criteria": {
+          "actionability": 1.7906976744186047,
+          "traceability": 1.813953488372093,
+          "riskRelevance": 1.7984496124031009,
+          "priority": 1.7596899224806202,
+          "alignmentCorrectness": 1.894736842105263,
+          "concision": 1.5789473684210527,
+          "honesty": 1.9473684210526316,
+          "coverage": 1.105263157894737
+        },
+        "costUsd": 3.637202399999999,
+        "judgeCostUsd": 0.9407100000000002
+      }
+    ]
   }
 ]
