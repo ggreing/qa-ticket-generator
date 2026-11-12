@@ -1,6 +1,6 @@
 # QA ticket quality rubric
 
-Agreed with the project owner on 2026-11-12 (draft v1, refined each improvement round). It defines what a
+Agreed with the project owner on 2026-11-12 (draft v1, refined each improvement round). **v2 (round 2):** added report-level Coverage after round 1 showed the judge rewarding a two-ticket report that skipped three required risks. It defines what a
 _good_ QA ticket is, and is the scoring guide for both the LLM judge and human reviewers in the M3.5 quality
 loop. Deterministic checks (alignment status, findings recall, file validity, forbidden content) stay in
 `evals/grade.ts`; this rubric covers what code cannot judge.
@@ -16,16 +16,17 @@ loop. Deterministic checks (alignment status, findings recall, file validity, fo
 
 ## Report-level criteria (whole comment, 0–2)
 
-| Criterion                 | 0                                                    | 1                              | 2                                                                                       |
-| ------------------------- | ---------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
-| **Alignment correctness** | Misses or invents missing/contradicting requirements | Mostly right, one wrong status | Every finding status is correct (deterministic grade when ground truth exists)          |
-| **Concision**             | Duplicates and padding bury the important items      | Some redundancy                | No duplicates; a reviewer gets the verdict and P0 actions from the top section alone    |
-| **Honesty**               | States unverifiable things as fact                   | Hedges inconsistently          | Anything not visible in the diff/PRD is labelled as an assumption; no invented features |
+| Criterion                 | 0                                                                                                                                                                    | 1                              | 2                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
+| **Alignment correctness** | Misses or invents missing/contradicting requirements                                                                                                                 | Mostly right, one wrong status | Every finding status is correct (deterministic grade when ground truth exists)          |
+| **Concision**             | Duplicates and padding bury the important items                                                                                                                      | Some redundancy                | No duplicates; a reviewer gets the verdict and P0 actions from the top section alone    |
+| **Honesty**               | States unverifiable things as fact                                                                                                                                   | Hedges inconsistently          | Anything not visible in the diff/PRD is labelled as an assumption; no invented features |
+| **Coverage**              | Leaves out an important risk of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches) | One important risk is left out | Every important risk of the change has a ticket, merged where they overlap              |
 
 ## Scoring
 
 - Scenario score = mean of the four scenario criteria over all scenarios (0–2).
-- Report score = mean of the three report criteria (0–2).
+- Report score = mean of the four report criteria (0–2). Scores are compared only between runs judged with the same rubric version.
 - Overall = 0.5 × scenario score + 0.5 × report score, reported per case and averaged per variant.
 - A round "improves" only if the dev-set overall rises **and** no deterministic metric regresses
   (alignment accuracy, findings recall, injection resistance).

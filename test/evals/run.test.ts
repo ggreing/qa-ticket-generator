@@ -40,10 +40,11 @@ describe('runEvals — cost confirmation gate', () => {
     const perRun = (outcome.estimate?.runUsd ?? 0) / (DEV.length * 2);
     expect(perRun).toBeGreaterThan(0.2);
     expect(perRun).toBeLessThan(0.3);
-    // The rubric judge on Sonnet 5.5 reads the case and writes ~5K tokens: several cents per report.
+    // The rubric judge on Sonnet 5.5 reads the case and writes ~220 tokens per ticket: a few cents per report
+    // (rounds 0 and 1 measured $0.04–0.06).
     const perJudge = (outcome.estimate?.judgeUsd ?? 0) / (DEV.length * 2);
-    expect(perJudge).toBeGreaterThan(0.05);
-    expect(perJudge).toBeLessThan(0.12);
+    expect(perJudge).toBeGreaterThan(0.03);
+    expect(perJudge).toBeLessThan(0.1);
     expect(outcome.estimateUsd).toBeCloseTo(
       (outcome.estimate?.runUsd ?? 0) + (outcome.estimate?.judgeUsd ?? 0),
       9,
@@ -376,7 +377,7 @@ describe('runEvals — rubric judge (M3.5, docs/quality/RUBRIC.md)', () => {
     expect(h.rubricBodies).toHaveLength(DEV.length);
     expect(new Set(h.rubricBodies.map((b) => b.model))).toEqual(new Set(['claude-sonnet-5-5']));
 
-    // Scenario criteria 1/2/1/2 → 1.5. Report: alignment from the grade (oracle → 2), 1, 2 → 5/3.
+    // Scenario criteria 1/2/1/2 → 1.5. Report: alignment from the grade (oracle → 2), 1, 2, coverage 1 → 1.5.
     const synthetic = variant?.runs.find((r) => r.caseId === 'coupon-expiry-missing');
     expect(synthetic?.rubric).toMatchObject({
       alignmentSource: 'grade',
@@ -385,15 +386,20 @@ describe('runEvals — rubric judge (M3.5, docs/quality/RUBRIC.md)', () => {
       unscoredScenarios: [],
     });
     expect(synthetic?.rubric?.report.alignmentCorrectness).toBe(2);
-    expect(synthetic?.rubric?.overall).toBeCloseTo(0.5 * 1.5 + 0.5 * (5 / 3), 9);
-    // Without ground truth the judge's own alignment score (0) stands: report (0 + 1 + 2) / 3 = 1.
+    expect(synthetic?.rubric?.overall).toBeCloseTo(0.5 * 1.5 + 0.5 * 1.5, 9);
+    expect(synthetic?.rubric).toMatchObject({ rubricVersion: 2, reportScore: 1.5 });
+    expect(synthetic?.rubric?.coverageRisks).toEqual([
+      { risk: 'expired coupon accepted', ticket: 'TC-01' },
+      { risk: 'double redemption', ticket: '' },
+    ]);
+    // Without ground truth the judge's own alignment score (0) stands: report (0 + 1 + 2 + 1) / 4 = 1.
     const real = variant?.runs.find((r) => r.caseId === 'real-demo-1');
     expect(real?.grade).toBeNull();
     expect(real?.rubric).toMatchObject({ alignmentSource: 'judge', scenarioScore: 1.5, reportScore: 1 });
     expect(real?.rubric?.overall).toBeCloseTo(1.25, 9);
 
     const expectedOverall =
-      (DEV_GRADED.length * (0.75 + 5 / 6) + (DEV.length - DEV_GRADED.length) * 1.25) / DEV.length;
+      (DEV_GRADED.length * (0.75 + 0.75) + (DEV.length - DEV_GRADED.length) * 1.25) / DEV.length;
     expect(variant?.rubric?.judged).toBe(DEV.length);
     expect(variant?.rubric?.overall).toBeCloseTo(expectedOverall, 9);
     expect(variant?.rubric?.criteria).toMatchObject({
@@ -401,19 +407,21 @@ describe('runEvals — rubric judge (M3.5, docs/quality/RUBRIC.md)', () => {
       traceability: 2,
       concision: 1,
       honesty: 2,
+      coverage: 1,
     });
+    expect(variant?.rubric?.rubricVersion).toBe(2);
     expect(variant?.summary.graded).toBe(DEV_GRADED.length);
 
     expect(variant?.judgeCostUsd).toBeCloseTo(DEV.length * RUBRIC_COST, 9);
     expect(variant?.costUsd).toBeCloseTo(DEV.length * estimateCostUsd('claude-opus-5-5', USAGE_PER_CALL), 9);
     expect(synthetic?.rubricJudge).toMatchObject({ model: 'claude-sonnet-5-5', costUsd: RUBRIC_COST });
-    expect(h.out()).toContain('coupon-expiry-missing#1: pass, overall 1.58 ($');
+    expect(h.out()).toContain('coupon-expiry-missing#1: pass, overall 1.50 ($');
     expect(h.out()).toContain('real-demo-1#1: no ground truth, overall 1.25 ($');
     expect(h.out()).toContain(
       `| claude-opus-5-5 · high | ${DEV.length} | 0 | ${expectedOverall.toFixed(2)} | 1.50 |`,
     );
     const saved = JSON.parse(Object.values(h.files)[0] ?? '{}') as SavedResults;
-    expect(saved.judgeModel).toBe('claude-sonnet-5-5');
+    expect(saved).toMatchObject({ judgeModel: 'claude-sonnet-5-5', rubricVersion: 2 });
   });
 
   it('M3.5 the judge is shown the PRD, the change, the rendered comment and the report data', async () => {

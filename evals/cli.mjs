@@ -9,7 +9,7 @@
  *   node evals/cli.mjs snapshot-real [--ids a,b]         # fetches the real-PR snapshots (needs GITHUB_TOKEN)
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
@@ -46,10 +46,13 @@ const round = process.argv.indexOf('--round');
 if (process.argv[2] === 'run' && round > 0) {
   // The run is still going when the import above returns; format its committed records at the end.
   process.once('beforeExit', () => {
+    const dir = join(here, 'rounds', String(process.argv[round + 1]));
+    // summary.md, plus summary.rubric-v<n>.md when the round was scored again.
+    const summaries = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.md')) : [];
     format([
       join(here, 'ROUNDS.md'),
       join(here, 'rounds', 'index.json'),
-      join(here, 'rounds', String(process.argv[round + 1]), 'summary.md'),
+      ...summaries.map((f) => join(dir, f)),
     ]);
   });
 }
