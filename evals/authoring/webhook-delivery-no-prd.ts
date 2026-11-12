@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const webhookDeliveryNoPrd: AuthoredCase = {
   id: 'webhook-delivery-no-prd',
+  split: 'test',
   pr: {
     number: 2012,
     title: 'Retry and sign outgoing merchant webhooks',

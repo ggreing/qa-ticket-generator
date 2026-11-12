@@ -1,11 +1,31 @@
 {
   "dev": [
+    "api-rate-limit-aligned",
     "booking-hold-aligned",
+    "contact-import-js",
     "coupon-expiry-missing",
     "login-throttle-no-prd",
+    "notice-schedule-ko-narrative",
+    "order-cancel-state-java",
+    "payroll-rules-mapreduce",
+    "plan-proration-aligned",
     "profile-injection",
     "rbac-export-role",
-    "search-page-cap"
+    "search-page-cap",
+    "seat-picker-aligned",
+    "session-expiry-ko-ts",
+    "stock-reserve-go"
   ],
-  "test": ["migration-split-name", "notification-retry-aligned", "report-timezone", "upload-size-scan"]
+  "test": [
+    "catalog-sync-mapreduce",
+    "feature-rollout-noise",
+    "ledger-export-narrative-go",
+    "loyalty-points-injection",
+    "migration-split-name",
+    "notification-retry-aligned",
+    "refund-webhook-ko-py",
+    "report-timezone",
+    "upload-size-scan",
+    "webhook-delivery-no-prd"
+  ]
 }

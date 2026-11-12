@@ -3,6 +3,7 @@ import type { AuthoredCase } from './build';
 /** Multi-file PR where half of the files are noise: tests, a snapshot, a lockfile and tsconfig. */
 export const featureRolloutNoise: AuthoredCase = {
   id: 'feature-rollout-noise',
+  split: 'test',
   pr: {
     number: 2011,
     title: 'Percentage rollouts for feature flags',

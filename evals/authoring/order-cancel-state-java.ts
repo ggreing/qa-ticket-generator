@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const orderCancelStateJava: AuthoredCase = {
   id: 'order-cancel-state-java',
+  split: 'dev',
   pr: {
     number: 2001,
     title: 'Order status machine and cancellation endpoint',

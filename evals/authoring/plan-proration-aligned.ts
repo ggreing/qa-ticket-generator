@@ -5,6 +5,7 @@ const KT = 'billing/src/main/kotlin/com/acme/billing';
 /** Kotlin is outside the AST languages, so this case also exercises the ±20 line fallback. */
 export const planProrationAligned: AuthoredCase = {
   id: 'plan-proration-aligned',
+  split: 'dev',
   pr: {
     number: 2015,
     title: 'Prorated plan upgrades, downgrades at renewal',

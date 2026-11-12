@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const apiRateLimitAligned: AuthoredCase = {
   id: 'api-rate-limit-aligned',
+  split: 'dev',
   pr: {
     number: 2007,
     title: 'Per-key rate limit for the public API',

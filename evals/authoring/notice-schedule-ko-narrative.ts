@@ -7,6 +7,7 @@ import type { AuthoredCase } from './build';
  */
 export const noticeScheduleKoNarrative: AuthoredCase = {
   id: 'notice-schedule-ko-narrative',
+  split: 'dev',
   pr: {
     number: 2005,
     title: '앱 공지 예약 발송',

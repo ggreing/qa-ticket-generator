@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const seatPickerAligned: AuthoredCase = {
   id: 'seat-picker-aligned',
+  split: 'dev',
   pr: {
     number: 2008,
     title: 'Seat picker for the booking page',

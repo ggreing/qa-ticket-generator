@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const refundWebhookKoPy: AuthoredCase = {
   id: 'refund-webhook-ko-py',
+  split: 'test',
   pr: {
     number: 2003,
     title: '결제사 환불 웹훅 수신 처리',

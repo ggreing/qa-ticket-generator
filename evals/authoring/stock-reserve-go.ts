@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const stockReserveGo: AuthoredCase = {
   id: 'stock-reserve-go',
+  split: 'dev',
   pr: {
     number: 2002,
     title: 'Reserve stock when checkout starts',

@@ -6,6 +6,7 @@ import type { AuthoredCase } from './build';
  */
 export const ledgerExportNarrativeGo: AuthoredCase = {
   id: 'ledger-export-narrative-go',
+  split: 'test',
   pr: {
     number: 2006,
     title: 'Ledger CSV export for finance',

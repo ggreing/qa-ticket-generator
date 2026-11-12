@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const contactImportJs: AuthoredCase = {
   id: 'contact-import-js',
+  split: 'dev',
   pr: {
     number: 2014,
     title: 'CSV contact import for the CRM',

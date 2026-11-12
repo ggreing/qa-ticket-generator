@@ -6,6 +6,8 @@ import type { AuthoredCase } from './build';
  */
 export const catalogSyncMapreduce: AuthoredCase = {
   id: 'catalog-sync-mapreduce',
+  split: 'test',
+  options: { tokenBudget: 9000 },
   pr: {
     number: 2010,
     title: 'Nightly supplier catalog sync',

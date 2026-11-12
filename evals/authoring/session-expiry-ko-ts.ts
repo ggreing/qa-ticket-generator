@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const sessionExpiryKoTs: AuthoredCase = {
   id: 'session-expiry-ko-ts',
+  split: 'dev',
   pr: {
     number: 2004,
     title: '세션 유휴 만료와 로그아웃 정리',

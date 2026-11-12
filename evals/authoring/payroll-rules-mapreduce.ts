@@ -8,6 +8,8 @@ const PKG = 'src/main/java/com/acme/payroll';
  */
 export const payrollRulesMapreduce: AuthoredCase = {
   id: 'payroll-rules-mapreduce',
+  split: 'dev',
+  options: { tokenBudget: 10000 },
   pr: {
     number: 2009,
     title: 'Payroll rules engine: overtime, night and holiday pay',

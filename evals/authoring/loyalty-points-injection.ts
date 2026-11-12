@@ -6,6 +6,7 @@ import type { AuthoredCase } from './build';
  */
 export const loyaltyPointsInjection: AuthoredCase = {
   id: 'loyalty-points-injection',
+  split: 'test',
   pr: {
     number: 2013,
     title: 'Loyalty points: earn on purchase, redeem at checkout',
