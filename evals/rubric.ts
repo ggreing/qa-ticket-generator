@@ -24,6 +24,12 @@ const MAX_TOKENS = 16_000;
 /** Judge output seen in rounds 0 and 1: about 170–215 tokens per ticket plus the report part. */
 export const JUDGE_OUTPUT_BASE_TOKENS = 700;
 export const JUDGE_OUTPUT_TOKENS_PER_TICKET = 220;
+/**
+ * A judge reply that scores fewer than this share of the report's scenarios is not a score.
+ * It is asked for once more, and if it is still short the report is left out of the means:
+ * averaging in a scenario score of 0 for tickets nobody looked at would misstate the report.
+ */
+export const MIN_SCORED_SHARE = 0.5;
 /** Longest patch excerpt per file shown to the judge; enough to check traceability claims. */
 const MAX_PATCH_CHARS = 6_000;
 
@@ -222,6 +228,10 @@ export interface RubricScore {
   alignmentSource: 'grade' | 'judge';
   /** Scenarios in the report that the judge returned no score for. */
   unscoredScenarios: string[];
+  /** How the judge's entries were matched to scenarios, when not all by exact id. */
+  matchedBy?: { id: number; normalizedId: number; title: number; position: number };
+  /** Ids the judge returned that matched no scenario, kept to diagnose a short reply. */
+  unmatchedJudgeIds?: string[];
   scenarioScore: number;
   reportScore: number;
   overall: number;
@@ -230,9 +240,12 @@ export interface RubricScore {
 export interface RubricResult {
   score: RubricScore | null;
   model: string;
+  /** Summed over every attempt. */
   usage: LlmUsage;
   costUsd: number;
   error?: string;
+  /** Judge calls made for this report; 2 when the first reply left most scenarios unscored. */
+  attempts?: number;
 }
 
 const ZERO: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -245,6 +258,63 @@ const reportMean = (report: ReportScores): number =>
 /** The rubric version a stored score was produced under. */
 export const rubricVersionOf = (score: RubricScore): number => score.rubricVersion ?? FIRST_RUBRIC_VERSION;
 
+/** "TC-01", "tc 1", "TC-1: title" and "1" all name the same scenario. Null when the text holds no number. */
+function idKey(id: string): string | null {
+  const m = /^\s*([A-Za-z]{1,6})?[\s_#-]*0*(\d{1,4})\b/.exec(id);
+  return m ? `${(m[1] ?? 'TC').toUpperCase()}-${Number(m[2])}` : null;
+}
+const titleKey = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+/**
+ * Pairs the judge's entries with the report's scenarios. Exact id first; then the id read
+ * loosely ("TC-1" for "TC-01"); then the title, when the judge put it where the id belongs; and
+ * last the position, only when the judge returned exactly one entry per scenario. An entry that
+ * points at a scenario already taken (a repeated id) waits for a later step.
+ */
+function matchScenarios(
+  entries: { id: string }[],
+  scenarios: { id: string; title: string }[],
+): { scenarioOf: (number | undefined)[]; by: NonNullable<RubricScore['matchedBy']> } {
+  const scenarioOf: (number | undefined)[] = entries.map(() => undefined);
+  const taken = new Set<number>();
+  const by = { id: 0, normalizedId: 0, title: 0, position: 0 };
+  const pass = (step: keyof typeof by, find: (entry: { id: string }, index: number) => number): void => {
+    entries.forEach((entry, i) => {
+      if (scenarioOf[i] !== undefined) return;
+      const s = find(entry, i);
+      if (s < 0 || taken.has(s)) return;
+      scenarioOf[i] = s;
+      taken.add(s);
+      by[step]++;
+    });
+  };
+  pass('id', (e) => scenarios.findIndex((s, i) => !taken.has(i) && s.id === e.id));
+  pass('normalizedId', (e) => {
+    const key = idKey(e.id);
+    return key === null ? -1 : scenarios.findIndex((s, i) => !taken.has(i) && idKey(s.id) === key);
+  });
+  pass('title', (e) => {
+    const key = titleKey(e.id);
+    if (key.length < 8) return -1;
+    return scenarios.findIndex((s, i) => {
+      const title = titleKey(s.title);
+      return !taken.has(i) && title.length >= 8 && (key.includes(title) || title.includes(key));
+    });
+  });
+  if (entries.length === scenarios.length) pass('position', (_e, i) => i);
+  return { scenarioOf, by };
+}
+
+/** Share of the report's scenarios that a score covers; 1 for a report without scenarios. */
+export function scoredShare(score: RubricScore): number {
+  const total = score.scenarios.length + score.unscoredScenarios.length;
+  return total === 0 ? 1 : score.scenarios.length / total;
+}
+
 /** RUBRIC.md: with ground truth, alignment correctness is 2 when everything is right, 1 with one wrong status, else 0. */
 export function alignmentScoreFromGrade(grade: CaseGrade): number {
   const wrongFindings = grade.findings.filter((f) => !f.ok).length;
@@ -254,16 +324,21 @@ export function alignmentScoreFromGrade(grade: CaseGrade): number {
 
 /** Turns the judge's raw output into scores (RUBRIC.md "Scoring"). Throws on an out-of-range score. */
 export function scoreRubric(output: Output, report: QaReport, grade: CaseGrade | null): RubricScore {
-  const known = new Set(report.scenarios.map((s) => s.id));
+  const { scenarioOf, by } = matchScenarios(output.scenarios, report.scenarios);
   const seen = new Set<string>();
   const scenarios: ScenarioScore[] = [];
-  for (const s of output.scenarios) {
-    if (!known.has(s.id) || seen.has(s.id)) continue; // a score for a scenario that is not in the report
-    seen.add(s.id);
+  const unmatched: string[] = [];
+  output.scenarios.forEach((s, i) => {
+    const target = scenarioOf[i] === undefined ? undefined : report.scenarios[scenarioOf[i]];
+    if (!target) {
+      unmatched.push(s.id); // a score for a scenario that is not in the report, or a repeat
+      return;
+    }
+    seen.add(target.id);
     for (const c of SCENARIO_CRITERIA)
-      if (!inRange(s[c])) throw new Error(`score out of range for ${s.id}.${c}`);
+      if (!inRange(s[c])) throw new Error(`score out of range for ${target.id}.${c}`);
     scenarios.push({
-      id: s.id,
+      id: target.id,
       actionability: s.actionability,
       traceability: s.traceability,
       riskRelevance: s.riskRelevance,
@@ -275,7 +350,10 @@ export function scoreRubric(output: Output, report: QaReport, grade: CaseGrade |
         priority: s.priorityWhy,
       },
     });
-  }
+  });
+  // Report order, so a stored score reads the same whatever order the judge answered in.
+  const order = new Map(report.scenarios.map((s, i) => [s.id, i]));
+  scenarios.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   for (const c of REPORT_CRITERIA)
     if (!inRange(output.report[c])) throw new Error(`score out of range for report.${c}`);
 
@@ -304,6 +382,8 @@ export function scoreRubric(output: Output, report: QaReport, grade: CaseGrade |
     judgedAlignmentCorrectness: output.report.alignmentCorrectness,
     alignmentSource: grade ? 'grade' : 'judge',
     unscoredScenarios: report.scenarios.map((s) => s.id).filter((id) => !seen.has(id)),
+    ...(by.normalizedId + by.title + by.position > 0 ? { matchedBy: by } : {}),
+    ...(unmatched.length > 0 ? { unmatchedJudgeIds: unmatched.slice(0, 20) } : {}),
     scenarioScore,
     reportScore,
     overall: 0.5 * scenarioScore + 0.5 * reportScore,
@@ -346,19 +426,28 @@ export function buildRubricInput(evalCase: EvalCase, report: QaReport, renderedC
     risks: report.risks,
     assumptions: report.assumptions,
   };
-  return `<prd>\n${prd}\n</prd>\n<code_change>\n${change}\n</code_change>\n<rendered_comment>\n${renderedComment}\n</rendered_comment>\n<report_data>\n${JSON.stringify(data, null, 1)}\n</report_data>`;
+  // Said last and in so many words: in rounds 1 and 2 the judge sometimes returned no scenario entries at all.
+  const ids = report.scenarios.map((s) => s.id);
+  const toScore =
+    ids.length > 0
+      ? `Return one entry in \`scenarios\` for each of these ${ids.length} scenarios, with exactly these ids: ${ids.join(', ')}.`
+      : 'The report has no scenarios, so `scenarios` stays empty.';
+  return `<prd>\n${prd}\n</prd>\n<code_change>\n${change}\n</code_change>\n<rendered_comment>\n${renderedComment}\n</rendered_comment>\n<report_data>\n${JSON.stringify(data, null, 1)}\n</report_data>\n${toScore}`;
 }
 
-/**
- * Scores one report with the rubric judge. Never throws: a failed, truncated or malformed judge
- * reply comes back as `score: null` with the reason, and whatever it cost.
- */
-export async function judgeWithRubric(
+const addUsage = (a: LlmUsage, b: LlmUsage): LlmUsage => ({
+  inputTokens: a.inputTokens + b.inputTokens,
+  outputTokens: a.outputTokens + b.outputTokens,
+  cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
+  cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
+});
+
+/** One judge call. Never throws. */
+async function judgeOnce(
   client: RubricClientLike,
   model: string,
-  evalCase: EvalCase,
+  input: string,
   report: QaReport,
-  renderedComment: string,
   grade: CaseGrade | null,
 ): Promise<RubricResult> {
   try {
@@ -367,7 +456,7 @@ export async function judgeWithRubric(
       max_tokens: MAX_TOKENS,
       system: RUBRIC_SYSTEM,
       output_config: { effort: 'medium', format: OUTPUT_FORMAT },
-      messages: [{ role: 'user', content: buildRubricInput(evalCase, report, renderedComment) }],
+      messages: [{ role: 'user', content: input }],
     });
     const usage: LlmUsage = {
       inputTokens: message.usage.input_tokens,
@@ -396,6 +485,70 @@ export async function judgeWithRubric(
       error: err instanceof Error ? err.name : 'judge call failed',
     };
   }
+}
+
+/**
+ * Scores one report with the rubric judge. Never throws: a failed, truncated or malformed judge
+ * reply comes back as `score: null` with the reason, and whatever it cost.
+ *
+ * A reply that scores fewer than half of the scenarios is asked for once more. If the second one
+ * is short too, the report gets no score ("judge incomplete") rather than a scenario score of 0.
+ */
+export async function judgeWithRubric(
+  client: RubricClientLike,
+  model: string,
+  evalCase: EvalCase,
+  report: QaReport,
+  renderedComment: string,
+  grade: CaseGrade | null,
+): Promise<RubricResult> {
+  const input = buildRubricInput(evalCase, report, renderedComment);
+  const first = await judgeOnce(client, model, input, report, grade);
+  if (!first.score || scoredShare(first.score) >= MIN_SCORED_SHARE) return first;
+
+  const second = await judgeOnce(client, model, input, report, grade);
+  const spent = {
+    model: second.model,
+    usage: addUsage(first.usage, second.usage),
+    costUsd: first.costUsd + second.costUsd,
+    attempts: 2,
+  };
+  if (second.score && scoredShare(second.score) >= MIN_SCORED_SHARE) return { ...spent, score: second.score };
+  const best = [first.score, second.score]
+    .filter((s): s is RubricScore => s !== null)
+    .sort((a, b) => scoredShare(b) - scoredShare(a))[0] as RubricScore;
+  const total = best.scenarios.length + best.unscoredScenarios.length;
+  return {
+    ...spent,
+    score: null,
+    error: `judge incomplete: scored ${best.scenarios.length} of ${total} scenarios in two attempts`,
+  };
+}
+
+/** The part of a stored run these helpers need. */
+interface JudgedRun {
+  caseId: string;
+  rep: number;
+  rubric?: RubricScore;
+  rubricJudge?: { error?: string };
+}
+
+/** Runs the judge was asked about that have no rubric score: `caseId#rep (reason)`. */
+export function unscoredReports(runs: JudgedRun[]): string[] {
+  return runs
+    .filter((r) => r.rubricJudge && !r.rubric)
+    .map((r) => `${r.caseId}#${r.rep + 1} (${r.rubricJudge?.error ?? 'no score'})`);
+}
+
+/** What to tell the person running the eval when some reports came back without a rubric score. */
+export function unscoredNote(runs: JudgedRun[], resultsPath: string): string[] {
+  const unscored = unscoredReports(runs);
+  if (unscored.length === 0) return [];
+  const ids = [...new Set(runs.filter((r) => r.rubricJudge && !r.rubric).map((r) => r.caseId))];
+  return [
+    `${unscored.length} report(s) have no rubric score and are left out of the rubric means: ${unscored.join(', ')}.`,
+    `Score only those again with: --rejudge ${resultsPath} --cases ${ids.join(',')}`,
+  ];
 }
 
 export interface RubricSummary {

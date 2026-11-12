@@ -74,6 +74,10 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
         scenarioRecall: 1,
         avgTickets: (variant?.runs ?? []).reduce((n, r) => n + r.report.scenarios.length, 0) / DEV.length,
         criteria: variant?.rubric?.criteria,
+        judged: DEV.length,
+        caseOverall: Object.fromEntries(
+          (variant?.runs ?? []).map((r) => [`${r.caseId}#1`, r.rubric?.overall]),
+        ),
         costUsd: variant?.costUsd,
         judgeCostUsd: variant?.judgeCostUsd,
       },

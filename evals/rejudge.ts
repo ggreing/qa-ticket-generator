@@ -4,6 +4,10 @@
  * to give an earlier round scores that later rounds can be compared with.
  *
  * Like a run, it prints the plan and the estimated cost first and calls the API only with `--yes`.
+ *
+ * With `--cases` only those reports are scored again, for the ones a judge call left without a
+ * usable score. The file is then updated in place, after a copy of the original is written next
+ * to it, because the other reports keep the scores they have.
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
@@ -20,6 +24,7 @@ import {
   RUBRIC_VERSION,
   type RubricScore,
   summarizeRubric,
+  unscoredNote,
 } from './rubric';
 import type { RunDeps, RunOptions, RunOutcome, RunRecord, SavedResults, VariantResult } from './run';
 import { type EvalCase, inputHashOf } from './schema';
@@ -72,11 +77,30 @@ export async function rejudgeResults(
     return { exitCode: 2, executed: false, estimateUsd: 0 };
   }
 
+  // ── only some cases: the rest of the file keeps its scores, so they must be current ones ──
+  const only = options.caseIds;
+  const partial = only.length > 0;
+  if (partial) {
+    if (saved.rubricVersion !== RUBRIC_VERSION) {
+      print(
+        `Cannot re-judge only some cases: ${path} holds ${saved.rubricVersion === undefined ? 'scores from before rubric versions were recorded' : `rubric v${saved.rubricVersion} scores`}, and mixing them with rubric v${RUBRIC_VERSION} scores would make the file meaningless. Re-judge the whole file first, without --cases.`,
+      );
+      return { exitCode: 2, executed: false, estimateUsd: 0 };
+    }
+    const inFile = new Set(saved.variants.flatMap((v) => v.runs.map((r) => r.caseId)));
+    const absent = only.filter((id) => !inFile.has(id));
+    if (absent.length > 0) {
+      print(`Cannot re-judge: ${path} has no run for ${absent.join(', ')}.`);
+      return { exitCode: 2, executed: false, estimateUsd: 0 };
+    }
+  }
+
   const byId = new Map(cases.map((c) => [c.id, c]));
   const jobs: Job[] = [];
   const skipped: Record<Skip, string[]> = { unknown_case: [], stale: [], no_comment: [] };
   saved.variants.forEach((variant, v) => {
     variant.runs.forEach((run, index) => {
+      if (partial && !only.includes(run.caseId)) return;
       const evalCase = byId.get(run.caseId);
       const reason = skipReason(run, evalCase);
       if (reason) skipped[reason].push(`${run.caseId}#${run.rep + 1}`);
@@ -104,7 +128,9 @@ export async function rejudgeResults(
   print(`Re-judge plan — rubric v${RUBRIC_VERSION}`);
   print(`  source: ${path} (prompt ${saved.promptVersion ?? 'unknown'}, split ${saved.split ?? 'unknown'})`);
   print(`  judge model: ${model}`);
-  print(`  reports to judge: ${jobs.length}`);
+  print(
+    `  reports to judge: ${jobs.length}${partial ? ` (only ${only.join(', ')}; the other reports keep their scores)` : ''}`,
+  );
   const notes: [Skip, string][] = [
     ['stale', "the case's PR, files or PRD changed after the run"],
     ['unknown_case', 'no such case on this machine'],
@@ -118,8 +144,13 @@ export async function rejudgeResults(
   print('  estimated run cost:   $0.00 (no report is generated)');
   print(`  estimated judge cost: ~$${estimateUsd.toFixed(2)} (${model} rubric judge)`);
   print(`  estimated total:      ~$${estimateUsd.toFixed(2)}`);
+  if (partial) print(`  ${path} is updated in place; the original is copied to ${path}.bak-<time> first`);
   if (options.round !== null) {
-    print(`  the scores are recorded for round ${options.round} beside its existing record`);
+    print(
+      partial
+        ? `  the record of round ${options.round} is updated with the new scores`
+        : `  the scores are recorded for round ${options.round} beside its existing record`,
+    );
   }
 
   if (jobs.length === 0) {
@@ -139,10 +170,15 @@ export async function rejudgeResults(
   // ── judge ───────────────────────────────────────────────────────────────────
   const client = deps.createRubricClient(apiKey);
   const startedAt = new Date(deps.now()).toISOString();
-  // Old scores never travel into the new file: a run that is not judged again has no rubric score.
+  // A whole-file re-judge never carries an old score into the new file: a run that is not judged
+  // again has no rubric score. With --cases the other runs keep theirs (same rubric version).
   const variants: VariantResult[] = saved.variants.map((variant) => ({
     ...variant,
-    runs: variant.runs.map(({ rubric: _old, rubricJudge: _oldJudge, ...run }) => run),
+    runs: variant.runs.map((run) => {
+      if (partial && !only.includes(run.caseId)) return run;
+      const { rubric: _old, rubricJudge: _oldJudge, ...rest } = run;
+      return rest;
+    }),
   }));
   await pool(jobs, options.concurrency, async (job) => {
     const scored = await judgeWithRubric(
@@ -162,6 +198,7 @@ export async function rejudgeResults(
         usage: scored.usage,
         costUsd: scored.costUsd,
         ...(scored.error ? { error: scored.error } : {}),
+        ...(scored.attempts ? { attempts: scored.attempts } : {}),
       },
     };
     const name = `${job.run.caseId}#${job.run.rep + 1}`;
@@ -182,15 +219,21 @@ export async function rejudgeResults(
     );
   }
 
-  const result: SavedResults = {
-    ...saved,
-    judgeModel: model,
-    rubricVersion: RUBRIC_VERSION,
-    rejudgedFrom: path,
-    rejudgedAt: startedAt,
-    estimateUsd,
-    variants,
-  };
+  const result: SavedResults = partial
+    ? {
+        ...saved,
+        rejudgedCases: [...(saved.rejudgedCases ?? []), { at: startedAt, cases: only, judgeModel: model }],
+        variants,
+      }
+    : {
+        ...saved,
+        judgeModel: model,
+        rubricVersion: RUBRIC_VERSION,
+        rejudgedFrom: path,
+        rejudgedAt: startedAt,
+        estimateUsd,
+        variants,
+      };
   const table = formatSummaryTable(
     variants.map((v) => ({
       label: v.label,
@@ -202,9 +245,11 @@ export async function rejudgeResults(
       avgSeconds: v.runs.length > 0 ? v.runs.reduce((n, r) => n + r.seconds, 0) / v.runs.length : 0,
     })),
   );
-  const resultsPath =
-    options.round === null
-      ? join(deps.resultsRoot, `${startedAt.replace(/[:.]/g, '-')}-rejudged.json`)
+  const stamp = startedAt.replace(/[:.]/g, '-');
+  const resultsPath = partial
+    ? path
+    : options.round === null
+      ? join(deps.resultsRoot, `${stamp}-rejudged.json`)
       : join(
           deps.evalsRoot,
           'rounds',
@@ -212,15 +257,25 @@ export async function rejudgeResults(
           'raw',
           `results.rubric-v${RUBRIC_VERSION}.json`,
         );
+  if (partial) {
+    // The file is about to be overwritten; keep what it held.
+    deps.writeFile(`${path}.bak-${stamp}`, deps.readFile(path));
+  }
   deps.writeFile(resultsPath, `${JSON.stringify(result, null, 2)}\n`);
 
   print('');
   print(table);
   print('');
-  print(`Re-judged results written to ${resultsPath}`);
-  const failed = variants.reduce((n, v) => n + v.runs.filter((r) => r.rubricJudge?.error).length, 0);
-  if (failed > 0)
-    print(`${failed} report(s) have no score because the judge failed; run --rejudge again to retry.`);
+  print(
+    partial
+      ? `${path} updated; the original is in ${path}.bak-${stamp}`
+      : `Re-judged results written to ${resultsPath}`,
+  );
+  for (const line of unscoredNote(
+    variants.flatMap((v) => v.runs),
+    resultsPath,
+  ))
+    print(line);
   if (options.round !== null) recordRejudgedRound(options.round, result, table, deps);
   return { exitCode: 0, executed: true, estimateUsd, estimate, resultsPath, variants };
 }

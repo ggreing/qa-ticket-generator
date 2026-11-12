@@ -29,15 +29,17 @@ describe('system prompt (SPEC §8)', () => {
   });
 
   it('SPEC §8 carries the coverage checklist, the alignment rubric and the priority rule', () => {
+    // What the first checklist covered is still there, now as kinds of risk read against the diff.
     for (const item of [
-      'boundary values',
-      'null or empty',
-      'permissions',
-      'concurrency',
-      'timeouts',
-      'state transitions',
+      'Boundaries: the exact limit',
+      'empty or null values',
+      'Permissions:',
+      'Races:',
+      'time out',
+      'State transitions:',
       'time zones',
-      'backward compatibility',
+      'Callers and compatibility:',
+      'stored data written before the change',
     ]) {
       expect(SYSTEM_PROMPT).toContain(item);
     }
@@ -72,7 +74,7 @@ describe('system prompt (SPEC §8)', () => {
     );
     expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
     // Wording changes ship under a new version so result files can be told apart.
-    expect(PROMPT_VERSION).toBe('2026-11-12.5');
+    expect(PROMPT_VERSION).toBe('2026-11-12.6');
   });
 
   it.each([
@@ -315,13 +317,13 @@ describe('coverage without padding (M3.5 round 2, prompt 2026-11-12.5)', () => {
       'Every finding that is missing or contradicts gets at least one scenario that fails for as long as the gap is there.',
     );
     expect(SYSTEM_PROMPT).toContain(
-      'Every kind of risk the change touches is covered at least once: state transitions, failure paths, boundaries, concurrency.',
+      'Every kind on the checklist that applies is covered by at least one scenario.',
     );
-    expect(SYSTEM_PROMPT).toContain('a kind the change touches must not vanish from the list');
+    expect(SYSTEM_PROMPT).toContain('a kind that applies must not vanish from the list');
     // Round 1: "write fewer when the change is small" produced a two-ticket report that skipped three risks.
     expect(SYSTEM_PROMPT).not.toContain('write fewer when the change is small');
     expect(SYSTEM_PROMPT).toContain(
-      'The limits are a ceiling, not a target. Write fewer scenarios only when fewer already cover every gap and every kind of risk above.',
+      'The limits are a ceiling, not a target. Write fewer scenarios only when fewer already cover every gap and every kind of risk that applies.',
     );
     // The concision rules of round 1 stay.
     expect(SYSTEM_PROMPT).toContain('One scenario per risk.');
@@ -372,5 +374,93 @@ describe('coverage without padding (M3.5 round 2, prompt 2026-11-12.5)', () => {
     for (const word of ['profanity', 'comment form', 'invoicemailer', 'return window', '14-day']) {
       expect(material, word).not.toContain(word);
     }
+  });
+});
+
+describe('risk checklist (M3.5 round 3, prompt 2026-11-12.6)', () => {
+  const KINDS = [
+    'Callers and compatibility',
+    'Permissions',
+    'Partial failure',
+    'Invalid and missing input',
+    'Duplicates and idempotency',
+    'Races',
+    'Growth and limits',
+    'Boundaries',
+    'State transitions',
+  ];
+
+  it('RUBRIC Coverage: lists the nine kinds of risk the judge found missing in round 2, each with what to look for', () => {
+    for (const kind of KINDS) expect(SYSTEM_PROMPT, kind).toContain(`\n- ${kind}: `);
+    expect(SYSTEM_PROMPT).toContain(
+      'a parameter or field that was removed or renamed, a different result for the same input',
+    );
+    expect(SYSTEM_PROMPT).toContain('whether that check is actually there');
+    expect(SYSTEM_PROMPT).toContain(
+      'a later step can fail or time out after an earlier one already took effect',
+    );
+    expect(SYSTEM_PROMPT).toContain('ids that do not exist');
+    expect(SYSTEM_PROMPT).toContain('whether the second one repeats or overwrites the first');
+    expect(SYSTEM_PROMPT).toContain('a gap between a check and the action that relies on it');
+    expect(SYSTEM_PROMPT).toContain('anything that is added to and never removed');
+  });
+
+  it('SPEC §8 a kind applies only with changed code behind it, so the checklist cannot become padding', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'A kind of risk applies only when you can point to the changed code that creates it, so leave out the kinds this change does not touch and never invent one to fill the list:',
+    );
+    // The grounding and concision rules it must not override are still there.
+    expect(SYSTEM_PROMPT).toContain(
+      'Do not describe features, endpoints, fields or requirements that appear in neither the PRD nor the code.',
+    );
+    expect(SYSTEM_PROMPT).toContain('One scenario per risk.');
+    expect(SYSTEM_PROMPT).toContain(
+      'what the type system, the framework or unchanged code already guarantees',
+    );
+  });
+
+  it('RUBRIC Coverage: an applicable kind needs a scenario; risks alone is not coverage; no room means merge', () => {
+    expect(SYSTEM_PROMPT).toContain('a mention in `risks` does not cover it');
+    expect(SYSTEM_PROMPT).toContain(
+      'When a kind that applies has no scenario and there is room under the limit, add one. When there is no room, fold it into the closest scenario as an extra step, value or expected result.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'Only when a risk that still matters cannot be folded into any scenario, name it in one line in `risks` so it is not lost. That is a note for the team, not coverage.',
+    );
+    expect(SYSTEM_PROMPT).not.toContain('risks you chose not to write a scenario for');
+    // The limits themselves are untouched: they still come from max-scenarios, in the task instruction.
+    expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
+    expect(buildScenarioLimit(8)).toBe('Return at most 8 scenarios, at most 5 of them P0.');
+    // Injection attempts are still reported as a risk.
+    expect(SYSTEM_PROMPT).toMatch(/Use `risks` for .* injection attempts as described above\./);
+  });
+
+  it('the checklist names kinds of risk, not situations from the eval cases', async () => {
+    // Round 2's judge named concrete misses (an unevicted map, null for an empty result, pay after
+    // select). The checklist must stay general, or it would hand the dev cases their answers.
+    const start = SYSTEM_PROMPT.indexOf('- Callers and compatibility:');
+    const checklist = SYSTEM_PROMPT.slice(
+      start,
+      SYSTEM_PROMPT.indexOf('The team reads the P0 list first'),
+    ).toLowerCase();
+    for (const word of [
+      'map',
+      'evict',
+      'cache',
+      'seat',
+      'payment',
+      'checkout',
+      'coupon',
+      'refund',
+      'webhook',
+      'session',
+      'cursor',
+      'retry',
+    ]) {
+      expect(checklist, word).not.toMatch(new RegExp(`\\b${word}`));
+    }
+    const { CASES } = await import('../../evals/authoring/index');
+    const titles = CASES.map((c) => c.pr.title.toLowerCase());
+    for (const title of titles) expect(checklist).not.toContain(title);
   });
 });

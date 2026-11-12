@@ -10,7 +10,14 @@
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
-import { type Criterion, FIRST_RUBRIC_VERSION, REPORT_CRITERIA, RUBRIC, SCENARIO_CRITERIA } from './rubric';
+import {
+  type Criterion,
+  FIRST_RUBRIC_VERSION,
+  REPORT_CRITERIA,
+  RUBRIC,
+  SCENARIO_CRITERIA,
+  unscoredReports,
+} from './rubric';
 import type { RunDeps, RunOutcome, SavedResults } from './run';
 
 export interface RoundVariant {
@@ -33,6 +40,12 @@ export interface RoundVariant {
   avgTickets?: number;
   /** Mean per rubric criterion. Absent in records written before it was stored. */
   criteria?: Partial<Record<Criterion, number | null>>;
+  /** Reports with a rubric score; the rubric means are over these. Absent in older records. */
+  judged?: number;
+  /** Reports the judge was asked about and returned no usable score for; left out of the means. */
+  unscored?: string[];
+  /** Overall per report (`caseId#rep`), so two rounds can be compared on the reports both scored. */
+  caseOverall?: Record<string, number>;
   costUsd: number;
   judgeCostUsd: number;
 }
@@ -82,7 +95,8 @@ export function renderRoundsIndex(records: RoundRecord[]): string {
     'Scores are rubric means on a 0–2 scale (docs/quality/RUBRIC.md); the percentages are the deterministic',
     'grades of the cases with ground truth. A round is kept only if the dev overall rises and no deterministic',
     'metric falls. Scores are comparable only within one rubric version: a row marked "re-scored" holds the',
-    'same reports as the row above it, judged again with a newer rubric.',
+    'same reports as the row above it, judged again with a newer rubric. "(16/19)" after an overall means the',
+    'judge returned no usable score for the other reports, which are left out of the rubric means.',
     '',
     '| Round | Date | Prompt | Change | Split | Rubric | Variant | Overall | Scenario | Report | Pass | Alignment | Findings | Injection | Cost | Decision |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
@@ -98,7 +112,7 @@ export function renderRoundsIndex(records: RoundRecord[]): string {
           r.split,
           r.judgeModel ? `v${versionOf(r)}${r.rejudged ? ' (re-scored)' : ''}` : '—',
           cell(v.label),
-          score(v.overall),
+          `${score(v.overall)}${v.judged !== undefined && v.judged < v.runs ? ` (${v.judged}/${v.runs})` : ''}`,
           score(v.scenarioScore),
           score(v.reportScore),
           v.graded > 0 ? pct(v.passRate) : '—',
@@ -140,9 +154,16 @@ export function renderRoundSummary(record: RoundRecord, saved: SavedResults, tab
       }
       lines.push('');
     }
+    const unscored = unscoredOf(variant);
+    if (unscored.length > 0) {
+      lines.push(
+        `Rubric means cover ${variant.rubric?.judged ?? 0} of ${variant.runs.length} reports. Left out, no usable judge score: ${unscored.join(', ')}.`,
+        '',
+      );
+    }
     lines.push(
-      '| Case | Origin | Overall | Scenario | Report | Grade | Alignment | Wrong findings | Tickets | Cost |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      '| Case | Origin | Overall | Scenario | Report | Grade | Alignment | Wrong findings | Tickets | Scored | Cost |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     );
     for (const run of variant.runs) {
       const g = run.grade;
@@ -162,6 +183,7 @@ export function renderRoundSummary(record: RoundRecord, saved: SavedResults, tab
             : run.report.prdAlignment.status,
           wrong.length > 0 ? cell(wrong.join(', ')) : '—',
           run.report.scenarios.length,
+          run.rubric ? `${run.rubric.scenarios.length}/${run.report.scenarios.length}` : '—',
           `$${run.costUsd.toFixed(2)}`,
         ].join(' | ')} |`,
       );
@@ -173,6 +195,8 @@ export function renderRoundSummary(record: RoundRecord, saved: SavedResults, tab
   }
   return `${lines.join('\n')}`;
 }
+
+const unscoredOf = (v: SavedResults['variants'][number]): string[] => unscoredReports(v.runs);
 
 function toRecord(round: number, change: string, saved: SavedResults): RoundRecord {
   return {
@@ -201,7 +225,15 @@ function toRecord(round: number, change: string, saved: SavedResults): RoundReco
       ...(v.runs.length > 0
         ? { avgTickets: v.runs.reduce((n, r) => n + r.report.scenarios.length, 0) / v.runs.length }
         : {}),
-      ...(v.rubric ? { criteria: v.rubric.criteria } : {}),
+      ...(v.rubric ? { criteria: v.rubric.criteria, judged: v.rubric.judged } : {}),
+      ...(unscoredOf(v).length > 0 ? { unscored: unscoredOf(v) } : {}),
+      ...(v.rubric
+        ? {
+            caseOverall: Object.fromEntries(
+              v.runs.flatMap((r) => (r.rubric ? [[`${r.caseId}#${r.rep + 1}`, r.rubric.overall]] : [])),
+            ),
+          }
+        : {}),
       costUsd: v.costUsd,
       judgeCostUsd: v.judgeCostUsd,
     })),
@@ -293,12 +325,32 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
     };
   }
   const rows: ComparisonRow[] = [];
+  const paired: string[] = [];
   for (const after of record.variants) {
     const before = baseline.variants.find((v) => v.label === after.label);
     if (!before) continue;
     const graded = before.graded > 0 && after.graded > 0;
+    // Compare the overall on the reports both rounds scored, so a report one judge run could not
+    // score does not move the result.
+    const shared =
+      before.caseOverall && after.caseOverall
+        ? Object.keys(after.caseOverall).filter((k) => before.caseOverall?.[k] !== undefined)
+        : null;
+    const pairedMean = (scores: Record<string, number> | undefined): number | null =>
+      shared && shared.length > 0 && scores
+        ? shared.reduce((n, k) => n + (scores[k] as number), 0) / shared.length
+        : null;
+    const partial =
+      shared !== null &&
+      (shared.length < Object.keys(before.caseOverall ?? {}).length ||
+        shared.length < Object.keys(after.caseOverall ?? {}).length);
+    if (partial) paired.push(`${shared?.length ?? 0} of ${after.runs}`);
     const pairs: [ComparisonRow['metric'], number | null, number | null][] = [
-      ['Overall', before.overall, after.overall],
+      [
+        'Overall',
+        shared ? pairedMean(before.caseOverall) : before.overall,
+        shared ? pairedMean(after.caseOverall) : after.overall,
+      ],
       ['Alignment', graded ? before.alignmentAccuracy : null, graded ? after.alignmentAccuracy : null],
       ['Findings', graded ? before.findingRecall : null, graded ? after.findingRecall : null],
       ['Injection', ratio(before.injectionFlagged), ratio(after.injectionFlagged)],
@@ -341,10 +393,15 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
     ...new Set(rows.filter((r) => WATCHED.includes(r.metric) && r.change === 'down').map((r) => r.metric)),
   ];
   // Not part of the rule in RUBRIC.md, but a person deciding should not miss it.
-  const note =
+  const note = `${
     watched.length > 0
       ? ` Note: ${watched.join(' and ')} fell. That is outside the rule, so look at it before deciding.`
-      : '';
+      : ''
+  }${
+    paired.length > 0
+      ? ` The overall is compared on the ${paired.join(' / ')} reports that both rounds scored; the per-criterion rows are each round's own means.`
+      : ''
+  }`;
   if (rows.length === 0) {
     return {
       baseline: baseline.round,
@@ -460,25 +517,45 @@ export function recordRound(
 }
 
 /**
- * Records the re-scored results of round `round` next to its original record. The change text and
- * the decision are the round's own: the reports are the same, only the rubric is newer.
+ * Records re-scored results for round `round`. The change text and the decision are the round's
+ * own: the reports are the same, only their scores are newer.
+ *
+ * Two cases. A whole file scored again with a newer rubric (`saved.rejudgedFrom`) becomes a second
+ * record beside the original, with its own summary file. A few reports of a file scored again in
+ * place (`--rejudge --cases`) update the record that file belongs to, and its summary.
  */
 export function recordRejudgedRound(round: number, saved: SavedResults, table: string, deps: RunDeps): void {
   const records = readIndex(deps);
-  const original = records.find((r) => r.round === round);
+  const fresh = toRecord(round, '', saved);
+  const base = records.find((r) => sameRecord(r, fresh)) ?? records.find((r) => r.round === round);
   const record: RoundRecord = {
-    ...toRecord(round, original?.change ?? 're-scored', saved),
-    decision: original?.decision ?? 'pending',
+    ...fresh,
+    change: base?.change ?? 're-scored',
+    decision: base?.decision ?? 'pending',
   };
-  const file = `summary.rubric-v${versionOf(record)}.md`;
-  deps.writeFile(
-    join(deps.evalsRoot, 'rounds', String(round), file),
-    renderRoundSummary(record, saved, table),
-  );
-  writeIndex([...records.filter((r) => !sameRecord(r, record)), record], deps);
+  const others = records.filter((r) => !sameRecord(r, record));
+  const summary = renderRoundSummary(record, saved, table);
+  let file = 'summary.md';
+  let comparison: string[] = [];
+  if (record.rejudged) {
+    file = `summary.rubric-v${versionOf(record)}.md`;
+    deps.writeFile(join(deps.evalsRoot, 'rounds', String(round), file), summary);
+  } else {
+    // The round's own run: its comparison with the last kept round changes with the scores.
+    comparison = formatComparison(round, compareWithLastKept(record, others));
+    deps.writeFile(
+      join(deps.evalsRoot, 'rounds', String(round), file),
+      `${summary}\n## Compared with the last kept round\n\n${comparison.join('\n')}\n`,
+    );
+  }
+  writeIndex([...others, record], deps);
   deps.print(
     `Round ${round} re-scored with rubric v${versionOf(record)}: evals/rounds/${round}/${file} and evals/ROUNDS.md (decision: ${record.decision}, as recorded for the round).`,
   );
+  if (comparison.length > 0) {
+    deps.print('');
+    for (const line of comparison) deps.print(line);
+  }
 }
 
 /** Sets keep/revert for a recorded round and regenerates ROUNDS.md. No API call. */
