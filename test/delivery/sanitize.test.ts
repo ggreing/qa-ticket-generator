@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { renderPrComment } from '../../src/delivery/render/markdown';
+import { buildSummaryCard, buildThreadMessages } from '../../src/delivery/render/slack-blocks';
 import {
   escapeHtml,
   flatten,
@@ -7,10 +9,11 @@ import {
   linkPolicyFor,
   mdCode,
   mdInline,
+  slackCodeText,
   slackText,
   truncate,
 } from '../../src/delivery/sanitize';
-import { finalReport } from './support';
+import { finalReport, richReport } from './support';
 
 const policy: LinkPolicy = linkPolicyFor(finalReport());
 const ZWSP = '​';
@@ -175,4 +178,56 @@ describe('slackText (DLV-06)', () => {
   it('DLV-06 flattens new lines so a field cannot inject extra mrkdwn lines', () => {
     expect(slackText('title\n> quoted\n• fake bullet', policy)).toBe('title &gt; quoted • fake bullet');
   });
+});
+
+describe('tilde ranges are not struck through (DLV-06)', () => {
+  it('DLV-06 Markdown prose encodes "~" so GitHub cannot pair two of them into a strikethrough', () => {
+    expect(mdInline('1~2초 후 재시도, 3~5회', policy)).toBe('1&#126;2초 후 재시도, 3&#126;5회');
+    expect(mdInline('~~deleted~~ text', policy)).toBe('&#126;&#126;deleted&#126;&#126; text');
+    expect(mdInline('about ~5 items', policy)).toBe('about &#126;5 items');
+    // Code is encoded the same way; the entity shows as a plain tilde in Markdown and in raw HTML.
+    expect(mdInline('`~/.config` and `a ~= b`', policy)).toBe(
+      '<code>&#126;/.config</code> and <code>a &#126;= b</code>',
+    );
+    expect(mdCode('1~2')).toBe('<code>1&#126;2</code>');
+  });
+
+  it('DLV-06 Slack prose swaps "~" for a look-alike, and code spans keep the real one', () => {
+    expect(slackText('1~2초 후 재시도, 3~5회', policy)).toBe('1∼2초 후 재시도, 3∼5회');
+    expect(slackText('~struck~', policy)).not.toContain('~');
+    expect(slackCodeText('retry = 1~2s', policy)).toBe('retry = 1~2s');
+  });
+
+  it.each([
+    ['ko', '1~2초 후 재시도하고 3~5회까지 반복한다'],
+    ['ja', '1~2秒後に再試行し、3~5回まで繰り返す'],
+    ['zh-CN', '1~2 秒后重试,最多重复 3~5 次'],
+  ] as const)(
+    'DLV-06 a %s report with range notation renders without strikethrough (snapshot)',
+    async (language, range) => {
+      const base = richReport();
+      const first = base.scenarios[0] as (typeof base.scenarios)[number];
+      const report = richReport({
+        summary: range,
+        scenarios: [
+          { ...first, title: range, given: [range], when: [range], then: [range], rationale: range },
+        ],
+        risks: [{ title: range, severity: 'medium', description: range, files: [] }],
+        assumptions: [range],
+      });
+      (report.prdAlignment.findings[1] as (typeof report.prdAlignment.findings)[number]).evidence = range;
+      const body = renderPrComment(finalReport({ language, report }));
+      // The only literal tilde left is the renderer's own "~$0.24" in the footer, alone in its paragraph.
+      expect(body.replace('~$0.24', '')).not.toContain('~');
+      expect(body.match(/&#126;/g)?.length).toBeGreaterThanOrEqual(18);
+      await expect(body).toMatchFileSnapshot(`../../fixtures/delivery/pr-comment.ranges.${language}.md.snap`);
+
+      const slack = JSON.stringify([
+        buildSummaryCard(finalReport({ language, report }), 'https://github.com/acme/shop/pull/42').blocks,
+        buildThreadMessages(finalReport({ language, report })).map((m) => m.blocks),
+      ]);
+      expect(slack.replace('~$0.24', '')).not.toContain('~');
+      expect(slack).toContain('1∼2');
+    },
+  );
 });

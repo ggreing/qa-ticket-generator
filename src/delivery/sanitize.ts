@@ -22,7 +22,8 @@ export interface LinkPolicy {
   allowed: string[];
 }
 
-const ZWSP = '​';
+const ZWSP = '\u200b';
+const SLACK_TILDE = '\u223c';
 // Control characters, zero-width characters and bidi overrides (text-direction spoofing).
 const INVISIBLE =
   // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point.
@@ -37,12 +38,13 @@ const TEXT_ENTITIES: Readonly<Record<string, string>> = {
   '|': '&#124;',
   '`': '&#96;',
   '\\': '&#92;',
+  // GitHub strikes through everything between two tildes, and "1~2초, 3~5회" has two.
+  '~': '&#126;',
 };
 const CODE_ENTITIES: Readonly<Record<string, string>> = {
   ...TEXT_ENTITIES,
   '*': '&#42;',
   _: '&#95;',
-  '~': '&#126;',
 };
 
 function prefixOf(url: string): string | null {
@@ -107,7 +109,7 @@ export function mdCode(text: string): string {
 }
 
 function encodeText(text: string): string {
-  return escapeHtml(text).replace(/[[\]|`\\]/g, (ch) => TEXT_ENTITIES[ch] ?? ch);
+  return escapeHtml(text).replace(/[[\]|`\\~]/g, (ch) => TEXT_ENTITIES[ch] ?? ch);
 }
 
 function mdText(text: string): string {
@@ -165,10 +167,21 @@ export function mdInline(text: string, policy: LinkPolicy): string {
 
 /**
  * DLV-06 — makes untrusted text safe for Slack mrkdwn: `&`, `<`, `>` escaped (which disarms
- * `<!channel>`, `<@U…>` and `<url|label>`), `@channel`/`@here`/`@everyone` broken up, and URLs
- * outside the allow-list defanged so Slack does not turn them into links.
+ * `<!channel>`, `<@U…>` and `<url|label>`), `@channel`/`@here`/`@everyone` broken up, URLs
+ * outside the allow-list defanged so Slack does not turn them into links, and `~` replaced so
+ * a range such as "1~2s, 3~5 times" is not struck through.
  */
 export function slackText(text: string, policy: LinkPolicy): string {
+  // Slack strikes through `~text~` and has no escape for it, so prose gets the look-alike
+  // tilde operator (U+223C) instead of the ASCII tilde.
+  return slackCodeText(text, policy).replace(/~/g, SLACK_TILDE);
+}
+
+/**
+ * Like {@link slackText} but keeps `~` as typed. For text placed inside a backtick code span,
+ * where Slack applies no formatting and the exact characters matter.
+ */
+export function slackCodeText(text: string, policy: LinkPolicy): string {
   return flatten(text)
     .replace(URL_PATTERN, (raw) => {
       const trailing = raw.match(TRAILING_PUNCTUATION)?.[0] ?? '';

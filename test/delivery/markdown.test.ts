@@ -481,7 +481,7 @@ describe('cost cap error state (SPEC §10, LLM-10)', () => {
       finalReport({ status: 'error', report: null, language, error: costCap }, { calls: 0, mode: 'none' }),
     );
     expect(body).toContain(`❌ **${strings(language).runFailed}** — The estimated cost of analyzing`);
-    expect(body).toContain('(~$3.41) exceeds max-cost-usd ($2.00)');
+    expect(body).toContain('(&#126;$3.41) exceeds max-cost-usd ($2.00)');
     expect(body).toContain(`> 💡 ${hint}`);
     expect(body).toContain(`${strings(language).errorCode}: <code>cost&#95;cap</code>`);
   });

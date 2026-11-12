@@ -5,7 +5,7 @@
  */
 import type { KnownBlock } from '@slack/web-api';
 import type { FinalReport, QaReport } from '../../core/contracts';
-import { type LinkPolicy, linkPolicyFor, slackText, truncate } from '../sanitize';
+import { type LinkPolicy, linkPolicyFor, slackCodeText, slackText, truncate } from '../sanitize';
 import { type Strings, strings } from './i18n';
 import { ALIGNMENT_BADGE, REQUIREMENT_ICON, SEVERITY_ICON } from './markdown';
 import {
@@ -48,7 +48,7 @@ const section = (text: string): KnownBlock => ({
 });
 
 const code = (text: string, policy: LinkPolicy): string =>
-  `\`${slackText(text, policy).replace(/`/g, "'")}\``;
+  `\`${slackCodeText(text, policy).replace(/`/g, "'")}\``;
 
 function prLink(final: FinalReport, policy: LinkPolicy): string {
   const title = slackText(truncate(final.pr.title, MAX_TITLE_CHARS), policy).replace(/\|/g, '¦');

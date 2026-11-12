@@ -1,0 +1,42 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ⚠️ **一部一致**
+
+> リンク済みドキュメント: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+**要対応 (1)**
+- ❌ **AC3** expired coupons are rejected — 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す <code>src/coupon.ts</code>
+
+**P0 チェックリスト (1)**
+- [ ] **TC-01** 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す → 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+
+<details><summary><b>TC-01 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す</b> [P0 · AC3]</summary>
+
+- **前提**: 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+- **データ**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **手順**:
+  1. 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+- **期待結果**: 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+- **関連**: AC3: expired coupons are rejected · <code>src/coupon.ts</code>
+- **理由**: 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+
+</details>
+
+<details><summary>要件ごとの判定 (2)</summary>
+
+1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+
+| 要件 | 状態 | 根拠 |
+| --- | --- | --- |
+| AC1: a coupon can be applied once | ✅ 充足 | CouponService.apply() checks usage <code>src/coupon.ts</code> |
+| AC3: expired coupons are rejected | ❌ 未実装 | 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す <code>src/coupon.ts</code> |
+
+</details>
+
+### リスク
+
+- 🟠 **1&#126;2秒後に再試行し、3&#126;5回まで繰り返す** — 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+
+### 前提条件
+
+- 1&#126;2秒後に再試行し、3&#126;5回まで繰り返す
+
+<sub><code>claude-opus-5-5</code> · effort high · single · 入力 31.2K / 出力 5.8K トークン · ~$0.24 · 74s · 3 ファイルを除外 (ノイズ 2, バイナリ 1) · 秘密情報 2 件をマスク</sub>
