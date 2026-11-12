@@ -214,6 +214,7 @@ describe('runPipeline', () => {
     const context = vi.mocked(deps.orchestrate).mock.calls[0]?.[2];
     expect(context?.pr.body).toBe('token [REDACTED:github_token] here');
     expect(final.meta.redactions).toEqual([{ type: 'github_token', count: 3 }]);
+    expect(final.pr.body).toBe('token [REDACTED:github_token] here'); // report.json / comment / Slack
     expect(final.meta.warnings.map((w) => w.code)).toContain('ast_failed');
   });
 

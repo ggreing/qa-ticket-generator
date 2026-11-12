@@ -98,7 +98,13 @@ export async function runPipeline(
     warnings,
     dryRun: cfg.dryRun,
   };
-  const base = { pr, meta, language: cfg.language } as const;
+  // PRE-05 also covers the PR title/body: everything downstream (prompt, comment, Slack, report.json)
+  // sees only the redacted copy. PRD refs are still extracted from the original body.
+  const title = deps.redactText(pr.title);
+  const body = deps.redactText(pr.body);
+  const safePr: PullRequestInfo = { ...pr, title: title.text, body: body.text };
+  meta.redactions = mergeRedactions(title.redactions, body.redactions);
+  const base = { pr: safePr, meta, language: cfg.language } as const;
 
   let commentId: number | null = null;
   let state: DeliveryState = { v: 1 };
@@ -152,9 +158,6 @@ export async function runPipeline(
     meta.skipped = pre.skipped;
     if (pre.warnings) warnings.push(...pre.warnings);
 
-    // PRE-05 also covers the PR title/body, which reach the prompt outside PreprocessInput.
-    const title = deps.redactText(pr.title);
-    const body = deps.redactText(pr.body);
     meta.redactions = mergeRedactions(pre.redactions, title.redactions, body.redactions);
 
     if (pre.chunks.length === 0) {
