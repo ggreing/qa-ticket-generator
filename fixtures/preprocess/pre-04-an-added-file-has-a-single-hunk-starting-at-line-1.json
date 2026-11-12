@@ -1,0 +1,70 @@
+{
+  "name": "PRE-04 an added file has a single hunk starting at line 1",
+  "input": {
+    "files": [
+      {
+        "path": "src/coupons/validate.ts",
+        "status": "added",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,3 @@\n+export function validateCoupon(code: string): boolean {\n+  return /^[A-Z0-9]{6,12}$/.test(code);\n+}",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/coupons/validate.ts",
+            "status": "added",
+            "score": 1.386,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,3 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 3,
+                "text": "+export function validateCoupon(code: string): boolean {\n+  return /^[A-Z0-9]{6,12}$/.test(code);\n+}"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 61
+          }
+        ],
+        "estimatedTokens": 61
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6061
+  }
+}

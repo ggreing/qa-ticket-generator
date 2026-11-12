@@ -1,0 +1,95 @@
+{
+  "name": "PRE-01 a small PR fits into a single chunk",
+  "input": {
+    "files": [
+      {
+        "path": "src/checkout/total.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -10,3 +10,3 @@ export function total(items: Item[]): number {\n   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);\n-  const tax = subtotal * 0.1;\n+  const tax = Math.round(subtotal * TAX_RATE);\n   return subtotal + tax;",
+        "patchMissing": false
+      },
+      {
+        "path": "src/checkout/rates.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,2 @@\n+export const TAX_RATE = 0.1;\n export const SHIPPING = 5;",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/checkout/total.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -10,3 +10,3 @@ export function total(items: Item[]): number {",
+                "oldStart": 10,
+                "oldLines": 3,
+                "newStart": 10,
+                "newLines": 3,
+                "text": "   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);\n-  const tax = subtotal * 0.1;\n+  const tax = Math.round(subtotal * TAX_RATE);\n   return subtotal + tax;"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 97
+          },
+          {
+            "path": "src/checkout/rates.ts",
+            "status": "modified",
+            "score": 0.693,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,2 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 2,
+                "text": "+export const TAX_RATE = 0.1;\n export const SHIPPING = 5;"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 46
+          }
+        ],
+        "estimatedTokens": 143
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6143
+  }
+}

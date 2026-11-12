@@ -1,0 +1,94 @@
+{
+  "name": "PRE-06 TypeScript changes expand to the enclosing method and arrow function",
+  "input": {
+    "files": [
+      {
+        "path": "src/cart/cart.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 1,
+        "patch": "@@ -12,6 +12,7 @@\n     if (sku === 'S5') console.debug('sku 5');\n     if (sku === 'S6') console.debug('sku 6');\n     if (sku === 'S7') console.debug('sku 7');\n+    if (qty <= 0) throw new RangeError(\"qty\");\n     this.items.push({ sku, price, qty });\n     if (qty > 10) console.debug('bulk 0');\n     if (qty > 11) console.debug('bulk 1');\n@@ -37,7 +38,7 @@\n   if (code === 'C5') return total - 5;\n   if (code === 'C6') return total - 6;\n   if (code === 'C7') return total - 7;\n-  if (code === 'SALE') return total * 0.9;\n+  if (code === 'SALE') return total * 0.85;\n   if (code === 'D0') return total - 0;\n   if (code === 'D1') return total - 2;\n   if (code === 'D2') return total - 4;",
+        "patchMissing": false,
+        "headContent": "import { Money } from './money';\n\nexport class Cart {\n  private items: { sku: string; price: number; qty: number }[] = [];\n\n  add(sku: string, price: number, qty = 1): void {\n    if (sku === 'S0') console.debug('sku 0');\n    if (sku === 'S1') console.debug('sku 1');\n    if (sku === 'S2') console.debug('sku 2');\n    if (sku === 'S3') console.debug('sku 3');\n    if (sku === 'S4') console.debug('sku 4');\n    if (sku === 'S5') console.debug('sku 5');\n    if (sku === 'S6') console.debug('sku 6');\n    if (sku === 'S7') console.debug('sku 7');\n    if (qty <= 0) throw new RangeError(\"qty\");\n    this.items.push({ sku, price, qty });\n    if (qty > 10) console.debug('bulk 0');\n    if (qty > 11) console.debug('bulk 1');\n    if (qty > 12) console.debug('bulk 2');\n    if (qty > 13) console.debug('bulk 3');\n    if (qty > 14) console.debug('bulk 4');\n    if (qty > 15) console.debug('bulk 5');\n    if (qty > 16) console.debug('bulk 6');\n    if (qty > 17) console.debug('bulk 7');\n  }\n\n  total(): Money {\n    return Money.of(this.items.reduce((s, i) => s + i.price * i.qty, 0));\n  }\n}\n\nexport const applyCoupon = (total: number, code: string): number => {\n  if (code === 'C0') return total - 0;\n  if (code === 'C1') return total - 1;\n  if (code === 'C2') return total - 2;\n  if (code === 'C3') return total - 3;\n  if (code === 'C4') return total - 4;\n  if (code === 'C5') return total - 5;\n  if (code === 'C6') return total - 6;\n  if (code === 'C7') return total - 7;\n  if (code === 'SALE') return total * 0.85;\n  if (code === 'D0') return total - 0;\n  if (code === 'D1') return total - 2;\n  if (code === 'D2') return total - 4;\n  if (code === 'D3') return total - 6;\n  if (code === 'D4') return total - 8;\n  if (code === 'D5') return total - 10;\n  if (code === 'D6') return total - 12;\n  if (code === 'D7') return total - 14;\n  return total;\n};"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/cart/cart.ts",
+            "status": "modified",
+            "score": 1.386,
+            "hunks": [
+              {
+                "header": "@@ -12,6 +12,7 @@",
+                "oldStart": 12,
+                "oldLines": 6,
+                "newStart": 12,
+                "newLines": 7,
+                "text": "     if (sku === 'S5') console.debug('sku 5');\n     if (sku === 'S6') console.debug('sku 6');\n     if (sku === 'S7') console.debug('sku 7');\n+    if (qty <= 0) throw new RangeError(\"qty\");\n     this.items.push({ sku, price, qty });\n     if (qty > 10) console.debug('bulk 0');\n     if (qty > 11) console.debug('bulk 1');"
+              },
+              {
+                "header": "@@ -37,7 +38,7 @@",
+                "oldStart": 37,
+                "oldLines": 7,
+                "newStart": 38,
+                "newLines": 7,
+                "text": "   if (code === 'C5') return total - 5;\n   if (code === 'C6') return total - 6;\n   if (code === 'C7') return total - 7;\n-  if (code === 'SALE') return total * 0.9;\n+  if (code === 'SALE') return total * 0.85;\n   if (code === 'D0') return total - 0;\n   if (code === 'D1') return total - 2;\n   if (code === 'D2') return total - 4;"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "Cart.add",
+                "startLine": 6,
+                "endLine": 25,
+                "text": "  add(sku: string, price: number, qty = 1): void {\n    if (sku === 'S0') console.debug('sku 0');\n    if (sku === 'S1') console.debug('sku 1');\n    if (sku === 'S2') console.debug('sku 2');\n    if (sku === 'S3') console.debug('sku 3');\n    if (sku === 'S4') console.debug('sku 4');\n    if (sku === 'S5') console.debug('sku 5');\n    if (sku === 'S6') console.debug('sku 6');\n    if (sku === 'S7') console.debug('sku 7');\n    if (qty <= 0) throw new RangeError(\"qty\");\n    this.items.push({ sku, price, qty });\n    if (qty > 10) console.debug('bulk 0');\n    if (qty > 11) console.debug('bulk 1');\n    if (qty > 12) console.debug('bulk 2');\n    if (qty > 13) console.debug('bulk 3');\n    if (qty > 14) console.debug('bulk 4');\n    if (qty > 15) console.debug('bulk 5');\n    if (qty > 16) console.debug('bulk 6');\n    if (qty > 17) console.debug('bulk 7');\n  }"
+              },
+              {
+                "kind": "symbol",
+                "name": "applyCoupon",
+                "startLine": 32,
+                "endLine": 51,
+                "text": "export const applyCoupon = (total: number, code: string): number => {\n  if (code === 'C0') return total - 0;\n  if (code === 'C1') return total - 1;\n  if (code === 'C2') return total - 2;\n  if (code === 'C3') return total - 3;\n  if (code === 'C4') return total - 4;\n  if (code === 'C5') return total - 5;\n  if (code === 'C6') return total - 6;\n  if (code === 'C7') return total - 7;\n  if (code === 'SALE') return total * 0.85;\n  if (code === 'D0') return total - 0;\n  if (code === 'D1') return total - 2;\n  if (code === 'D2') return total - 4;\n  if (code === 'D3') return total - 6;\n  if (code === 'D4') return total - 8;\n  if (code === 'D5') return total - 10;\n  if (code === 'D6') return total - 12;\n  if (code === 'D7') return total - 14;\n  return total;\n};"
+              }
+            ],
+            "estimatedTokens": 765
+          }
+        ],
+        "estimatedTokens": 765
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6765
+  }
+}

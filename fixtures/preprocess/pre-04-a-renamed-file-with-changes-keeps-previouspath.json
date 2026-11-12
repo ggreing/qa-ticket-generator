@@ -1,0 +1,72 @@
+{
+  "name": "PRE-04 a renamed file with changes keeps previousPath",
+  "input": {
+    "files": [
+      {
+        "path": "src/billing/invoice-service.ts",
+        "status": "renamed",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,3 +1,3 @@\n-import { format } from './fmt';\n+import { format } from '../shared/fmt';\n \n export class InvoiceService {",
+        "patchMissing": false,
+        "previousPath": "src/invoice.ts"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/billing/invoice-service.ts",
+            "previousPath": "src/invoice.ts",
+            "status": "renamed",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,3 +1,3 @@",
+                "oldStart": 1,
+                "oldLines": 3,
+                "newStart": 1,
+                "newLines": 3,
+                "text": "-import { format } from './fmt';\n+import { format } from '../shared/fmt';\n \n export class InvoiceService {"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 70
+          }
+        ],
+        "estimatedTokens": 70
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6070
+  }
+}

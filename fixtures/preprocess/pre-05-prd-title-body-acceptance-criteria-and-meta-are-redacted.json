@@ -1,0 +1,129 @@
+{
+  "name": "PRE-05 PRD title, body, acceptance criteria and meta are redacted",
+  "input": {
+    "files": [
+      {
+        "path": "src/payments/stripe.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-const mode = 'test';\n+const mode = 'live';",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#42",
+          "raw": "#42"
+        },
+        "title": "Rotate key AKIAIOSFODNN7EXAMPLE before launch",
+        "bodyMarkdown": "## Context\nOps pasted the staging password into the ticket: password = \"hunter2!x\"\nUse the token xoxb-FAKE-0000-not-a-real-token for the bot.",
+        "acceptanceCriteria": [
+          "Given STRIPE_KEY=sk_live_FAKE00000000 the checkout succeeds",
+          "No secrets are logged"
+        ],
+        "url": "https://github.com/acme/shop/issues/42",
+        "meta": {
+          "reporter": "ops",
+          "note": "apiKey: abcd1234efgh"
+        }
+      }
+    ],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/payments/stripe.ts",
+            "status": "modified",
+            "score": 4.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-const mode = 'test';\n+const mode = 'live';"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 42
+          }
+        ],
+        "estimatedTokens": 42
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#42",
+          "raw": "#42"
+        },
+        "title": "Rotate key [REDACTED:aws_access_key] before launch",
+        "bodyMarkdown": "## Context\nOps pasted the staging password into the ticket: password = \"[REDACTED:password]\"\nUse the token [REDACTED:slack_token] for the bot.",
+        "acceptanceCriteria": [
+          "Given STRIPE_KEY=[REDACTED:stripe_key] the checkout succeeds",
+          "No secrets are logged"
+        ],
+        "url": "https://github.com/acme/shop/issues/42",
+        "meta": {
+          "note": "apiKey: [REDACTED:api_key]",
+          "reporter": "ops"
+        }
+      }
+    ],
+    "skipped": [],
+    "redactions": [
+      {
+        "type": "api_key",
+        "count": 1
+      },
+      {
+        "type": "aws_access_key",
+        "count": 1
+      },
+      {
+        "type": "password",
+        "count": 1
+      },
+      {
+        "type": "slack_token",
+        "count": 1
+      },
+      {
+        "type": "stripe_key",
+        "count": 1
+      }
+    ],
+    "estimatedTokens": 6129
+  }
+}

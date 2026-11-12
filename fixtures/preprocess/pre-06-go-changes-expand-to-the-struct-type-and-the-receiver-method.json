@@ -1,0 +1,94 @@
+{
+  "name": "PRE-06 Go changes expand to the struct type and the receiver method",
+  "input": {
+    "files": [
+      {
+        "path": "internal/coupons/coupon.go",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "patch": "@@ -9,7 +9,7 @@\n \tField5 string\n \tField6 string\n \tField7 string\n-\tPercent int\n+\tPercent int `json:\"percent\"`\n \tExtra0 int\n \tExtra1 int\n \tExtra2 int\n@@ -45,5 +45,5 @@\n \tif c.Field7 == \"x\" {\n \t\treturn total\n \t}\n-\treturn total * (100 - c.Percent) / 100\n+\treturn total - total*c.Percent/100\n }",
+        "patchMissing": false,
+        "headContent": "package coupons\n\ntype Coupon struct {\n\tField0 string\n\tField1 string\n\tField2 string\n\tField3 string\n\tField4 string\n\tField5 string\n\tField6 string\n\tField7 string\n\tPercent int `json:\"percent\"`\n\tExtra0 int\n\tExtra1 int\n\tExtra2 int\n\tExtra3 int\n\tExtra4 int\n\tExtra5 int\n\tExtra6 int\n\tExtra7 int\n}\n\nfunc (c *Coupon) Apply(total int) int {\n\tif c.Field0 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field1 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field2 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field3 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field4 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field5 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field6 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field7 == \"x\" {\n\t\treturn total\n\t}\n\treturn total - total*c.Percent/100\n}"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "internal/coupons/coupon.go",
+            "status": "modified",
+            "score": 1.609,
+            "hunks": [
+              {
+                "header": "@@ -9,7 +9,7 @@",
+                "oldStart": 9,
+                "oldLines": 7,
+                "newStart": 9,
+                "newLines": 7,
+                "text": " \tField5 string\n \tField6 string\n \tField7 string\n-\tPercent int\n+\tPercent int `json:\"percent\"`\n \tExtra0 int\n \tExtra1 int\n \tExtra2 int"
+              },
+              {
+                "header": "@@ -45,5 +45,5 @@",
+                "oldStart": 45,
+                "oldLines": 5,
+                "newStart": 45,
+                "newLines": 5,
+                "text": " \tif c.Field7 == \"x\" {\n \t\treturn total\n \t}\n-\treturn total * (100 - c.Percent) / 100\n+\treturn total - total*c.Percent/100\n }"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "Coupon",
+                "startLine": 3,
+                "endLine": 21,
+                "text": "type Coupon struct {\n\tField0 string\n\tField1 string\n\tField2 string\n\tField3 string\n\tField4 string\n\tField5 string\n\tField6 string\n\tField7 string\n\tPercent int `json:\"percent\"`\n\tExtra0 int\n\tExtra1 int\n\tExtra2 int\n\tExtra3 int\n\tExtra4 int\n\tExtra5 int\n\tExtra6 int\n\tExtra7 int\n}"
+              },
+              {
+                "kind": "symbol",
+                "name": "Coupon.Apply",
+                "startLine": 23,
+                "endLine": 49,
+                "text": "func (c *Coupon) Apply(total int) int {\n\tif c.Field0 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field1 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field2 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field3 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field4 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field5 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field6 == \"x\" {\n\t\treturn total\n\t}\n\tif c.Field7 == \"x\" {\n\t\treturn total\n\t}\n\treturn total - total*c.Percent/100\n}"
+              }
+            ],
+            "estimatedTokens": 347
+          }
+        ],
+        "estimatedTokens": 347
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6347
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "name": "PRE-02 vendored code and snapshots are dropped",
+  "input": {
+    "files": [
+      {
+        "path": "src/app.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -3,3 +3,3 @@\n   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }",
+        "patchMissing": false
+      },
+      {
+        "path": "vendor/github.com/acme/lib/lib.go",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-package lib\n+package lib // v2",
+        "patchMissing": false
+      },
+      {
+        "path": "web/node_modules/lodash/index.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-x\n+y",
+        "patchMissing": false
+      },
+      {
+        "path": "src/components/__snapshots__/Button.test.tsx.snap",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-<button/>\n+<button disabled/>",
+        "patchMissing": false
+      },
+      {
+        "path": "test/report.snap",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/app.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -3,3 +3,3 @@",
+                "oldStart": 3,
+                "oldLines": 3,
+                "newStart": 3,
+                "newLines": 3,
+                "text": "   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 46
+          }
+        ],
+        "estimatedTokens": 46
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "src/components/__snapshots__/Button.test.tsx.snap",
+        "reason": "noise"
+      },
+      {
+        "path": "test/report.snap",
+        "reason": "noise"
+      },
+      {
+        "path": "vendor/github.com/acme/lib/lib.go",
+        "reason": "noise"
+      },
+      {
+        "path": "web/node_modules/lodash/index.js",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6046
+  }
+}

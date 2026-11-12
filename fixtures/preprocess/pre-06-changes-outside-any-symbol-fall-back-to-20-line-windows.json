@@ -1,0 +1,78 @@
+{
+  "name": "PRE-06 changes outside any symbol fall back to ±20 line windows",
+  "input": {
+    "files": [
+      {
+        "path": "src/constants.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,5 +1,5 @@\n import { a } from './a';\n-import { b } from './b';\n+import { b, c } from './b';\n export const k0 = 0;\n export const k1 = 1;\n export const k2 = 2;",
+        "patchMissing": false,
+        "headContent": "import { a } from './a';\nimport { b, c } from './b';\nexport const k0 = 0;\nexport const k1 = 1;\nexport const k2 = 2;\nexport const k3 = 3;\nexport const k4 = 4;\nexport const k5 = 5;\nexport const k6 = 6;\nexport const k7 = 7;\nexport const k8 = 8;\nexport const k9 = 9;\nexport const k10 = 10;\nexport const k11 = 11;\nexport const k12 = 12;\nexport const k13 = 13;\nexport const k14 = 14;\nexport const k15 = 15;\nexport const k16 = 16;\nexport const k17 = 17;\nexport const k18 = 18;\nexport const k19 = 19;\nexport const k20 = 20;\nexport const k21 = 21;\nexport const k22 = 22;\nexport const k23 = 23;\nexport const k24 = 24;\nexport const k25 = 25;\nexport const k26 = 26;\nexport const k27 = 27;\nexport const k28 = 28;\nexport const k29 = 29;"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/constants.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,5 +1,5 @@",
+                "oldStart": 1,
+                "oldLines": 5,
+                "newStart": 1,
+                "newLines": 5,
+                "text": " import { a } from './a';\n-import { b } from './b';\n+import { b, c } from './b';\n export const k0 = 0;\n export const k1 = 1;\n export const k2 = 2;"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "lines",
+                "startLine": 1,
+                "endLine": 22,
+                "text": "import { a } from './a';\nimport { b, c } from './b';\nexport const k0 = 0;\nexport const k1 = 1;\nexport const k2 = 2;\nexport const k3 = 3;\nexport const k4 = 4;\nexport const k5 = 5;\nexport const k6 = 6;\nexport const k7 = 7;\nexport const k8 = 8;\nexport const k9 = 9;\nexport const k10 = 10;\nexport const k11 = 11;\nexport const k12 = 12;\nexport const k13 = 13;\nexport const k14 = 14;\nexport const k15 = 15;\nexport const k16 = 16;\nexport const k17 = 17;\nexport const k18 = 18;\nexport const k19 = 19;"
+              }
+            ],
+            "estimatedTokens": 234
+          }
+        ],
+        "estimatedTokens": 234
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6234
+  }
+}

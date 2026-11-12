@@ -1,0 +1,87 @@
+{
+  "name": "PRE-05 Slack, Stripe and Google API keys",
+  "input": {
+    "files": [
+      {
+        "path": "src/integrations/keys.py",
+        "status": "added",
+        "additions": 10,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,10 @@\n+SLACK_BOT = \"xoxb-FAKE-0000-not-a-real-token\"\n+WEBHOOK = \"https://hooks.slack.com/services/TFAKE0000/BFAKE0000/FAKEfakeFAKEfake\"\n+STRIPE = \"sk_live_FAKE00000000\"\n+STRIPE_RESTRICTED = \"rk_test_FAKE00000000\"\n+STRIPE_WEBHOOK = \"whsec_FAKE0000000000000000\"\n+MAPS = \"AIzaFAKE_0000000000000000000000000000-0\"\n+# negatives: publishable keys are public, prefixes alone are not secrets\n+STRIPE_PUBLISHABLE = \"pk_live_FAKE00000000\"\n+channel = \"xoxb\"\n+docs = \"sk_live_ is the prefix of live keys\"",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/integrations/keys.py",
+            "status": "added",
+            "score": 2.398,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,10 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 10,
+                "text": "+SLACK_BOT = \"[REDACTED:slack_token]\"\n+WEBHOOK = \"[REDACTED:slack_webhook]\"\n+STRIPE = \"[REDACTED:stripe_key]\"\n+STRIPE_RESTRICTED = \"[REDACTED:stripe_key]\"\n+STRIPE_WEBHOOK = \"[REDACTED:stripe_key]\"\n+MAPS = \"[REDACTED:google_api_key]\"\n+# negatives: publishable keys are public, prefixes alone are not secrets\n+STRIPE_PUBLISHABLE = \"pk_live_FAKE00000000\"\n+channel = \"xoxb\"\n+docs = \"sk_live_ is the prefix of live keys\""
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 159
+          }
+        ],
+        "estimatedTokens": 159
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [
+      {
+        "type": "google_api_key",
+        "count": 1
+      },
+      {
+        "type": "slack_token",
+        "count": 1
+      },
+      {
+        "type": "slack_webhook",
+        "count": 1
+      },
+      {
+        "type": "stripe_key",
+        "count": 3
+      }
+    ],
+    "estimatedTokens": 6159
+  }
+}

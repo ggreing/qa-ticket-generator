@@ -1,0 +1,145 @@
+{
+  "name": "PRE-07 equal scores are ordered by path regardless of input order",
+  "input": {
+    "files": [
+      {
+        "path": "src/b.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,3 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";",
+        "patchMissing": false
+      },
+      {
+        "path": "src/a.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,3 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/z.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,3 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";",
+        "patchMissing": false
+      },
+      {
+        "path": "src/c.ts",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,3 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "lib/z.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,3 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 3,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 42
+          },
+          {
+            "path": "src/a.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,3 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 3,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 42
+          },
+          {
+            "path": "src/b.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,3 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 3,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 42
+          },
+          {
+            "path": "src/c.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,3 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 3,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 42
+          }
+        ],
+        "estimatedTokens": 168
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6168
+  }
+}

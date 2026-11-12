@@ -1,0 +1,191 @@
+{
+  "name": "PRE-02 lock files are dropped as noise",
+  "input": {
+    "files": [
+      {
+        "path": "src/app.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -3,3 +3,3 @@\n   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }",
+        "patchMissing": false
+      },
+      {
+        "path": "package-lock.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "web/yarn.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "go.sum",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "Cargo.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "api/poetry.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "Gemfile.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "composer.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "bun.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      },
+      {
+        "path": "uv.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-  \"version\": \"1.0.0\"\n+  \"version\": \"1.0.1\"",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/app.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -3,3 +3,3 @@",
+                "oldStart": 3,
+                "oldLines": 3,
+                "newStart": 3,
+                "newLines": 3,
+                "text": "   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 46
+          }
+        ],
+        "estimatedTokens": 46
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "Cargo.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "Gemfile.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "api/poetry.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "bun.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "composer.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "go.sum",
+        "reason": "noise"
+      },
+      {
+        "path": "package-lock.json",
+        "reason": "noise"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "reason": "noise"
+      },
+      {
+        "path": "uv.lock",
+        "reason": "noise"
+      },
+      {
+        "path": "web/yarn.lock",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6046
+  }
+}

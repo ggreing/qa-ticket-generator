@@ -1,0 +1,176 @@
+{
+  "name": "PRE-02 exclude adds noise, include rescues built-in noise, exclude wins over include",
+  "input": {
+    "files": [
+      {
+        "path": "src/app.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -3,3 +3,3 @@\n   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }",
+        "patchMissing": false
+      },
+      {
+        "path": "src/orders/order.fixture.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "legacy/old.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "legacy/keep.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "dist/keep/runtime.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "dist/other.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "src/generated/schema.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,2 +1,2 @@\n // @generated\n-a\n+b",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [
+        "**/*.fixture.ts",
+        "legacy/"
+      ],
+      "include": [
+        "dist/keep/**",
+        "legacy/keep.ts",
+        "src/generated/**"
+      ],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "dist/keep/runtime.js",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 30
+          },
+          {
+            "path": "src/app.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -3,3 +3,3 @@",
+                "oldStart": 3,
+                "oldLines": 3,
+                "newStart": 3,
+                "newLines": 3,
+                "text": "   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 46
+          },
+          {
+            "path": "src/generated/schema.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,2 +1,2 @@",
+                "oldStart": 1,
+                "oldLines": 2,
+                "newStart": 1,
+                "newLines": 2,
+                "text": " // @generated\n-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 36
+          }
+        ],
+        "estimatedTokens": 112
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "dist/other.js",
+        "reason": "noise"
+      },
+      {
+        "path": "legacy/keep.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "legacy/old.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "src/orders/order.fixture.ts",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6112
+  }
+}

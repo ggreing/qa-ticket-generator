@@ -1,0 +1,175 @@
+{
+  "name": "PRE-07 PRD keywords from titles and acceptance criteria rank matching files first",
+  "input": {
+    "files": [
+      {
+        "path": "src/user/profile.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,4 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";\n+const v2 = \"value 2\";",
+        "patchMissing": false
+      },
+      {
+        "path": "src/cart/total.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,4 @@\n // context\n+const v0 = \"discount applied 0\";\n+const v1 = \"discount applied 1\";\n+const v2 = \"discount applied 2\";",
+        "patchMissing": false
+      },
+      {
+        "path": "src/coupon/expiry.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,4 @@\n // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";\n+const v2 = \"value 2\";",
+        "patchMissing": false
+      },
+      {
+        "path": "src/coupon/couponExpiryJob.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,4 @@\n // context\n+const v0 = \"discount 0\";\n+const v1 = \"discount 1\";\n+const v2 = \"discount 2\";",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#7",
+          "raw": "#7"
+        },
+        "title": "Coupon expiry",
+        "bodyMarkdown": "Long background text about marketing that is ignored when criteria exist.",
+        "acceptanceCriteria": [
+          "Given an expired coupon, the discount is not applied"
+        ],
+        "url": "https://github.com/acme/shop/issues/7",
+        "meta": {}
+      }
+    ],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/coupon/couponExpiryJob.ts",
+            "status": "modified",
+            "score": 8.886,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,4 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 4,
+                "text": " // context\n+const v0 = \"discount 0\";\n+const v1 = \"discount 1\";\n+const v2 = \"discount 2\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 59
+          },
+          {
+            "path": "src/coupon/expiry.ts",
+            "status": "modified",
+            "score": 7.386,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,4 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 4,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";\n+const v2 = \"value 2\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 53
+          },
+          {
+            "path": "src/cart/total.ts",
+            "status": "modified",
+            "score": 4.386,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,4 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 4,
+                "text": " // context\n+const v0 = \"discount applied 0\";\n+const v1 = \"discount applied 1\";\n+const v2 = \"discount applied 2\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 63
+          },
+          {
+            "path": "src/user/profile.ts",
+            "status": "modified",
+            "score": 1.386,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,4 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 4,
+                "text": " // context\n+const v0 = \"value 0\";\n+const v1 = \"value 1\";\n+const v2 = \"value 2\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 52
+          }
+        ],
+        "estimatedTokens": 227
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#7",
+          "raw": "#7"
+        },
+        "title": "Coupon expiry",
+        "bodyMarkdown": "Long background text about marketing that is ignored when criteria exist.",
+        "acceptanceCriteria": [
+          "Given an expired coupon, the discount is not applied"
+        ],
+        "url": "https://github.com/acme/shop/issues/7",
+        "meta": {}
+      }
+    ],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6272
+  }
+}

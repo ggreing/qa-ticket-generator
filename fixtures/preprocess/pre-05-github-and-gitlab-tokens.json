@@ -1,0 +1,79 @@
+{
+  "name": "PRE-05 GitHub and GitLab tokens",
+  "input": {
+    "files": [
+      {
+        "path": "scripts/release.sh",
+        "status": "added",
+        "additions": 9,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,9 @@\n+export GH_TOKEN=ghp_FAKE00000000000000000000000000000000\n+curl -H \"Authorization: token gho_FAKE00000000000000000000000000000000\" https://api.github.com\n+APP=ghs_FAKE11111111111111111111111111111111\n+FINE=github_pat_FAKE0000000000000000000_FAKE000000000000000000000000000000000000000000000000000000\n+GITLAB=glpat-FAKE000000000000000000\n+# negatives\n+echo ghp_short\n+echo \"see github_pat docs\"\n+echo glpat-short",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "scripts/release.sh",
+            "status": "added",
+            "score": 2.303,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,9 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 9,
+                "text": "+export GH_TOKEN=[REDACTED:github_token]\n+curl -H \"Authorization: token [REDACTED:github_token]\" https://api.github.com\n+APP=[REDACTED:github_token]\n+FINE=[REDACTED:github_token]\n+GITLAB=[REDACTED:gitlab_token]\n+# negatives\n+echo ghp_short\n+echo \"see github_pat docs\"\n+echo glpat-short"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 117
+          }
+        ],
+        "estimatedTokens": 117
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [
+      {
+        "type": "github_token",
+        "count": 4
+      },
+      {
+        "type": "gitlab_token",
+        "count": 1
+      }
+    ],
+    "estimatedTokens": 6117
+  }
+}

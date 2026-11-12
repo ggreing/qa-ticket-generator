@@ -1,0 +1,70 @@
+{
+  "name": "PRE-04 the no-newline-at-end-of-file marker is preserved and not counted",
+  "input": {
+    "files": [
+      {
+        "path": "src/version.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1 +1 @@\n-export const VERSION = '1.0.0';\n\\ No newline at end of file\n+export const VERSION = '1.1.0';\n\\ No newline at end of file",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/version.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1 +1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-export const VERSION = '1.0.0';\n\\ No newline at end of file\n+export const VERSION = '1.1.0';\n\\ No newline at end of file"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 63
+          }
+        ],
+        "estimatedTokens": 63
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6063
+  }
+}

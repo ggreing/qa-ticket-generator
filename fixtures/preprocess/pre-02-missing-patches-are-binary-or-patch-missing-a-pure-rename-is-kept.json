@@ -1,0 +1,102 @@
+{
+  "name": "PRE-02 missing patches are binary or patch_missing; a pure rename is kept",
+  "input": {
+    "files": [
+      {
+        "path": "src/huge/table.ts",
+        "status": "modified",
+        "additions": 4000,
+        "deletions": 10,
+        "patchMissing": true
+      },
+      {
+        "path": "img/photo.jpg",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "src/orders/new-name.ts",
+        "status": "renamed",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": false,
+        "previousPath": "src/orders/old-name.ts"
+      },
+      {
+        "path": "src/empty.ts",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/empty.ts",
+            "status": "added",
+            "score": 0,
+            "hunks": [],
+            "contexts": [],
+            "summary": "added an empty file",
+            "estimatedTokens": 26
+          },
+          {
+            "path": "src/orders/new-name.ts",
+            "previousPath": "src/orders/old-name.ts",
+            "status": "renamed",
+            "score": 0,
+            "hunks": [],
+            "contexts": [],
+            "summary": "renamed from src/orders/old-name.ts without content changes",
+            "estimatedTokens": 49
+          }
+        ],
+        "estimatedTokens": 75
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "img/photo.jpg",
+        "reason": "binary"
+      },
+      {
+        "path": "src/huge/table.ts",
+        "reason": "patch_missing"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6075
+  }
+}

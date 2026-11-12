@@ -1,0 +1,118 @@
+{
+  "name": "PRE-06 unsupported or disabled languages fall back to ±20 line windows",
+  "input": {
+    "files": [
+      {
+        "path": "app/controllers/coupons_controller.rb",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -30,7 +30,7 @@\n   # line 28\n   # line 29\n   def apply\n-    render json: { total: params[:total].to_i - 1 }\n+    render json: { total: params[:total].to_i - 2 }\n   end\n   # tail 0\n   # tail 1",
+        "patchMissing": false,
+        "headContent": "class CouponsController < ApplicationController\n  # line 0\n  # line 1\n  # line 2\n  # line 3\n  # line 4\n  # line 5\n  # line 6\n  # line 7\n  # line 8\n  # line 9\n  # line 10\n  # line 11\n  # line 12\n  # line 13\n  # line 14\n  # line 15\n  # line 16\n  # line 17\n  # line 18\n  # line 19\n  # line 20\n  # line 21\n  # line 22\n  # line 23\n  # line 24\n  # line 25\n  # line 26\n  # line 27\n  # line 28\n  # line 29\n  def apply\n    render json: { total: params[:total].to_i - 2 }\n  end\n  # tail 0\n  # tail 1\n  # tail 2\n  # tail 3\n  # tail 4\n  # tail 5\n  # tail 6\n  # tail 7\n  # tail 8\n  # tail 9\n  # tail 10\n  # tail 11\n  # tail 12\n  # tail 13\n  # tail 14\n  # tail 15\n  # tail 16\n  # tail 17\n  # tail 18\n  # tail 19\n  # tail 20\n  # tail 21\n  # tail 22\n  # tail 23\n  # tail 24\n  # tail 25\n  # tail 26\n  # tail 27\n  # tail 28\n  # tail 29\nend"
+      },
+      {
+        "path": "api/coupons.py",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "patch": "@@ -24,7 +24,7 @@\n             return False\n         if self.code == \"X7\":\n             return False\n-        return 0 < self.percent <= 100\n+        return 0 < self.percent <= 90\n \n \n @app.route(\"/apply\")\n@@ -45,4 +45,4 @@\n         return total - 6\n     if code == \"P7\":\n         return total - 7\n-    return total * 0.9\n+    return round(total * 0.9, 2)",
+        "patchMissing": false,
+        "headContent": "from dataclasses import dataclass\n\n\n@dataclass\nclass Coupon:\n    code: str\n    percent: int\n\n    @property\n    def is_valid(self) -> bool:\n        if self.code == \"X0\":\n            return False\n        if self.code == \"X1\":\n            return False\n        if self.code == \"X2\":\n            return False\n        if self.code == \"X3\":\n            return False\n        if self.code == \"X4\":\n            return False\n        if self.code == \"X5\":\n            return False\n        if self.code == \"X6\":\n            return False\n        if self.code == \"X7\":\n            return False\n        return 0 < self.percent <= 90\n\n\n@app.route(\"/apply\")\ndef apply_coupon(total, code):\n    if code == \"P0\":\n        return total - 0\n    if code == \"P1\":\n        return total - 1\n    if code == \"P2\":\n        return total - 2\n    if code == \"P3\":\n        return total - 3\n    if code == \"P4\":\n        return total - 4\n    if code == \"P5\":\n        return total - 5\n    if code == \"P6\":\n        return total - 6\n    if code == \"P7\":\n        return total - 7\n    return round(total * 0.9, 2)"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "api/coupons.py",
+            "status": "modified",
+            "score": 1.609,
+            "hunks": [
+              {
+                "header": "@@ -24,7 +24,7 @@",
+                "oldStart": 24,
+                "oldLines": 7,
+                "newStart": 24,
+                "newLines": 7,
+                "text": "             return False\n         if self.code == \"X7\":\n             return False\n-        return 0 < self.percent <= 100\n+        return 0 < self.percent <= 90\n \n \n @app.route(\"/apply\")"
+              },
+              {
+                "header": "@@ -45,4 +45,4 @@",
+                "oldStart": 45,
+                "oldLines": 4,
+                "newStart": 45,
+                "newLines": 4,
+                "text": "         return total - 6\n     if code == \"P7\":\n         return total - 7\n-    return total * 0.9\n+    return round(total * 0.9, 2)"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "lines",
+                "startLine": 7,
+                "endLine": 48,
+                "text": "    percent: int\n\n    @property\n    def is_valid(self) -> bool:\n        if self.code == \"X0\":\n            return False\n        if self.code == \"X1\":\n            return False\n        if self.code == \"X2\":\n            return False\n        if self.code == \"X3\":\n            return False\n        if self.code == \"X4\":\n            return False\n        if self.code == \"X5\":\n            return False\n        if self.code == \"X6\":\n            return False\n        if self.code == \"X7\":\n            return False\n        return 0 < self.percent <= 90\n\n\n@app.route(\"/apply\")\ndef apply_coupon(total, code):\n    if code == \"P0\":\n        return total - 0\n    if code == \"P1\":\n        return total - 1\n    if code == \"P2\":\n        return total - 2\n    if code == \"P3\":\n        return total - 3\n    if code == \"P4\":\n        return total - 4\n    if code == \"P5\":\n        return total - 5\n    if code == \"P6\":\n        return total - 6\n    if code == \"P7\":\n        return total - 7\n    return round(total * 0.9, 2)"
+              }
+            ],
+            "estimatedTokens": 453
+          },
+          {
+            "path": "app/controllers/coupons_controller.rb",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -30,7 +30,7 @@",
+                "oldStart": 30,
+                "oldLines": 7,
+                "newStart": 30,
+                "newLines": 7,
+                "text": "   # line 28\n   # line 29\n   def apply\n-    render json: { total: params[:total].to_i - 1 }\n+    render json: { total: params[:total].to_i - 2 }\n   end\n   # tail 0\n   # tail 1"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "lines",
+                "startLine": 13,
+                "endLine": 53,
+                "text": "  # line 11\n  # line 12\n  # line 13\n  # line 14\n  # line 15\n  # line 16\n  # line 17\n  # line 18\n  # line 19\n  # line 20\n  # line 21\n  # line 22\n  # line 23\n  # line 24\n  # line 25\n  # line 26\n  # line 27\n  # line 28\n  # line 29\n  def apply\n    render json: { total: params[:total].to_i - 2 }\n  end\n  # tail 0\n  # tail 1\n  # tail 2\n  # tail 3\n  # tail 4\n  # tail 5\n  # tail 6\n  # tail 7\n  # tail 8\n  # tail 9\n  # tail 10\n  # tail 11\n  # tail 12\n  # tail 13\n  # tail 14\n  # tail 15\n  # tail 16\n  # tail 17\n  # tail 18"
+              }
+            ],
+            "estimatedTokens": 258
+          }
+        ],
+        "estimatedTokens": 711
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6711
+  }
+}

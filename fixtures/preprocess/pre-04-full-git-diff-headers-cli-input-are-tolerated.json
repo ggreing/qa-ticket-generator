@@ -1,0 +1,72 @@
+{
+  "name": "PRE-04 full git diff headers (CLI input) are tolerated",
+  "input": {
+    "files": [
+      {
+        "path": "src/cli/main.ts",
+        "status": "renamed",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "diff --git a/src/cli/run.ts b/src/cli/main.ts\nsimilarity index 90%\nrename from src/cli/run.ts\nrename to src/cli/main.ts\nindex 3b18e51..a9c2f4d 100644\n--- a/src/cli/run.ts\n+++ b/src/cli/main.ts\n@@ -1,2 +1,2 @@\n import { run } from '../core';\n-run(process.argv);\n+await run(process.argv.slice(2));",
+        "patchMissing": false,
+        "previousPath": "src/cli/run.ts"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/cli/main.ts",
+            "previousPath": "src/cli/run.ts",
+            "status": "renamed",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,2 +1,2 @@",
+                "oldStart": 1,
+                "oldLines": 2,
+                "newStart": 1,
+                "newLines": 2,
+                "text": " import { run } from '../core';\n-run(process.argv);\n+await run(process.argv.slice(2));"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 58
+          }
+        ],
+        "estimatedTokens": 58
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6058
+  }
+}
