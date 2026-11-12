@@ -4,6 +4,14 @@
   "description": "GitHub Action that cross-checks PR diffs against linked PRDs (GitHub Issues, Jira, Notion) with Claude and publishes BDD QA scenarios to the PR and Slack.",
   "license": "Apache-2.0",
   "author": "ggreing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ggreing/qa-ticket-generator.git"
+  },
+  "homepage": "https://github.com/ggreing/qa-ticket-generator#readme",
+  "bugs": {
+    "url": "https://github.com/ggreing/qa-ticket-generator/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
