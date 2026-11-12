@@ -5,10 +5,11 @@
  *
  *   node evals/cli.mjs run --effort high,medium          # prints the plan and estimated cost only
  *   node evals/cli.mjs run --effort high,medium --yes    # calls the API (needs ANTHROPIC_API_KEY)
- *   node evals/cli.mjs build-cases                       # regenerates evals/cases and evals/splits.json
+ *   node evals/cli.mjs build-cases                       # regenerates evals/cases, splits.json and CASES.md
  *   node evals/cli.mjs snapshot-real [--ids a,b]         # fetches the real-PR snapshots (needs GITHUB_TOKEN)
  */
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
@@ -28,14 +29,27 @@ await build({
 });
 await import(pathToFileURL(outfile).href);
 
+// Keep generated files in the repository's formatting so `npm run lint` stays clean.
+const biome = join(here, '..', 'node_modules', '@biomejs', 'biome', 'bin', 'biome');
+const format = (paths) => {
+  const present = paths.filter((path) => existsSync(path));
+  if (present.length > 0) {
+    execFileSync(process.execPath, [biome, 'format', '--write', ...present], { stdio: 'inherit' });
+  }
+};
+
 if (process.argv[2] === 'build-cases') {
-  // Keep the generated JSON in the repository's formatting so `npm run lint` stays clean.
-  const biome = join(here, '..', 'node_modules', '@biomejs', 'biome', 'bin', 'biome');
-  execFileSync(
-    process.execPath,
-    [biome, 'format', '--write', join(here, 'cases'), join(here, 'splits.json')],
-    {
-      stdio: 'inherit',
-    },
-  );
+  format([join(here, 'cases'), join(here, 'splits.json'), join(here, 'CASES.md')]);
+}
+
+const round = process.argv.indexOf('--round');
+if (process.argv[2] === 'run' && round > 0) {
+  // The run is still going when the import above returns; format its committed records at the end.
+  process.once('beforeExit', () => {
+    format([
+      join(here, 'ROUNDS.md'),
+      join(here, 'rounds', 'index.json'),
+      join(here, 'rounds', String(process.argv[round + 1]), 'summary.md'),
+    ]);
+  });
 }

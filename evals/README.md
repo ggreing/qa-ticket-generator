@@ -1,76 +1,157 @@
-# Quality evals (SPEC §12.3)
+# Quality evals (SPEC §12.3, M3.5)
 
-Ten synthetic pull requests with planted gaps between the code and its PRD, a deterministic
-grader, and a runner that sends each case through the same `orchestrate` call, prompts and
-defaults the Action uses. Run it whenever a prompt or the model changes, and paste the summary
-table into the PR.
+Pull requests with a PRD, sent through the same `orchestrate` call, prompts, defaults and renderer
+the Action uses, then scored two ways:
+
+- a **deterministic grader** for what has one right answer (alignment status, finding statuses,
+  forbidden content, file references), on synthetic cases with planted gaps;
+- a **rubric judge** for what code cannot check (is a ticket runnable, traceable, aimed at a real
+  risk, prioritised sensibly; is the report concise and honest), on every case, following
+  [`docs/quality/RUBRIC.md`](../docs/quality/RUBRIC.md).
 
 Running the eval costs money. Nothing is sent to the API until you have seen the estimate and
 passed `--yes`.
 
+## Data
+
+| Kind      | Where                              | Ground truth    | Scored by               |
+| --------- | ---------------------------------- | --------------- | ----------------------- |
+| Synthetic | `evals/cases/<id>/` (committed)    | `expected.json` | grader and rubric judge |
+| Real PRs  | `evals/real/<id>/` (not committed) | none            | rubric judge and people |
+
+- The synthetic cases are listed in [`CASES.md`](CASES.md), with what was planted in each.
+- Real PRs are public pull requests listed in `real-sources.json`. Their snapshots are fetched with
+  `node evals/cli.mjs snapshot-real` (GET requests only, needs `GITHUB_TOKEN`) and stay out of the
+  repository. A real case that is not on your machine is left out of a run and named in the plan.
+- Every case belongs to one **split**. `dev` is for iterating. `test` is run once, at the end, so
+  that the final number was not tuned against. Synthetic splits are set in the authoring file and
+  generated into `splits.json`; real ones are in `real-sources.json`.
+
 ## Commands
 
-Run these from the repository root.
+Run these from the repository root. `npm run eval -- <options>` is the same as
+`node evals/cli.mjs run <options>`.
 
 ```bash
 # Plan and estimated cost only. No API call, no key needed.
-node evals/cli.mjs run --effort high,medium
+node evals/cli.mjs run --judge
 
-# Execute (needs ANTHROPIC_API_KEY). One variant per effort level.
-node evals/cli.mjs run --effort high,medium --yes
+# Execute the dev split with the rubric judge (needs ANTHROPIC_API_KEY).
+node evals/cli.mjs run --judge --yes
 
 # Options
-#   --model <id>        model to evaluate (default: the Action's default)
-#   --cases a,b         only these cases
-#   --reps <n>          repetitions per case; the table then shows the pass-rate spread
-#   --concurrency <n>   cases in flight at once (default 3)
-#   --judge             also grade scenario coverage with claude-haiku-5-5
+#   --model <id>          model to evaluate (default: the Action's default)
+#   --effort a,b          one variant per effort level, e.g. high,medium
+#   --split dev|test|all  default dev
+#   --cases a,b           only these cases, whatever their split
+#   --reps <n>            repetitions per case; the table then shows the pass-rate spread
+#   --concurrency <n>     cases in flight at once (default 3)
+#   --judge               score every report with the rubric judge
+#   --judge-model <id>    rubric judge model (default claude-sonnet-5-5)
+#   --coverage-judge      also check must-cover risks by meaning with claude-haiku-5-5
 
-# Re-grade a saved run with the current cases and rules. Offline: no API call, no key.
-node evals/cli.mjs run --regrade evals/results/<timestamp>.json
-#   --edited a,b        cases whose PR, files or PRD changed since that run (only needed for
-#                       files saved before runs recorded an input hash)
-
-# Regenerate evals/cases/ after editing a file in evals/authoring/
+# Regenerate evals/cases/, splits.json and CASES.md after editing a file in evals/authoring/
 node evals/cli.mjs build-cases
 ```
 
-`npm run eval -- <options>` and `npm run eval:build-cases` are shortcuts for the same commands.
+The plan shows the two costs apart, for example:
 
-Results go to `evals/results/<timestamp>.json` (every report, call, usage and grade) and a
-Markdown summary table is printed.
+```text
+  estimated run cost:   ~$1.51 (claude-opus-5-5)
+  estimated judge cost: ~$0.49 (claude-sonnet-5-5 rubric judge)
+  estimated total:      ~$2.00
+```
 
-## Cases
+Results go to `evals/results/<timestamp>.json` (every report, the rendered comment, calls, usage,
+grades and judge scores) and a Markdown summary table is printed.
 
-| Case                         | Stack           | Planted                                                                  | Expected alignment |
-| ---------------------------- | --------------- | ------------------------------------------------------------------------ | ------------------ |
-| `booking-hold-aligned`       | Go, SQL         | nothing: fully implemented                                               | aligned            |
-| `coupon-expiry-missing`      | TypeScript      | AC3 expiry check missing                                                 | partial            |
-| `login-throttle-no-prd`      | Python          | no PRD linked                                                            | no_prd             |
-| `migration-split-name`       | SQL, TypeScript | AC3 down script missing                                                  | partial            |
-| `notification-retry-aligned` | TypeScript      | nothing: fully implemented                                               | aligned            |
-| `profile-injection`          | TypeScript      | AC2 missing, plus injected instructions in the PRD and in a code comment | partial            |
-| `rbac-export-role`           | Python          | AC1 contradicted (managers may export), AC3 rate limit missing           | misaligned         |
-| `report-timezone`            | Python          | AC1 contradicted (UTC day boundaries)                                    | misaligned         |
-| `search-page-cap`            | Go              | AC2 contradicted (page size capped at 500, not 100)                      | misaligned         |
-| `upload-size-scan`           | TypeScript      | AC1 contradicted (25 MB, not 10 MB), AC3 virus scan missing              | misaligned         |
+`--judge` used to mean the keyword-coverage judge. That one is now `--coverage-judge`.
 
-Each case directory holds `pr.json`, `files.json` (`ChangedFile[]` with patch and head content),
-`prd/*.json` (`PrdDocument[]`) and `expected.json`. These files are generated: a case is written
-once in `evals/authoring/<id>.ts`, where each changed file is a full-context annotated diff, so
-the patch and the head content cannot drift apart. A test fails when the JSON is out of date.
+## An improvement round
 
-## What is graded
+One round changes one thing (prompt, output format, context) and measures it on `dev`.
+
+```bash
+# 1. Run and record. Round 0 is the baseline.
+node evals/cli.mjs run --judge --round 1 --change "steps name the exact request" --yes
+
+# 2. Build a blind pack of 5 reports for a person to rate (no API call).
+node evals/cli.mjs run --review-pack evals/rounds/1/raw/results.json --sample 5 --out evals/rounds/1/raw/pack.json
+
+# 3. After the ratings are filled in, compare them with the judge (no API call).
+node evals/cli.mjs run --calibrate evals/rounds/1/raw/ratings.json evals/rounds/1/raw/results.json
+
+# 4. Record the decision (no API call).
+node evals/cli.mjs run --round 1 --decision keep      # or: revert
+```
+
+What a round leaves behind:
+
+| File                                | Committed | Content                                                      |
+| ----------------------------------- | --------- | ------------------------------------------------------------ |
+| `evals/rounds/<n>/raw/results.json` | no        | every report and score of the run                            |
+| `evals/rounds/<n>/summary.md`       | yes       | the change, the variant table, criteria means, per-case rows |
+| `evals/rounds/index.json`           | yes       | the numbers behind `ROUNDS.md`                               |
+| `evals/ROUNDS.md`                   | yes       | one row per round: change, dev scores, cost, keep/revert     |
+
+A round counts as an improvement only if the dev overall rises **and** no deterministic metric
+(alignment, findings, injection) falls. The runner records the numbers; the decision is made by a
+person and entered with `--decision`.
+
+**Review pack.** A JSON file with, per sampled report: the case id, the PRD title and acceptance
+criteria, a change summary (file list and the first lines of the largest patches), the ticket as
+rendered for the PR comment, and empty rating slots for the seven rubric criteria (fill each with
+0, 1 or 2). It leaves out the judge's scores and the expected answers on purpose, so the rating is
+not anchored on them. Samples are spread across the judge's score range and are the same every
+time for the same results file.
+
+**Calibration.** For each criterion: how many ratings were matched, the person's mean, the judge's
+mean, the mean difference (positive = the judge is more generous) and the mean absolute
+difference. When a criterion or the average is off by more than 0.5, refine the judge prompt or the
+rubric before trusting the judge's scores. For alignment correctness the judge's own opinion is
+compared, not the ground-truth value that replaces it in the score.
+
+## Offline re-grade
+
+```bash
+node evals/cli.mjs run --regrade evals/results/<timestamp>.json
+#   --edited a,b   cases whose PR, files or PRD changed since that run (only needed for files
+#                  saved before runs recorded an input hash)
+```
+
+Applies the current `expected.json` files and grading rules to stored reports. Judge scores are
+carried over; only alignment correctness is recomputed from the new grade.
+
+## What is scored
+
+### Rubric judge (0–2, `--judge`)
+
+| Column   | Meaning                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Scenario | mean of actionability, traceability, risk relevance and priority over all tickets of a report |
+| Report   | mean of alignment correctness, concision and honesty                                          |
+| Overall  | 0.5 × Scenario + 0.5 × Report, per report, averaged over the variant                          |
+
+- The judge sees the PRD, the patches (long ones cut), the rendered comment and the report's data.
+  It never sees `expected.json`.
+- Where a case has ground truth, **alignment correctness comes from the grader**, not from the
+  judge: 2 when the overall status and every finding are right, 1 with exactly one wrong status,
+  0 otherwise. The judge's own score is kept in the results for calibration.
+- A score outside 0–2, a truncated reply or a failed call leaves the report without rubric scores
+  (the run and its deterministic grade stay). It is not retried.
+
+### Deterministic grader (synthetic cases only)
 
 All of this is rule-based and needs no model call.
 
 | Column            | Meaning                                                                                                                                                               |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Graded            | runs of cases that have ground truth                                                                                                                                  |
 | Pass              | every check below holds for the case, and at least half of its must-cover risks are covered                                                                           |
 | Alignment         | overall status equals `expectedAlignment`                                                                                                                             |
 | Findings          | share of `mustFindings` judged with the expected status (matched by the AC label, e.g. `AC3`, else by keyword)                                                        |
 | Scenarios (kw)    | share of `mustScenarios` covered by a scenario that contains the listed keywords                                                                                      |
-| Scenarios (judge) | the same, decided by the Haiku judge reading for meaning (`--judge` only)                                                                                             |
+| Scenarios (judge) | the same, decided by the Haiku judge reading for meaning (`--coverage-judge` only)                                                                                    |
 | Forbidden         | count of `forbidden` patterns found (invented features, the injection canary)                                                                                         |
 | File refs         | share of file references in the model's raw report that are files of the PR                                                                                           |
 | Ungrounded        | share of scenarios citing neither a requirement nor a changed file                                                                                                    |
@@ -78,13 +159,14 @@ All of this is rule-based and needs no model call.
 | Errors            | runs with nothing to grade: refusals, truncation, API errors, a different serving model. They are listed with their reason and cost and are never counted as failures |
 
 Keyword matching is approximate: it can miss a scenario worded differently and can hit one that
-only mentions the topic. Use `--judge` when scenario coverage is what you are comparing; where the
-judge ran, its verdict replaces the keyword one in **Pass**.
+only mentions the topic.
 
 ## Things to know before trusting a number
 
-- **Ten cases is a small set.** One case is 10 points of pass rate. Use `--reps 3` before reading
-  anything into a difference between two variants, and compare the spread, not single runs.
+- **The rubric judge is a model.** Its scores mean something only after a calibration against a
+  person's ratings came out within 0.5. Until then, treat them as unverified.
+- **The set is small.** With a handful of cases in a split, one case moves a percentage by many
+  points. Use `--reps 3` before reading anything into a difference, and compare the spread.
 - **Some columns are at their ceiling.** In the first run (below) scenario coverage by keyword,
   file references and groundedness were 100% for both variants, so they cannot tell variants
   apart. What moved was alignment, finding statuses and injection reporting.
@@ -92,15 +174,17 @@ judge ran, its verdict replaces the keyword one in **Pass**.
   PRD, its old runs cannot be re-graded; `--regrade` marks them stale.
 - **Server-side fallback is off here** (it is on by default in the Action), and a run served by
   another model is discarded, so a score always describes the model you asked for.
-- **Expected answers were written by hand** with the cases, not taken from a model's output.
+- **Expected answers were written by hand** with the cases, not taken from a model's output. Real
+  PRs have none.
 - Cost in the table comes from the tokens the API reported and the price table in
   `src/llm/pricing.ts`. The pre-run estimate assumes 12,000 output tokens per call, like the
-  Action's cost guard, and is usually above the real cost.
+  Action's cost guard, and is usually above the real cost. The judge estimate is a rough size
+  (the case plus about 9,000 input and 5,000 output tokens per report).
 
 ## First measured run (2026-11-12)
 
-`claude-opus-5-5`, effort high vs medium, 10 cases, one repetition, no judge, prompt
-`2026-11-12.1`. Results file `2026-11-12T05-41-02-741Z.json` (not committed).
+`claude-opus-5-5`, effort high vs medium, the 10 cases that existed then, one repetition, no
+judge, prompt `2026-11-12.1`, before the ticket format and the splits. Results file `2026-11-12T05-41-02-741Z.json` (not committed).
 
 | Variant | Pass | Alignment | Findings | Injection | Cost  | Cost per run         | Output tokens per run  | Avg time |
 | ------- | ---- | --------- | -------- | --------- | ----- | -------------------- | ---------------------- | -------- |
@@ -131,8 +215,12 @@ judge ran, its verdict replaces the keyword one in **Pass**.
 
 ## Adding a case
 
-1. Copy a file in `evals/authoring/`, change the id, PR, PRD, files and `expected`.
+1. Copy a file in `evals/authoring/`, change the id, PR, PRD, files and `expected`, and set
+   `split` (`dev` or `test`). Add `options: { tokenBudget }` only when the case must be split
+   into chunks.
 2. Label every acceptance criterion (`AC1:`, `AC2:` …) and give each exactly one accepted status.
    If two careful reviewers could disagree on the status, rewrite the requirement or the code.
+   A PRD written as prose may leave `acceptanceCriteria` empty; each label must then appear
+   exactly once in the body, e.g. `(AC1)`.
 3. Do not leak the answer: no TODOs, and nothing in the PR body about what is unfinished.
 4. Register it in `evals/authoring/index.ts`, run `node evals/cli.mjs build-cases`, then `npm test`.
