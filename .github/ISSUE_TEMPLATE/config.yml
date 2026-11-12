@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ggreing/qa-ticket-generator/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: Contributing guide
+    url: https://github.com/ggreing/qa-ticket-generator/blob/main/CONTRIBUTING.md
+    about: How to set up the project, run tests and open a pull request.

@@ -61,12 +61,20 @@ function toFetchError(err: unknown, key: string): unknown {
   if (err instanceof PrdFetchError) return err;
   const status = statusOf(err);
   if (status === undefined) return err; // aborts/timeouts are classified by the registry
-  if (status === 401)
-    return new PrdFetchError('auth', `Jira rejected the credentials (HTTP 401) for ${key}.`, { status });
+  // PRD-10 — both are fixed by the user's Jira credentials/permissions, so report them as such.
+  if (status === 401) {
+    return new PrdFetchError(
+      'permission',
+      `Jira rejected the credentials for ${key} (HTTP 401); check jira-email and jira-api-token.`,
+      { status },
+    );
+  }
   if (status === 403) {
-    return new PrdFetchError('http', `The Jira account is not allowed to read ${key} (HTTP 403).`, {
-      status,
-    });
+    return new PrdFetchError(
+      'permission',
+      `The Jira account may not read ${key} (HTTP 403); grant it "Browse projects" on that project.`,
+      { status },
+    );
   }
   if (status === 404) {
     return new PrdFetchError(

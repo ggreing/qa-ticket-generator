@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PrdFetchError } from '../../../src/context/prd/errors';
+import { createJiraProvider } from '../../../src/context/prd/jira';
+import { createNotionProvider } from '../../../src/context/prd/notion';
 import { collectPrdDocuments } from '../../../src/context/prd/registry';
 import type { PrdDocument, PrdProvider, PrdRef, PrdSource } from '../../../src/core/contracts';
+import { fakeFetch, json } from '../helpers';
 
 const ref = (source: PrdSource, id: string): PrdRef => ({ source, id, raw: id });
 const doc = (r: PrdRef, body = 'TOP SECRET PRD BODY'): PrdDocument => ({
@@ -110,6 +113,33 @@ describe('collectPrdDocuments', () => {
     expect(warnings).toHaveLength(1);
     expect(warnings[0]?.code).toBe('prd_permission');
     expect(warnings[0]?.message).toContain('PAT or GitHub App token');
+  });
+
+  it('PRD-10 reports Jira 401/403 and Notion 404 (not shared) as prd_permission end to end', async () => {
+    const jiraStatus: Record<string, number> = { 'PROJ-1': 401, 'PROJ-2': 403, 'PROJ-3': 404 };
+    const jiraHttp = fakeFetch((req) =>
+      json({ errorMessages: ['x'] }, jiraStatus[req.url.pathname.split('/').pop() ?? ''] ?? 500),
+    );
+    const notionHttp = fakeFetch(() =>
+      json({ object: 'error', status: 404, code: 'object_not_found', message: 'x' }, 404),
+    );
+    const jira = createJiraProvider(
+      { baseUrl: 'https://acme.atlassian.net', email: 'e@example.com', apiToken: 't' },
+      { fetch: jiraHttp.fetch as typeof fetch },
+    );
+    const notion = createNotionProvider('n', { fetch: notionHttp.fetch });
+    const { warnings } = await collectPrdDocuments(
+      [ref('jira', 'PROJ-1'), ref('jira', 'PROJ-2'), ref('jira', 'PROJ-3'), ref('notion', 'a'.repeat(32))],
+      [jira, notion],
+      opts(),
+    );
+    expect(warnings.map((w) => w.code)).toEqual([
+      'prd_permission',
+      'prd_permission',
+      'prd_fetch_failed',
+      'prd_permission',
+    ]);
+    expect(warnings[3]?.message).toContain('not shared with the integration');
   });
 
   it('PRD-08 times out a slow document after timeoutMs without blocking the others', async () => {

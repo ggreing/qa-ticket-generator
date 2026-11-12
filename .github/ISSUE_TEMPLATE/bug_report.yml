@@ -1,0 +1,74 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Do not paste secrets, tokens, proprietary code or PRD text** in this
+        issue — this repository is public. For security issues use a private
+        [security advisory](https://github.com/ggreing/qa-ticket-generator/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Event (labeled, synchronize, workflow_dispatch, CLI …), PR shape, linked PRD types.
+      placeholder: |
+        1. Add the needs-ai-qa label to a PR that links PROJ-1 (Jira)
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow configuration
+      description: The `uses:` step with its `with:` inputs (remove secret values), and the repo config file if any.
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: Action / CLI version
+      description: Tag or commit SHA, e.g. `v0.1.0` or `ggreing/qa-ticket-generator@<sha>`.
+    validations:
+      required: true
+  - type: dropdown
+    id: runner
+    attributes:
+      label: Runner
+      options:
+        - ubuntu
+        - macos
+        - windows
+        - self-hosted
+        - CLI (local)
+    validations:
+      required: true
+  - type: checkboxes
+    id: sources
+    attributes:
+      label: PRD sources involved
+      options:
+        - label: GitHub Issue
+        - label: Jira Cloud
+        - label: Notion
+        - label: None (code-only mode)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: The action logs counts and sizes only, but double-check before pasting.
+      render: text
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I removed secrets, tokens, proprietary code and PRD content from this report.
+          required: true
