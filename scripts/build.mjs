@@ -1,5 +1,5 @@
 // Bundles the Action and CLI entry points into dist/ (single-file ESM, Node 24).
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -14,7 +14,10 @@ const banner = {
   js: "import { createRequire as __qtgCreateRequire } from 'node:module'; const require = __qtgCreateRequire(import.meta.url);",
 };
 
+const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+
 const common = {
+  define: { __QTG_VERSION__: JSON.stringify(version) },
   bundle: true,
   platform: 'node',
   target: 'node22',

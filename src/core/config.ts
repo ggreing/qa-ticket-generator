@@ -127,7 +127,8 @@ export function parseRepoConfig(text: string | null): RepoConfig {
 /** Resolves inputs + repo config into QtgConfig. Throws QtgError('config_invalid') on bad values. */
 export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
   const anthropicApiKey = input('anthropic-api-key').trim();
-  if (!anthropicApiKey && !bool(input('dry-run'), 'dry-run', false)) {
+  // Required even for dry-run: dry-run still generates the report, it only skips publishing.
+  if (!anthropicApiKey) {
     throw new QtgError('config_invalid', 'Input "anthropic-api-key" is required.');
   }
 

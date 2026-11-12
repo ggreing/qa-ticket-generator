@@ -67,7 +67,7 @@
 | UC-04 | PR 본문에 PRD 링크가 없다                                   | 코드 기반 시나리오를 만들고 "기획 미연결 · 신뢰도 낮음" 경고를 붙인다. `require-prd: true`면 실패 처리한다 |
 | UC-05 | 120개 파일이 바뀐 대형 PR                                   | 우선순위 패킹으로 처리한다. 예산을 넘으면 Map-Reduce로 처리하고, 제외되거나 요약된 파일 목록을 명시한다    |
 | UC-06 | 외부 기여자의 fork PR                                       | 기본 설정에서는 Job Summary에 "fork PR — 스킵" 안내만 남긴다. 옵트인 워크플로를 쓰면 실행한다              |
-| UC-07 | 개발자가 로컬에서 미리 확인한다                             | `npx qa-ticket-generator run --repo o/r --pr 12 --dry-run`으로 리포트를 터미널에 출력한다(발행하지 않음)   |
+| UC-07 | 개발자가 로컬에서 미리 확인한다                             | `npx qa-ticket-generator run --repo o/r --pr 12`(기본 dry-run)로 리포트를 터미널에 출력한다(발행하지 않음) |
 | UC-08 | P5가 비용을 확인한다                                        | 코멘트 하단과 Job Summary에 모델, 입출력 토큰, 추정 비용(USD), 소요 시간이 표시된다                        |
 
 ---
@@ -217,11 +217,11 @@ prompt:
 ### 4.5 CLI
 
 ```
-npx qa-ticket-generator run --repo owner/repo --pr 123 [--dry-run] [--format md|json] [--out report.json]
+npx qa-ticket-generator run --repo owner/repo --pr 123 [--publish] [--format md|json] [--out report.json]
 환경변수: GITHUB_TOKEN, ANTHROPIC_API_KEY, (선택) SLACK_*, JIRA_*, NOTION_TOKEN
 ```
 
-- `--dry-run`이 기본 권장 사용법이다. 리포트를 stdout에 출력하고 발행하지 않는다.
+- 기본은 **dry-run**이다. 리포트를 stdout에 출력하고 발행하지 않는다(로그는 stderr). `--publish`를 줘야 PR 코멘트·Slack에 발행한다.
 - Action과 **같은 파이프라인 코어**를 사용하며, 입력 어댑터만 다르다.
 
 ### 4.6 출력물 형태
@@ -595,7 +595,7 @@ RunMeta = { model, effort, mode, sha, tokens:{input,output,cacheRead,cacheWrite}
 ### 12.2 통합 테스트
 
 - 파이프라인 전체를 모든 외부 의존성을 모킹한 상태로 실행해(PR 픽스처 → 렌더 결과) 스냅샷을 비교한다
-- CLI `--dry-run` 스모크 테스트
+- CLI dry-run(기본 동작) 스모크 테스트
 ### 12.3 품질 평가 (LLM eval, 수동/옵트인 — 비용 발생)
 
 - `evals/`에 PR 10건 + PRD를 둔다(의도적 불일치 포함). 케이스마다 기대 체크리스트(반드시 나와야 할 시나리오/finding)를 정의한다

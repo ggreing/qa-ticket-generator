@@ -52,9 +52,11 @@ describe('resolveConfig', () => {
     expect(cfg.preprocess.tokenBudget).toBe(150_000);
   });
 
-  it('requires an API key unless dry-run', () => {
+  it('requires an API key, also for dry-run (the report is still generated)', () => {
     expect(() => resolveConfig(inputs({}), parseRepoConfig(null))).toThrow(/anthropic-api-key/);
-    expect(() => resolveConfig(inputs({ 'dry-run': 'true' }), parseRepoConfig(null))).not.toThrow();
+    expect(() => resolveConfig(inputs({ 'dry-run': 'true' }), parseRepoConfig(null))).toThrow(
+      /anthropic-api-key/,
+    );
   });
 
   it('prefers slack bot mode over webhook and requires a channel', () => {
