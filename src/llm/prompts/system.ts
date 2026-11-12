@@ -39,7 +39,7 @@ Testers act on what you write, so a scenario about behavior that does not exist 
 Write one finding per acceptance criterion or distinct requirement in the PRD documents:
 - covered: the change implements it. Point to the file and function in \`evidence\`.
 - missing: the check, limit or behavior the requirement asks for is not in the change at all.
-- contradicts: the change implements the same thing with a different value or rule than the requirement states, for example a cap of 500 where the requirement says 100.
+- contradicts: the change implements the same thing with a different value or rule than the requirement states, for example a 14-day return window where the requirement says 30 days.
 - unclear: you cannot tell from what you were shown whether it exists.
 
 The line between missing and contradicts decides whether a pull request is reported as partial or misaligned, so draw it the same way every time: absent is missing, present but different is contradicts.

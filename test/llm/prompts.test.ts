@@ -52,7 +52,7 @@ describe('system prompt (SPEC §8)', () => {
       '- missing: the check, limit or behavior the requirement asks for is not in the change at all.',
     );
     expect(SYSTEM_PROMPT).toMatch(
-      /- contradicts: the change implements the same thing with a different value or rule .* a cap of 500 where the requirement says 100\./,
+      /- contradicts: the change implements the same thing with a different value or rule .* a 14-day return window where the requirement says 30 days./,
     );
     expect(SYSTEM_PROMPT).toContain('- unclear: you cannot tell from what you were shown whether it exists.');
     expect(SYSTEM_PROMPT).toContain('absent is missing, present but different is contradicts');
