@@ -231,11 +231,11 @@ describe('Slack blocks (SPEC §4.6)', () => {
     );
   });
 
-  it('SPEC §4.6 summary card: aligned says no action, unclear findings are listed apart, long lists are capped', () => {
+  it('SPEC §4.6 summary card: aligned says all covered, unclear findings are listed apart, long lists are capped', () => {
     const template = fakeReport().prdAlignment.findings[0] as QaReport['prdAlignment']['findings'][number];
     const aligned = richReport({ prdAlignment: { status: 'aligned', findings: [template, template] } });
     expect(json(buildSummaryCard(finalReport({ report: aligned }), 'u').blocks)).toContain(
-      '✅ *No action needed — all 2 requirement(s) are covered*',
+      '✅ *All 2 requirement(s) are covered*',
     );
 
     const many = richReport({

@@ -5,12 +5,13 @@
  * Owner: qa-work-session-c(fable).
  */
 import type { FinalReport, PrdRef, QaReport, RunMeta } from '../../core/contracts';
-import { isAllowedUrl, type LinkPolicy, linkPolicyFor, mdCode, mdInline, truncate } from '../sanitize';
+import { isAllowedUrl, type LinkPolicy, linkPolicyFor, mdCode, mdInline } from '../sanitize';
 import { type Strings, strings } from './i18n';
 import {
   actionFindings,
   expectedSummary,
   type Finding,
+  lead,
   MAX_ACTION_ITEMS,
   MAX_CHECKLIST_ITEMS,
   MAX_EVIDENCE_CHARS,
@@ -69,17 +70,15 @@ function linkedLine(refs: PrdRef[], t: Strings, policy: LinkPolicy): string | nu
   return `> ${t.linked}: ${items.join(', ')}`;
 }
 
-/** One line of the top lists: `❌ **AC2** text — evidence <code>file</code>`. */
+/** One line of the top lists: `❌ **AC2** short requirement — first sentence of the evidence <code>file</code>`. */
 function findingLine(f: Finding, policy: LinkPolicy): string {
   const { label, text } = splitRequirement(f.requirement);
   const name = label ? `**${mdInline(label, policy)}** ` : '';
   const file = f.files[0]
     ? ` ${mdCode(f.files[0])}${f.files.length > 1 ? ` +${f.files.length - 1}` : ''}`
     : '';
-  const evidence = f.evidence.trim()
-    ? ` — ${mdInline(truncate(f.evidence, MAX_EVIDENCE_CHARS), policy)}`
-    : '';
-  return `- ${REQUIREMENT_ICON[f.status]} ${name}${mdInline(truncate(text, MAX_REQUIREMENT_CHARS), policy)}${evidence}${file}`;
+  const evidence = f.evidence.trim() ? ` — ${mdInline(lead(f.evidence, MAX_EVIDENCE_CHARS), policy)}` : '';
+  return `- ${REQUIREMENT_ICON[f.status]} ${name}${mdInline(lead(text, MAX_REQUIREMENT_CHARS), policy)}${evidence}${file}`;
 }
 
 function capped(lines: string[], max: number, t: Strings): string[] {

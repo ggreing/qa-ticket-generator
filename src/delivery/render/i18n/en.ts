@@ -11,7 +11,7 @@ export const en: Strings = {
   noPrd: 'No linked PRD — scenarios are inferred from code only (low confidence)',
   linked: 'Linked',
   actionNeeded: (n) => `Action needed (${n})`,
-  allCovered: (n) => `No action needed — all ${n} requirement(s) are covered`,
+  allCovered: (n) => `All ${n} requirement(s) are covered`,
   needsCheck: (n) => `Needs a check (${n})`,
   p0Checklist: (n) => `P0 checklist (${n})`,
   noP0: 'No P0 scenarios',

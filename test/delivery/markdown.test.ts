@@ -147,7 +147,7 @@ describe('renderPrComment — QA ticket layout (SPEC §4.6, M3.5)', () => {
     expect(top).not.toContain('audit log');
   });
 
-  it('SPEC §4.6 an aligned report says no action is needed', () => {
+  it('SPEC §4.6 an aligned report says every requirement is covered', () => {
     const report = richReport({
       prdAlignment: {
         status: 'aligned',
@@ -156,7 +156,7 @@ describe('renderPrComment — QA ticket layout (SPEC §4.6, M3.5)', () => {
     });
     const top = topOf(renderPrComment(finalReport({ report })));
     expect(top[0]).toContain('· ✅ **Aligned**');
-    expect(top).toContain('✅ **No action needed — all 2 requirement(s) are covered**');
+    expect(top).toContain('✅ **All 2 requirement(s) are covered**');
     expect(top.join('\n')).not.toContain('Action needed (');
   });
 

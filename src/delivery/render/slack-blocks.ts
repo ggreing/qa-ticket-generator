@@ -12,6 +12,7 @@ import {
   actionFindings,
   expectedSummary,
   type Finding,
+  lead,
   MAX_ACTION_ITEMS,
   MAX_CHECKLIST_ITEMS,
   MAX_EVIDENCE_CHARS,
@@ -87,11 +88,9 @@ function metaLine(final: FinalReport): KnownBlock {
 function findingLine(f: Finding, policy: LinkPolicy): string {
   const { label, text } = splitRequirement(f.requirement);
   const name = label ? `*${slackText(label, policy)}* ` : '';
-  const evidence = f.evidence.trim()
-    ? ` — ${slackText(truncate(f.evidence, MAX_EVIDENCE_CHARS), policy)}`
-    : '';
+  const evidence = f.evidence.trim() ? ` — ${slackText(lead(f.evidence, MAX_EVIDENCE_CHARS), policy)}` : '';
   const file = f.files[0] ? ` ${code(f.files[0], policy)}` : '';
-  return `• ${REQUIREMENT_ICON[f.status]} ${name}${slackText(truncate(text, MAX_REQUIREMENT_CHARS), policy)}${evidence}${file}`;
+  return `• ${REQUIREMENT_ICON[f.status]} ${name}${slackText(lead(text, MAX_REQUIREMENT_CHARS), policy)}${evidence}${file}`;
 }
 
 const capped = (lines: string[], max: number, t: Strings): string[] =>

@@ -1,0 +1,60 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ⚠️ **Partially aligned**
+
+> Linked: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+**Action needed (1)**
+- ❌ **AC3** A user can run at most 5 exports per hour. — Neither export_users nor the route registration contains any rate limiting. <code>src/coupon.ts</code> +1
+
+**P0 checklist (1)**
+- [ ] **TC-01** Sixth export within an hour is rejected with 429 → Request 6 returns HTTP 429 and no CSV data
+
+<details><summary><b>TC-01 Sixth export within an hour is rejected with 429</b> [P0 · AC3]</summary>
+
+- **Preconditions**: a coupon that expires in 1 second
+- **Data**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **Steps**:
+  1. the user applies it at checkout
+- **Expected**:
+  - Request 6 returns HTTP 429 and no CSV data
+  - Requests 1-5 return HTTP 200
+- **Related**: AC3 · <code>src/coupon.ts</code>
+- **Why**: Boundary of the expiry rule.
+
+</details>
+
+<details><summary>P1 · P2 tickets (1)</summary>
+
+<details><summary><b>TC-02 Sixth export within an hour is rejected with 429</b> [P1 · AC3, AC2]</summary>
+
+- **Preconditions**: a coupon that expires in 1 second
+- **Data**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **Steps**:
+  1. the user applies it at checkout
+- **Expected**: the discount is applied
+- **Related**: AC3: A user can run at most 5 exports per hour. Further requests get HTTP 429. · AC2 · <code>src/coupon.ts</code>
+- **Why**: Boundary of the expiry rule.
+
+</details>
+
+</details>
+
+<details><summary>Verdict per requirement (1)</summary>
+
+Adds coupon application to checkout.
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| AC3: A user can run at most 5 exports per hour. Further requests get HTTP 429. | ❌ missing | Neither export_users nor the route registration contains any rate limiting. A sixth request in the same hour is served like the first. <code>src/coupon.ts</code> <code>src/checkout.ts</code> |
+
+</details>
+
+### Risks
+
+- 🔴 **Missing expiry check** — AC3 not implemented <code>src/coupon.ts</code>
+- 🟡 **No audit log** — Coupon use is not logged.
+
+### Assumptions
+
+- Coupon codes are case-insensitive.
+
+<sub><code>claude-opus-5-5</code> · effort high · single · in 31.2K / out 5.8K tokens · ~$0.24 · 74s · 3 file(s) skipped (noise 2, binary 1) · 2 secret(s) redacted</sub>
