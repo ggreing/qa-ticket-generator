@@ -57,6 +57,8 @@ export interface RoundRecord {
   change: string;
   split: string;
   judgeModel: string | null;
+  /** Language the reports were written in. Absent in records written before it was recorded (English). */
+  language?: string;
   /** Rubric the scores were judged with. Absent in records written under rubric v1. */
   rubricVersion?: number;
   /** True when the reports of an earlier run were scored again, with no new generation. */
@@ -67,10 +69,16 @@ export interface RoundRecord {
 
 /** The rubric version of a record; records from before versions existed are v1. */
 export const versionOf = (record: RoundRecord): number => record.rubricVersion ?? FIRST_RUBRIC_VERSION;
+/** The output language of a record; records from before it was stored are English. */
+export const languageOf = (record: { language?: string }): string => record.language ?? DEFAULT_LANGUAGE;
+const DEFAULT_LANGUAGE = 'en';
+/** File-name part that keeps a non-English run of a round apart from the English one: "" or ".ko". */
+export const languageSuffix = (language: string | undefined): string =>
+  (language ?? DEFAULT_LANGUAGE) === DEFAULT_LANGUAGE ? '' : `.${language}`;
 const sameRecord = (a: RoundRecord, b: RoundRecord): boolean =>
-  a.round === b.round && versionOf(a) === versionOf(b);
+  a.round === b.round && versionOf(a) === versionOf(b) && languageOf(a) === languageOf(b);
 const byRoundThenVersion = (a: RoundRecord, b: RoundRecord): number =>
-  a.round - b.round || versionOf(a) - versionOf(b);
+  a.round - b.round || languageOf(a).localeCompare(languageOf(b)) || versionOf(a) - versionOf(b);
 
 const indexPath = (deps: RunDeps): string => join(deps.evalsRoot, 'rounds', 'index.json');
 const pct = (value: number): string => `${(value * 100).toFixed(0)}%`;
@@ -98,8 +106,8 @@ export function renderRoundsIndex(records: RoundRecord[]): string {
     'same reports as the row above it, judged again with a newer rubric. "(16/19)" after an overall means the',
     'judge returned no usable score for the other reports, which are left out of the rubric means.',
     '',
-    '| Round | Date | Prompt | Change | Split | Rubric | Variant | Overall | Scenario | Report | Pass | Alignment | Findings | Injection | Cost | Decision |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Round | Date | Prompt | Change | Split | Lang | Rubric | Variant | Overall | Scenario | Report | Pass | Alignment | Findings | Injection | Cost | Decision |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const r of [...records].sort(byRoundThenVersion)) {
     for (const v of r.variants) {
@@ -110,6 +118,7 @@ export function renderRoundsIndex(records: RoundRecord[]): string {
           r.promptVersion,
           cell(r.change),
           r.split,
+          languageOf(r),
           r.judgeModel ? `v${versionOf(r)}${r.rejudged ? ' (re-scored)' : ''}` : '—',
           cell(v.label),
           `${score(v.overall)}${v.judged !== undefined && v.judged < v.runs ? ` (${v.judged}/${v.runs})` : ''}`,
@@ -137,6 +146,7 @@ export function renderRoundSummary(record: RoundRecord, saved: SavedResults, tab
     `- Prompt: \`${record.promptVersion}\``,
     `- Change: ${record.change}`,
     `- Split: ${record.split}`,
+    `- Language: ${languageOf(record)}`,
     `- Rubric judge: ${record.judgeModel ? `${record.judgeModel}, rubric v${versionOf(record)}${record.rejudged ? ' (re-scored, no new generation)' : ''}` : 'not run'}`,
     `- Decision: ${record.decision}`,
     '',
@@ -206,6 +216,7 @@ function toRecord(round: number, change: string, saved: SavedResults): RoundReco
     change: change.trim(),
     split: saved.split,
     judgeModel: saved.judgeModel,
+    ...(saved.language !== undefined ? { language: saved.language } : {}),
     ...(saved.rubricVersion !== undefined ? { rubricVersion: saved.rubricVersion } : {}),
     ...(saved.rejudgedFrom !== undefined ? { rejudged: true } : {}),
     decision: 'pending',
@@ -299,9 +310,19 @@ const direction = (before: number | null, after: number | null): ComparisonRow['
  * the decision is entered with --decision.
  */
 export function compareWithLastKept(record: RoundRecord, records: RoundRecord[]): Comparison {
-  const kept = records
+  const keptAny = records
     .filter((r) => r.round < record.round && r.decision === 'keep')
     .sort((a, b) => b.round - a.round);
+  // Reports in another language are judged as different text; they are never the baseline.
+  const kept = keptAny.filter((r) => languageOf(r) === languageOf(record));
+  if (kept.length === 0 && keptAny[0]) {
+    return {
+      baseline: null,
+      rows: [],
+      recommendation: 'none',
+      reason: `The kept rounds were run in ${languageOf(keptAny[0])} and this one in ${languageOf(record)}. Reports in different languages are not compared.`,
+    };
+  }
   const baseline = kept.find((r) => versionOf(r) === versionOf(record));
   if (!baseline) {
     const other = kept[0];
@@ -504,13 +525,14 @@ export function recordRound(
   const record = toRecord(round, change, saved);
   const others = readIndex(deps).filter((r) => !sameRecord(r, record));
   const comparison = formatComparison(round, compareWithLastKept(record, others));
+  const file = `summary${languageSuffix(record.language)}.md`;
   deps.writeFile(
-    join(deps.evalsRoot, 'rounds', String(round), 'summary.md'),
+    join(deps.evalsRoot, 'rounds', String(round), file),
     `${renderRoundSummary(record, saved, table)}\n## Compared with the last kept round\n\n${comparison.join('\n')}\n`,
   );
   writeIndex([...others, record], deps);
   deps.print(
-    `Round ${round} recorded in evals/rounds/${round}/summary.md and evals/ROUNDS.md (decision: pending).`,
+    `Round ${round} recorded in evals/rounds/${round}/${file} and evals/ROUNDS.md (decision: pending).`,
   );
   deps.print('');
   for (const line of comparison) deps.print(line);
@@ -527,7 +549,10 @@ export function recordRound(
 export function recordRejudgedRound(round: number, saved: SavedResults, table: string, deps: RunDeps): void {
   const records = readIndex(deps);
   const fresh = toRecord(round, '', saved);
-  const base = records.find((r) => sameRecord(r, fresh)) ?? records.find((r) => r.round === round);
+  const base =
+    records.find((r) => sameRecord(r, fresh)) ??
+    records.find((r) => r.round === round && languageOf(r) === languageOf(fresh)) ??
+    records.find((r) => r.round === round);
   const record: RoundRecord = {
     ...fresh,
     change: base?.change ?? 're-scored',
@@ -535,10 +560,10 @@ export function recordRejudgedRound(round: number, saved: SavedResults, table: s
   };
   const others = records.filter((r) => !sameRecord(r, record));
   const summary = renderRoundSummary(record, saved, table);
-  let file = 'summary.md';
+  let file = `summary${languageSuffix(record.language)}.md`;
   let comparison: string[] = [];
   if (record.rejudged) {
-    file = `summary.rubric-v${versionOf(record)}.md`;
+    file = `summary${languageSuffix(record.language)}.rubric-v${versionOf(record)}.md`;
     deps.writeFile(join(deps.evalsRoot, 'rounds', String(round), file), summary);
   } else {
     // The round's own run: its comparison with the last kept round changes with the scores.

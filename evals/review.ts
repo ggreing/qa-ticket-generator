@@ -50,6 +50,8 @@ export interface ReviewPack {
   version: 1;
   source: string;
   promptVersion: string;
+  /** Language the sampled reports are written in. */
+  language: string;
   variant: string;
   rubric: Record<Criterion, { name: string; level: 'scenario' | 'report'; anchors: readonly string[] }>;
   samples: ReviewSample[];
@@ -147,6 +149,7 @@ export function buildReviewPack(
     version: 1,
     source: path,
     promptVersion: saved.promptVersion,
+    language: saved.language ?? 'en',
     variant: variant.label,
     rubric,
     samples: pickSamples(usable, options.sample).map((run) =>
@@ -156,7 +159,7 @@ export function buildReviewPack(
   const out = options.out ?? join(deps.resultsRoot, 'review-pack.json');
   deps.writeFile(out, `${JSON.stringify(pack, null, 2)}\n`);
   deps.print(
-    `Review pack with ${pack.samples.length} report(s) from "${variant.label}" written to ${out}. It holds no judge scores and no expected answers.`,
+    `Review pack with ${pack.samples.length} report(s) from "${variant.label}" (language ${pack.language}) written to ${out}. It holds no judge scores and no expected answers.`,
   );
   return none(0);
 }

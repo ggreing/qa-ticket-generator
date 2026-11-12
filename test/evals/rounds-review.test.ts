@@ -86,18 +86,18 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
 
     const rounds = h.files['evals/ROUNDS.md'] as string;
     expect(rounds).toContain(
-      '| Round | Date | Prompt | Change | Split | Rubric | Variant | Overall | Scenario | Report |',
+      '| Round | Date | Prompt | Change | Split | Lang | Rubric | Variant | Overall | Scenario | Report |',
     );
     // The pipe in the change text is escaped so it cannot break the table.
     expect(rounds).toMatch(
-      /\n\| 1 \| 2026-11-12 \| \S+ \| baseline \\\| ticket format \| dev \| v2 \| claude-opus-5-5 · high \| \d\.\d\d \| 1\.50 \| \d\.\d\d \| 100% \| 100% \| 100% \| \d\/\d \| \$\d+\.\d\d \| pending \|\n$/,
+      /\n\| 1 \| 2026-11-12 \| \S+ \| baseline \\\| ticket format \| dev \| en \| v2 \| claude-opus-5-5 · high \| \d\.\d\d \| 1\.50 \| \d\.\d\d \| 100% \| 100% \| 100% \| \d\/\d \| \$\d+\.\d\d \| pending \|\n$/,
     );
     const total = (variant?.costUsd ?? 0) + (variant?.judgeCostUsd ?? 0);
     expect(rounds).toContain(`| $${total.toFixed(2)} | pending |`);
 
     const summary = h.files['evals/rounds/1/summary.md'] as string;
     expect(summary).toMatch(
-      /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Rubric judge: claude-sonnet-5-5, rubric v2\n- Decision: pending\n/,
+      /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Language: en\n- Rubric judge: claude-sonnet-5-5, rubric v2\n- Decision: pending\n/,
     );
     expect(summary).toContain('| Variant | Runs | Errors | Overall |');
     // A blank line before the heading, or Markdown reads it as part of the table above.
@@ -139,7 +139,7 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
     expect(summary).toContain('Not graded:\n- search-page-cap: internal');
     expect(summary).not.toContain('| Criterion |');
     expect(h.files['evals/ROUNDS.md']).toMatch(
-      /\| 3 \| .* \| selected \| — \| claude-opus-5-5 · high \| — \| — \| — \| 0% \| 0% \|/,
+      /\| 3 \| .* \| selected \| en \| — \| claude-opus-5-5 · high \| — \| — \| — \| 0% \| 0% \|/,
     );
   });
 
@@ -254,7 +254,9 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
       'evals/rounds/0/summary.md',
       'evals/rounds/index.json',
     ]);
-    expect(h.files['evals/ROUNDS.md']).toMatch(/\n\| 0 \| 2026-11-12 \| \S+ \| baseline \| dev \| v2 \|/);
+    expect(h.files['evals/ROUNDS.md']).toMatch(
+      /\n\| 0 \| 2026-11-12 \| \S+ \| baseline \| dev \| en \| v2 \|/,
+    );
     const advice =
       'No recommendation for round 0: Round 0 is the baseline. Mark it with --round 0 --decision keep so later rounds are compared with it.';
     expect(h.lines.at(-1)).toBe(advice);
@@ -488,7 +490,7 @@ describe('review pack (M3.5)', () => {
     );
     expect(outcome).toMatchObject({ exitCode: 0, executed: false, estimateUsd: 0 });
     expect(o.out()).toBe(
-      'Review pack with 5 report(s) from "claude-opus-5-5 · high" written to evals/results/pack.json. It holds no judge scores and no expected answers.',
+      'Review pack with 5 report(s) from "claude-opus-5-5 · high" (language en) written to evals/results/pack.json. It holds no judge scores and no expected answers.',
     );
 
     const pack = JSON.parse(h.files['evals/results/pack.json'] as string) as ReviewPack;
