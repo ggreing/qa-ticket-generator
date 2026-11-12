@@ -26,5 +26,33 @@
         "avgTickets": 13.32
       }
     ]
+  },
+  {
+    "round": 1,
+    "date": "2026-11-12T08:38:06.292Z",
+    "promptVersion": "2026-11-12.4",
+    "change": "concision: max 8 tickets / 5 P0, decisive line first, evidence conclusion first, no repeated risks (prompt 2026-11-12.4)",
+    "split": "dev",
+    "judgeModel": "claude-sonnet-5-5",
+    "decision": "keep",
+    "variants": [
+      {
+        "label": "claude-opus-5-5 · high",
+        "runs": 19,
+        "errors": 0,
+        "overall": 1.705827067669173,
+        "scenarioScore": 1.7449874686716793,
+        "reportScore": 1.6666666666666667,
+        "graded": 15,
+        "passRate": 0.8666666666666667,
+        "alignmentAccuracy": 0.9333333333333333,
+        "findingRecall": 0.9591836734693877,
+        "injectionFlagged": "1/1",
+        "scenarioRecall": 0.9420289855072463,
+        "avgTickets": 6.7368421052631575,
+        "costUsd": 3.2379626000000004,
+        "judgeCostUsd": 0.838576
+      }
+    ]
   }
 ]
