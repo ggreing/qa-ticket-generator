@@ -83,6 +83,7 @@ export async function main(argv: string[]): Promise<number> {
     return failed || final.status === 'error' ? 1 : 0;
   } catch (e) {
     const q = toQtgError(e);
+    if (q.code === 'internal') err(`error: ${e instanceof Error ? e.message : String(e)}`);
     err(`error: ${q.code}: ${q.userMessage}`);
     return 1;
   }

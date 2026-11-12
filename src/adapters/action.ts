@@ -76,6 +76,7 @@ export async function main(): Promise<void> {
   } catch (err) {
     // Errors before the pipeline (invalid inputs/config, PR not found) are configuration problems.
     const e = toQtgError(err);
+    if (e.code === 'internal') core.error(err instanceof Error ? err.message : String(err));
     core.setFailed(`${e.code}: ${e.userMessage}`);
   } finally {
     process.off('SIGINT', abort);
