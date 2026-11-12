@@ -273,6 +273,9 @@ function preserveNewlines(matched: string, replacement: string): string {
 /**
  * Redacts secrets in raw text and returns marked text (see module doc). Call it exactly once per
  * raw input: it neutralises any pre-existing marker characters so counts cannot be spoofed.
+ *
+ * Public API: `src/adapters/wire.ts` combines it with {@link finalizeRedactions} to redact PR
+ * titles and bodies (PRE-05). Keep the signature and the marker → finalize contract stable.
  */
 export function redactText(raw: string): string {
   let text = raw.includes(MARK) ? raw.replaceAll(MARK, '\uFFFD') : raw;
@@ -312,7 +315,10 @@ export function redactDiffBody(body: string): string {
   return out.map((c, i) => (prefixes[i] ?? '') + c).join('\n');
 }
 
-/** Converts internal markers into `[REDACTED:<type>]`, adding one count per occurrence. */
+/**
+ * Converts internal markers into `[REDACTED:<type>]`, adding one count per occurrence.
+ * Public API (see {@link redactText}); keep the signature stable.
+ */
 export function finalizeRedactions(text: string, counts: Map<string, number>): string {
   if (!text.includes(MARK)) return text;
   return text.replace(MARK_RE, (_m: string, type: string) => {
