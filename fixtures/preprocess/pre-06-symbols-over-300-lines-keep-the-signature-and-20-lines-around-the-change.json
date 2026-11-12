@@ -1,0 +1,79 @@
+{
+  "name": "PRE-06 symbols over 300 lines keep the signature and ±20 lines around the change",
+  "input": {
+    "files": [
+      {
+        "path": "src/ledger/reconcile.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -199,7 +199,7 @@\n   step(ledger, 197);\n   step(ledger, 198);\n   step(ledger, 199);\n-  step(ledger, 200);\n+  stepChecked(ledger, 200);\n   step(ledger, 201);\n   step(ledger, 202);\n   step(ledger, 203);",
+        "patchMissing": false,
+        "headContent": "export function reconcile(ledger: Ledger, day: string): Report {\n  step(ledger, 0);\n  step(ledger, 1);\n  step(ledger, 2);\n  step(ledger, 3);\n  step(ledger, 4);\n  step(ledger, 5);\n  step(ledger, 6);\n  step(ledger, 7);\n  step(ledger, 8);\n  step(ledger, 9);\n  step(ledger, 10);\n  step(ledger, 11);\n  step(ledger, 12);\n  step(ledger, 13);\n  step(ledger, 14);\n  step(ledger, 15);\n  step(ledger, 16);\n  step(ledger, 17);\n  step(ledger, 18);\n  step(ledger, 19);\n  step(ledger, 20);\n  step(ledger, 21);\n  step(ledger, 22);\n  step(ledger, 23);\n  step(ledger, 24);\n  step(ledger, 25);\n  step(ledger, 26);\n  step(ledger, 27);\n  step(ledger, 28);\n  step(ledger, 29);\n  step(ledger, 30);\n  step(ledger, 31);\n  step(ledger, 32);\n  step(ledger, 33);\n  step(ledger, 34);\n  step(ledger, 35);\n  step(ledger, 36);\n  step(ledger, 37);\n  step(ledger, 38);\n  step(ledger, 39);\n  step(ledger, 40);\n  step(ledger, 41);\n  step(ledger, 42);\n  step(ledger, 43);\n  step(ledger, 44);\n  step(ledger, 45);\n  step(ledger, 46);\n  step(ledger, 47);\n  step(ledger, 48);\n  step(ledger, 49);\n  step(ledger, 50);\n  step(ledger, 51);\n  step(ledger, 52);\n  step(ledger, 53);\n  step(ledger, 54);\n  step(ledger, 55);\n  step(ledger, 56);\n  step(ledger, 57);\n  step(ledger, 58);\n  step(ledger, 59);\n  step(ledger, 60);\n  step(ledger, 61);\n  step(ledger, 62);\n  step(ledger, 63);\n  step(ledger, 64);\n  step(ledger, 65);\n  step(ledger, 66);\n  step(ledger, 67);\n  step(ledger, 68);\n  step(ledger, 69);\n  step(ledger, 70);\n  step(ledger, 71);\n  step(ledger, 72);\n  step(ledger, 73);\n  step(ledger, 74);\n  step(ledger, 75);\n  step(ledger, 76);\n  step(ledger, 77);\n  step(ledger, 78);\n  step(ledger, 79);\n  step(ledger, 80);\n  step(ledger, 81);\n  step(ledger, 82);\n  step(ledger, 83);\n  step(ledger, 84);\n  step(ledger, 85);\n  step(ledger, 86);\n  step(ledger, 87);\n  step(ledger, 88);\n  step(ledger, 89);\n  step(ledger, 90);\n  step(ledger, 91);\n  step(ledger, 92);\n  step(ledger, 93);\n  step(ledger, 94);\n  step(ledger, 95);\n  step(ledger, 96);\n  step(ledger, 97);\n  step(ledger, 98);\n  step(ledger, 99);\n  step(ledger, 100);\n  step(ledger, 101);\n  step(ledger, 102);\n  step(ledger, 103);\n  step(ledger, 104);\n  step(ledger, 105);\n  step(ledger, 106);\n  step(ledger, 107);\n  step(ledger, 108);\n  step(ledger, 109);\n  step(ledger, 110);\n  step(ledger, 111);\n  step(ledger, 112);\n  step(ledger, 113);\n  step(ledger, 114);\n  step(ledger, 115);\n  step(ledger, 116);\n  step(ledger, 117);\n  step(ledger, 118);\n  step(ledger, 119);\n  step(ledger, 120);\n  step(ledger, 121);\n  step(ledger, 122);\n  step(ledger, 123);\n  step(ledger, 124);\n  step(ledger, 125);\n  step(ledger, 126);\n  step(ledger, 127);\n  step(ledger, 128);\n  step(ledger, 129);\n  step(ledger, 130);\n  step(ledger, 131);\n  step(ledger, 132);\n  step(ledger, 133);\n  step(ledger, 134);\n  step(ledger, 135);\n  step(ledger, 136);\n  step(ledger, 137);\n  step(ledger, 138);\n  step(ledger, 139);\n  step(ledger, 140);\n  step(ledger, 141);\n  step(ledger, 142);\n  step(ledger, 143);\n  step(ledger, 144);\n  step(ledger, 145);\n  step(ledger, 146);\n  step(ledger, 147);\n  step(ledger, 148);\n  step(ledger, 149);\n  step(ledger, 150);\n  step(ledger, 151);\n  step(ledger, 152);\n  step(ledger, 153);\n  step(ledger, 154);\n  step(ledger, 155);\n  step(ledger, 156);\n  step(ledger, 157);\n  step(ledger, 158);\n  step(ledger, 159);\n  step(ledger, 160);\n  step(ledger, 161);\n  step(ledger, 162);\n  step(ledger, 163);\n  step(ledger, 164);\n  step(ledger, 165);\n  step(ledger, 166);\n  step(ledger, 167);\n  step(ledger, 168);\n  step(ledger, 169);\n  step(ledger, 170);\n  step(ledger, 171);\n  step(ledger, 172);\n  step(ledger, 173);\n  step(ledger, 174);\n  step(ledger, 175);\n  step(ledger, 176);\n  step(ledger, 177);\n  step(ledger, 178);\n  step(ledger, 179);\n  step(ledger, 180);\n  step(ledger, 181);\n  step(ledger, 182);\n  step(ledger, 183);\n  step(ledger, 184);\n  step(ledger, 185);\n  step(ledger, 186);\n  step(ledger, 187);\n  step(ledger, 188);\n  step(ledger, 189);\n  step(ledger, 190);\n  step(ledger, 191);\n  step(ledger, 192);\n  step(ledger, 193);\n  step(ledger, 194);\n  step(ledger, 195);\n  step(ledger, 196);\n  step(ledger, 197);\n  step(ledger, 198);\n  step(ledger, 199);\n  stepChecked(ledger, 200);\n  step(ledger, 201);\n  step(ledger, 202);\n  step(ledger, 203);\n  step(ledger, 204);\n  step(ledger, 205);\n  step(ledger, 206);\n  step(ledger, 207);\n  step(ledger, 208);\n  step(ledger, 209);\n  step(ledger, 210);\n  step(ledger, 211);\n  step(ledger, 212);\n  step(ledger, 213);\n  step(ledger, 214);\n  step(ledger, 215);\n  step(ledger, 216);\n  step(ledger, 217);\n  step(ledger, 218);\n  step(ledger, 219);\n  step(ledger, 220);\n  step(ledger, 221);\n  step(ledger, 222);\n  step(ledger, 223);\n  step(ledger, 224);\n  step(ledger, 225);\n  step(ledger, 226);\n  step(ledger, 227);\n  step(ledger, 228);\n  step(ledger, 229);\n  step(ledger, 230);\n  step(ledger, 231);\n  step(ledger, 232);\n  step(ledger, 233);\n  step(ledger, 234);\n  step(ledger, 235);\n  step(ledger, 236);\n  step(ledger, 237);\n  step(ledger, 238);\n  step(ledger, 239);\n  step(ledger, 240);\n  step(ledger, 241);\n  step(ledger, 242);\n  step(ledger, 243);\n  step(ledger, 244);\n  step(ledger, 245);\n  step(ledger, 246);\n  step(ledger, 247);\n  step(ledger, 248);\n  step(ledger, 249);\n  step(ledger, 250);\n  step(ledger, 251);\n  step(ledger, 252);\n  step(ledger, 253);\n  step(ledger, 254);\n  step(ledger, 255);\n  step(ledger, 256);\n  step(ledger, 257);\n  step(ledger, 258);\n  step(ledger, 259);\n  step(ledger, 260);\n  step(ledger, 261);\n  step(ledger, 262);\n  step(ledger, 263);\n  step(ledger, 264);\n  step(ledger, 265);\n  step(ledger, 266);\n  step(ledger, 267);\n  step(ledger, 268);\n  step(ledger, 269);\n  step(ledger, 270);\n  step(ledger, 271);\n  step(ledger, 272);\n  step(ledger, 273);\n  step(ledger, 274);\n  step(ledger, 275);\n  step(ledger, 276);\n  step(ledger, 277);\n  step(ledger, 278);\n  step(ledger, 279);\n  step(ledger, 280);\n  step(ledger, 281);\n  step(ledger, 282);\n  step(ledger, 283);\n  step(ledger, 284);\n  step(ledger, 285);\n  step(ledger, 286);\n  step(ledger, 287);\n  step(ledger, 288);\n  step(ledger, 289);\n  step(ledger, 290);\n  step(ledger, 291);\n  step(ledger, 292);\n  step(ledger, 293);\n  step(ledger, 294);\n  step(ledger, 295);\n  step(ledger, 296);\n  step(ledger, 297);\n  step(ledger, 298);\n  step(ledger, 299);\n  step(ledger, 300);\n  step(ledger, 301);\n  step(ledger, 302);\n  step(ledger, 303);\n  step(ledger, 304);\n  step(ledger, 305);\n  step(ledger, 306);\n  step(ledger, 307);\n  step(ledger, 308);\n  step(ledger, 309);\n  step(ledger, 310);\n  step(ledger, 311);\n  step(ledger, 312);\n  step(ledger, 313);\n  step(ledger, 314);\n  step(ledger, 315);\n  step(ledger, 316);\n  step(ledger, 317);\n  step(ledger, 318);\n  step(ledger, 319);\n  step(ledger, 320);\n  step(ledger, 321);\n  step(ledger, 322);\n  step(ledger, 323);\n  step(ledger, 324);\n  step(ledger, 325);\n  step(ledger, 326);\n  step(ledger, 327);\n  step(ledger, 328);\n  step(ledger, 329);\n  return report(ledger, day);\n}"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/ledger/reconcile.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -199,7 +199,7 @@",
+                "oldStart": 199,
+                "oldLines": 7,
+                "newStart": 199,
+                "newLines": 7,
+                "text": "   step(ledger, 197);\n   step(ledger, 198);\n   step(ledger, 199);\n-  step(ledger, 200);\n+  stepChecked(ledger, 200);\n   step(ledger, 201);\n   step(ledger, 202);\n   step(ledger, 203);"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "reconcile",
+                "startLine": 1,
+                "endLine": 333,
+                "text": "export function reconcile(ledger: Ledger, day: string): Report {\n... (180 lines omitted) ...\n  step(ledger, 180);\n  step(ledger, 181);\n  step(ledger, 182);\n  step(ledger, 183);\n  step(ledger, 184);\n  step(ledger, 185);\n  step(ledger, 186);\n  step(ledger, 187);\n  step(ledger, 188);\n  step(ledger, 189);\n  step(ledger, 190);\n  step(ledger, 191);\n  step(ledger, 192);\n  step(ledger, 193);\n  step(ledger, 194);\n  step(ledger, 195);\n  step(ledger, 196);\n  step(ledger, 197);\n  step(ledger, 198);\n  step(ledger, 199);\n  stepChecked(ledger, 200);\n  step(ledger, 201);\n  step(ledger, 202);\n  step(ledger, 203);\n  step(ledger, 204);\n  step(ledger, 205);\n  step(ledger, 206);\n  step(ledger, 207);\n  step(ledger, 208);\n  step(ledger, 209);\n  step(ledger, 210);\n  step(ledger, 211);\n  step(ledger, 212);\n  step(ledger, 213);\n  step(ledger, 214);\n  step(ledger, 215);\n  step(ledger, 216);\n  step(ledger, 217);\n  step(ledger, 218);\n  step(ledger, 219);\n  step(ledger, 220);\n... (111 lines omitted) ..."
+              }
+            ],
+            "estimatedTokens": 407
+          }
+        ],
+        "estimatedTokens": 407
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6407
+  }
+}

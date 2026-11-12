@@ -1,0 +1,198 @@
+{
+  "name": "PRE-02 glob patterns support **, *, ? and {a,b}",
+  "input": {
+    "files": [
+      {
+        "path": "src/legacy/a.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "src/old/b/c.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "src/new/d.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/x.gen.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/y.gen.js",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/z.gen.tsx",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "tools/a/tmp/x.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "tools/a/b/tmp/x.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "docs/CHANGELOG.md",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [
+        "src/{legacy,old}/**",
+        "**/*.gen.?s",
+        "tools/*/tmp/**",
+        "CHANGELOG.md"
+      ],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "lib/z.gen.tsx",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 28
+          },
+          {
+            "path": "src/new/d.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 27
+          },
+          {
+            "path": "tools/a/b/tmp/x.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 29
+          }
+        ],
+        "estimatedTokens": 84
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "docs/CHANGELOG.md",
+        "reason": "noise"
+      },
+      {
+        "path": "lib/x.gen.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "lib/y.gen.js",
+        "reason": "noise"
+      },
+      {
+        "path": "src/legacy/a.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "src/old/b/c.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "tools/a/tmp/x.ts",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6084
+  }
+}

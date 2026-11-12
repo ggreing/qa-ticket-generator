@@ -1,0 +1,100 @@
+{
+  "name": "PRE-05 high-entropy strings only in assignments; SHAs, UUIDs, SRI and base64 images survive",
+  "input": {
+    "files": [
+      {
+        "path": "src/fixtures.ts",
+        "status": "added",
+        "additions": 10,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,10 @@\n+export const sessionSeed = \"q8Zr4LmX2vPn7TbK9wYc3JdF\";\n+export const signingSalt = 'Zx9Qw2Er7Ty4Ui1Op6As3Df8Gh5Jk0Lm';\n+// negatives\n+export const revision = \"3f2c9b1a7e4d8f60c2b5a9e1d7f3c8b6a4e2d0f9\";\n+export const requestId = \"123e4567-e89b-12d3-a456-426614174000\";\n+export const integrity = \"sha512-q8Zr4LmX2vPn7TbK9wYc3JdFq8Zr4LmX2vPn7TbK9wYc3JdF\";\n+export const logo = \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk\";\n+export const avatar = \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ\";\n+export const asset = \"static/img/hero-banner-2x-retina.webp\";\n+export const short = \"q8Zr4LmX2vPn7Tb\";",
+        "patchMissing": false
+      },
+      {
+        "path": "docs/notes.md",
+        "status": "added",
+        "additions": 1,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,1 @@\n+The sample nonce q8Zr4LmX2vPn7TbK9wYc3JdF appears in prose, not in an assignment.",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/fixtures.ts",
+            "status": "added",
+            "score": 2.398,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,10 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 10,
+                "text": "+export const sessionSeed = \"[REDACTED:high_entropy]\";\n+export const signingSalt = '[REDACTED:high_entropy]';\n+// negatives\n+export const revision = \"3f2c9b1a7e4d8f60c2b5a9e1d7f3c8b6a4e2d0f9\";\n+export const requestId = \"123e4567-e89b-12d3-a456-426614174000\";\n+export const integrity = \"sha512-q8Zr4LmX2vPn7TbK9wYc3JdFq8Zr4LmX2vPn7TbK9wYc3JdF\";\n+export const logo = \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk\";\n+export const avatar = \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ\";\n+export const asset = \"static/img/hero-banner-2x-retina.webp\";\n+export const short = \"q8Zr4LmX2vPn7Tb\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 222
+          },
+          {
+            "path": "docs/notes.md",
+            "status": "added",
+            "score": 0.693,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,1 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "+The sample nonce q8Zr4LmX2vPn7TbK9wYc3JdF appears in prose, not in an assignment."
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 52
+          }
+        ],
+        "estimatedTokens": 274
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [
+      {
+        "type": "high_entropy",
+        "count": 2
+      }
+    ],
+    "estimatedTokens": 6274
+  }
+}

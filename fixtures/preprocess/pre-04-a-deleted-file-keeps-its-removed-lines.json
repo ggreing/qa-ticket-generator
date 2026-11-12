@@ -1,0 +1,70 @@
+{
+  "name": "PRE-04 a deleted file keeps its removed lines",
+  "input": {
+    "files": [
+      {
+        "path": "src/coupons/legacy.ts",
+        "status": "removed",
+        "additions": 0,
+        "deletions": 3,
+        "patch": "@@ -1,3 +0,0 @@\n-export function legacyCoupon(code: string) {\n-  return code.toUpperCase();\n-}",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/coupons/legacy.ts",
+            "status": "removed",
+            "score": 1.386,
+            "hunks": [
+              {
+                "header": "@@ -1,3 +0,0 @@",
+                "oldStart": 1,
+                "oldLines": 3,
+                "newStart": 0,
+                "newLines": 0,
+                "text": "-export function legacyCoupon(code: string) {\n-  return code.toUpperCase();\n-}"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 53
+          }
+        ],
+        "estimatedTokens": 53
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6053
+  }
+}

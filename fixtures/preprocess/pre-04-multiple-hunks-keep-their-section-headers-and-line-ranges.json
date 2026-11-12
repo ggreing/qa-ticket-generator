@@ -1,0 +1,86 @@
+{
+  "name": "PRE-04 multiple hunks keep their section headers and line ranges",
+  "input": {
+    "files": [
+      {
+        "path": "src/orders/service.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 2,
+        "patch": "@@ -12,3 +12,3 @@ async function getOrder(id: string) {\n   const order = await repo.find(id);\n-  if (!order) throw new Error(\"missing\");\n+  if (!order) throw new NotFoundError(id);\n   return order;\n@@ -48,2 +48,3 @@ async function cancelOrder(id: string) {\n   order.status = \"cancelled\";\n+  await events.emit(\"order.cancelled\", order.id);\n   await repo.save(order);\n@@ -90,1 +91,1 @@\n-// TODO: refunds\n+export { refund } from \"./refund\";",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/orders/service.ts",
+            "status": "modified",
+            "score": 1.792,
+            "hunks": [
+              {
+                "header": "@@ -12,3 +12,3 @@ async function getOrder(id: string) {",
+                "oldStart": 12,
+                "oldLines": 3,
+                "newStart": 12,
+                "newLines": 3,
+                "text": "   const order = await repo.find(id);\n-  if (!order) throw new Error(\"missing\");\n+  if (!order) throw new NotFoundError(id);\n   return order;"
+              },
+              {
+                "header": "@@ -48,2 +48,3 @@ async function cancelOrder(id: string) {",
+                "oldStart": 48,
+                "oldLines": 2,
+                "newStart": 48,
+                "newLines": 3,
+                "text": "   order.status = \"cancelled\";\n+  await events.emit(\"order.cancelled\", order.id);\n   await repo.save(order);"
+              },
+              {
+                "header": "@@ -90,1 +91,1 @@",
+                "oldStart": 90,
+                "oldLines": 1,
+                "newStart": 91,
+                "newLines": 1,
+                "text": "-// TODO: refunds\n+export { refund } from \"./refund\";"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 162
+          }
+        ],
+        "estimatedTokens": 162
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6162
+  }
+}

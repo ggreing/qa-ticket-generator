@@ -1,0 +1,100 @@
+{
+  "name": "PRE-05 PEM private key blocks are masked and line numbers are preserved",
+  "input": {
+    "files": [
+      {
+        "path": "deploy/dev-key.pem",
+        "status": "added",
+        "additions": 7,
+        "deletions": 0,
+        "patch": "@@ -0,0 +1,7 @@\n+-----BEGIN RSA PRIVATE KEY-----\n+MIIEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n+FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n+-----END RSA PRIVATE KEY-----\n+-----BEGIN CERTIFICATE-----\n+MIIBFAKECERTIFICATESARENOTSECRETFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n+-----END CERTIFICATE-----",
+        "patchMissing": false
+      },
+      {
+        "path": "src/auth/keys.ts",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 0,
+        "patch": "@@ -10,1 +10,4 @@\n   const fallback = `\n+-----BEGIN PRIVATE KEY-----\n+MIIEvFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n+FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "deploy/dev-key.pem",
+            "status": "added",
+            "score": 2.079,
+            "hunks": [
+              {
+                "header": "@@ -0,0 +1,7 @@",
+                "oldStart": 0,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 7,
+                "text": "+[REDACTED:private_key]\n+\n+\n+\n+-----BEGIN CERTIFICATE-----\n+MIIBFAKECERTIFICATESARENOTSECRETFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n+-----END CERTIFICATE-----"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 75
+          },
+          {
+            "path": "src/auth/keys.ts",
+            "status": "modified",
+            "score": 1.386,
+            "hunks": [
+              {
+                "header": "@@ -10,1 +10,4 @@",
+                "oldStart": 10,
+                "oldLines": 1,
+                "newStart": 10,
+                "newLines": 4,
+                "text": "   const fallback = `\n+[REDACTED:private_key]\n+\n+"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 43
+          }
+        ],
+        "estimatedTokens": 118
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [
+      {
+        "type": "private_key",
+        "count": 2
+      }
+    ],
+    "estimatedTokens": 6118
+  }
+}

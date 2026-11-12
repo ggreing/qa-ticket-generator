@@ -1,0 +1,67 @@
+{
+  "description": "Tree-sitter WASM assets for PRE-06. Copied verbatim from the npm packages below (prebuilt .wasm shipped in each package). Verified to load with web-tree-sitter 0.27.2 (runtime ABI 15, min compatible 13). Re-vendor with `npm pack <pkg>@<version>` and copy the .wasm; test/preprocess/grammars.test.ts checks sizes and hashes.",
+  "runtime": {
+    "file": "web-tree-sitter.wasm",
+    "package": "web-tree-sitter",
+    "version": "0.27.2",
+    "license": "MIT",
+    "bytes": 210688,
+    "sha256": "488beeff7adb7fd7e21e97cc29a43dc6d031977755eda892d6d96c7f456cfdec"
+  },
+  "grammars": {
+    "typescript": {
+      "file": "tree-sitter-typescript.wasm",
+      "package": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "license": "MIT",
+      "abi": 14,
+      "bytes": 1413849,
+      "sha256": "778025db5a8be0e70f8ccc3671e486dfeddd048c25d9e8a70c26de2e1bf6f97d"
+    },
+    "tsx": {
+      "file": "tree-sitter-tsx.wasm",
+      "package": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "license": "MIT",
+      "abi": 14,
+      "bytes": 1445638,
+      "sha256": "79e5da75ea62855a0cd67177685f0164eac87d5f630b3cbe1e0a099751ad30f8"
+    },
+    "javascript": {
+      "file": "tree-sitter-javascript.wasm",
+      "package": "tree-sitter-javascript",
+      "version": "0.25.0",
+      "license": "MIT",
+      "abi": 15,
+      "bytes": 411770,
+      "sha256": "5fb488d0cabb4775a594bab85682de5ad6ce83c0d6ac997a9f82dd084d571240"
+    },
+    "python": {
+      "file": "tree-sitter-python.wasm",
+      "package": "tree-sitter-python",
+      "version": "0.25.0",
+      "license": "MIT",
+      "abi": 15,
+      "bytes": 457883,
+      "sha256": "16108b50df4ee9a30168794252ab55e7c93bfc5765d7fa0aa3e335752c515f47"
+    },
+    "java": {
+      "file": "tree-sitter-java.wasm",
+      "package": "tree-sitter-java",
+      "version": "0.23.5",
+      "license": "MIT",
+      "abi": 14,
+      "bytes": 414641,
+      "sha256": "4fdeac4ca6ca089f06c6f7e562abcac1733cd465728cc7031ebb73c2019122c4"
+    },
+    "go": {
+      "file": "tree-sitter-go.wasm",
+      "package": "tree-sitter-go",
+      "version": "0.25.0",
+      "license": "MIT",
+      "abi": 15,
+      "bytes": 217182,
+      "sha256": "9504573f352b20be7f2f1911754d710622aedc15afff16d5ed8fb5645681aee7"
+    }
+  }
+}

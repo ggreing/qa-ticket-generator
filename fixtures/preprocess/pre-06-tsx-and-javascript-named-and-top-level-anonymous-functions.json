@@ -1,0 +1,127 @@
+{
+  "name": "PRE-06 TSX and JavaScript (named and top-level anonymous functions)",
+  "input": {
+    "files": [
+      {
+        "path": "web/src/CouponField.tsx",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -10,7 +10,7 @@\n   const label5 = 'Field 5';\n   const label6 = 'Field 6';\n   const label7 = 'Field 7';\n-  const submit = () => onApply(code.trim());\n+  const submit = () => onApply(code.trim().toUpperCase());\n   const hint0 = 'Hint 0';\n   const hint1 = 'Hint 1';\n   const hint2 = 'Hint 2';",
+        "patchMissing": false,
+        "headContent": "import { useState } from 'react';\n\nexport function CouponField({ onApply }: { onApply: (code: string) => void }) {\n  const [code, setCode] = useState('');\n  const label0 = 'Field 0';\n  const label1 = 'Field 1';\n  const label2 = 'Field 2';\n  const label3 = 'Field 3';\n  const label4 = 'Field 4';\n  const label5 = 'Field 5';\n  const label6 = 'Field 6';\n  const label7 = 'Field 7';\n  const submit = () => onApply(code.trim().toUpperCase());\n  const hint0 = 'Hint 0';\n  const hint1 = 'Hint 1';\n  const hint2 = 'Hint 2';\n  const hint3 = 'Hint 3';\n  const hint4 = 'Hint 4';\n  const hint5 = 'Hint 5';\n  const hint6 = 'Hint 6';\n  const hint7 = 'Hint 7';\n  return <input value={code} onChange={(e) => setCode(e.target.value)} onBlur={submit} />;\n}"
+      },
+      {
+        "path": "server/routes.js",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "patch": "@@ -10,7 +10,7 @@\n   if (req.body.flag5) res.set('x-flag-5', '1');\n   if (req.body.flag6) res.set('x-flag-6', '1');\n   if (req.body.flag7) res.set('x-flag-7', '1');\n-  const result = await redeem(req.body.code);\n+  const result = await redeem(String(req.body.code));\n   if (result.n0) res.set('x-n-0', '1');\n   if (result.n1) res.set('x-n-1', '1');\n   if (result.n2) res.set('x-n-2', '1');\n@@ -31,5 +31,5 @@\n   if (code === 'R5') return { ok: false, reason: 5 };\n   if (code === 'R6') return { ok: false, reason: 6 };\n   if (code === 'R7') return { ok: false, reason: 7 };\n-  return { ok: true };\n+  return { ok: true, at: 0 };\n };",
+        "patchMissing": false,
+        "headContent": "const express = require('express');\nconst app = express();\n\napp.post('/coupons/redeem', async (req, res) => {\n  if (req.body.flag0) res.set('x-flag-0', '1');\n  if (req.body.flag1) res.set('x-flag-1', '1');\n  if (req.body.flag2) res.set('x-flag-2', '1');\n  if (req.body.flag3) res.set('x-flag-3', '1');\n  if (req.body.flag4) res.set('x-flag-4', '1');\n  if (req.body.flag5) res.set('x-flag-5', '1');\n  if (req.body.flag6) res.set('x-flag-6', '1');\n  if (req.body.flag7) res.set('x-flag-7', '1');\n  const result = await redeem(String(req.body.code));\n  if (result.n0) res.set('x-n-0', '1');\n  if (result.n1) res.set('x-n-1', '1');\n  if (result.n2) res.set('x-n-2', '1');\n  if (result.n3) res.set('x-n-3', '1');\n  if (result.n4) res.set('x-n-4', '1');\n  if (result.n5) res.set('x-n-5', '1');\n  if (result.n6) res.set('x-n-6', '1');\n  if (result.n7) res.set('x-n-7', '1');\n  res.json(result);\n});\n\nmodule.exports.redeem = function redeem(code) {\n  if (code === 'R0') return { ok: false, reason: 0 };\n  if (code === 'R1') return { ok: false, reason: 1 };\n  if (code === 'R2') return { ok: false, reason: 2 };\n  if (code === 'R3') return { ok: false, reason: 3 };\n  if (code === 'R4') return { ok: false, reason: 4 };\n  if (code === 'R5') return { ok: false, reason: 5 };\n  if (code === 'R6') return { ok: false, reason: 6 };\n  if (code === 'R7') return { ok: false, reason: 7 };\n  return { ok: true, at: 0 };\n};"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "server/routes.js",
+            "status": "modified",
+            "score": 1.609,
+            "hunks": [
+              {
+                "header": "@@ -10,7 +10,7 @@",
+                "oldStart": 10,
+                "oldLines": 7,
+                "newStart": 10,
+                "newLines": 7,
+                "text": "   if (req.body.flag5) res.set('x-flag-5', '1');\n   if (req.body.flag6) res.set('x-flag-6', '1');\n   if (req.body.flag7) res.set('x-flag-7', '1');\n-  const result = await redeem(req.body.code);\n+  const result = await redeem(String(req.body.code));\n   if (result.n0) res.set('x-n-0', '1');\n   if (result.n1) res.set('x-n-1', '1');\n   if (result.n2) res.set('x-n-2', '1');"
+              },
+              {
+                "header": "@@ -31,5 +31,5 @@",
+                "oldStart": 31,
+                "oldLines": 5,
+                "newStart": 31,
+                "newLines": 5,
+                "text": "   if (code === 'R5') return { ok: false, reason: 5 };\n   if (code === 'R6') return { ok: false, reason: 6 };\n   if (code === 'R7') return { ok: false, reason: 7 };\n-  return { ok: true };\n+  return { ok: true, at: 0 };\n };"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "startLine": 4,
+                "endLine": 23,
+                "text": "app.post('/coupons/redeem', async (req, res) => {\n  if (req.body.flag0) res.set('x-flag-0', '1');\n  if (req.body.flag1) res.set('x-flag-1', '1');\n  if (req.body.flag2) res.set('x-flag-2', '1');\n  if (req.body.flag3) res.set('x-flag-3', '1');\n  if (req.body.flag4) res.set('x-flag-4', '1');\n  if (req.body.flag5) res.set('x-flag-5', '1');\n  if (req.body.flag6) res.set('x-flag-6', '1');\n  if (req.body.flag7) res.set('x-flag-7', '1');\n  const result = await redeem(String(req.body.code));\n  if (result.n0) res.set('x-n-0', '1');\n  if (result.n1) res.set('x-n-1', '1');\n  if (result.n2) res.set('x-n-2', '1');\n  if (result.n3) res.set('x-n-3', '1');\n  if (result.n4) res.set('x-n-4', '1');\n  if (result.n5) res.set('x-n-5', '1');\n  if (result.n6) res.set('x-n-6', '1');\n  if (result.n7) res.set('x-n-7', '1');\n  res.json(result);\n});"
+              },
+              {
+                "kind": "symbol",
+                "name": "module.exports.redeem",
+                "startLine": 25,
+                "endLine": 35,
+                "text": "module.exports.redeem = function redeem(code) {\n  if (code === 'R0') return { ok: false, reason: 0 };\n  if (code === 'R1') return { ok: false, reason: 1 };\n  if (code === 'R2') return { ok: false, reason: 2 };\n  if (code === 'R3') return { ok: false, reason: 3 };\n  if (code === 'R4') return { ok: false, reason: 4 };\n  if (code === 'R5') return { ok: false, reason: 5 };\n  if (code === 'R6') return { ok: false, reason: 6 };\n  if (code === 'R7') return { ok: false, reason: 7 };\n  return { ok: true, at: 0 };\n};"
+              }
+            ],
+            "estimatedTokens": 662
+          },
+          {
+            "path": "web/src/CouponField.tsx",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -10,7 +10,7 @@",
+                "oldStart": 10,
+                "oldLines": 7,
+                "newStart": 10,
+                "newLines": 7,
+                "text": "   const label5 = 'Field 5';\n   const label6 = 'Field 6';\n   const label7 = 'Field 7';\n-  const submit = () => onApply(code.trim());\n+  const submit = () => onApply(code.trim().toUpperCase());\n   const hint0 = 'Hint 0';\n   const hint1 = 'Hint 1';\n   const hint2 = 'Hint 2';"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "CouponField",
+                "startLine": 3,
+                "endLine": 23,
+                "text": "export function CouponField({ onApply }: { onApply: (code: string) => void }) {\n  const [code, setCode] = useState('');\n  const label0 = 'Field 0';\n  const label1 = 'Field 1';\n  const label2 = 'Field 2';\n  const label3 = 'Field 3';\n  const label4 = 'Field 4';\n  const label5 = 'Field 5';\n  const label6 = 'Field 6';\n  const label7 = 'Field 7';\n  const submit = () => onApply(code.trim().toUpperCase());\n  const hint0 = 'Hint 0';\n  const hint1 = 'Hint 1';\n  const hint2 = 'Hint 2';\n  const hint3 = 'Hint 3';\n  const hint4 = 'Hint 4';\n  const hint5 = 'Hint 5';\n  const hint6 = 'Hint 6';\n  const hint7 = 'Hint 7';\n  return <input value={code} onChange={(e) => setCode(e.target.value)} onBlur={submit} />;\n}"
+              }
+            ],
+            "estimatedTokens": 348
+          }
+        ],
+        "estimatedTokens": 1010
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 7010
+  }
+}

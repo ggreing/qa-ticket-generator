@@ -1,0 +1,94 @@
+{
+  "name": "PRE-06 Java changes expand to the constructor and method",
+  "input": {
+    "files": [
+      {
+        "path": "src/main/java/com/acme/shop/CouponService.java",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "patch": "@@ -12,7 +12,7 @@\n         if (repo == null) throw new IllegalStateException(\"r5\");\n         if (repo == null) throw new IllegalStateException(\"r6\");\n         if (repo == null) throw new IllegalStateException(\"r7\");\n-        this.repo = repo;\n+        this.repo = java.util.Objects.requireNonNull(repo);\n     }\n \n     public int apply(int total, String code) {\n@@ -24,6 +24,6 @@\n         if (\"J5\".equals(code)) return total - 5;\n         if (\"J6\".equals(code)) return total - 6;\n         if (\"J7\".equals(code)) return total - 7;\n-        return total * 9 / 10;\n+        return Math.max(0, total * 9 / 10);\n     }\n }",
+        "patchMissing": false,
+        "headContent": "package com.acme.shop;\n\npublic class CouponService {\n    private final CouponRepository repo;\n\n    public CouponService(CouponRepository repo) {\n        if (repo == null) throw new IllegalStateException(\"r0\");\n        if (repo == null) throw new IllegalStateException(\"r1\");\n        if (repo == null) throw new IllegalStateException(\"r2\");\n        if (repo == null) throw new IllegalStateException(\"r3\");\n        if (repo == null) throw new IllegalStateException(\"r4\");\n        if (repo == null) throw new IllegalStateException(\"r5\");\n        if (repo == null) throw new IllegalStateException(\"r6\");\n        if (repo == null) throw new IllegalStateException(\"r7\");\n        this.repo = java.util.Objects.requireNonNull(repo);\n    }\n\n    public int apply(int total, String code) {\n        if (\"J0\".equals(code)) return total - 0;\n        if (\"J1\".equals(code)) return total - 1;\n        if (\"J2\".equals(code)) return total - 2;\n        if (\"J3\".equals(code)) return total - 3;\n        if (\"J4\".equals(code)) return total - 4;\n        if (\"J5\".equals(code)) return total - 5;\n        if (\"J6\".equals(code)) return total - 6;\n        if (\"J7\".equals(code)) return total - 7;\n        return Math.max(0, total * 9 / 10);\n    }\n}"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/main/java/com/acme/shop/CouponService.java",
+            "status": "modified",
+            "score": 1.609,
+            "hunks": [
+              {
+                "header": "@@ -12,7 +12,7 @@",
+                "oldStart": 12,
+                "oldLines": 7,
+                "newStart": 12,
+                "newLines": 7,
+                "text": "         if (repo == null) throw new IllegalStateException(\"r5\");\n         if (repo == null) throw new IllegalStateException(\"r6\");\n         if (repo == null) throw new IllegalStateException(\"r7\");\n-        this.repo = repo;\n+        this.repo = java.util.Objects.requireNonNull(repo);\n     }\n \n     public int apply(int total, String code) {"
+              },
+              {
+                "header": "@@ -24,6 +24,6 @@",
+                "oldStart": 24,
+                "oldLines": 6,
+                "newStart": 24,
+                "newLines": 6,
+                "text": "         if (\"J5\".equals(code)) return total - 5;\n         if (\"J6\".equals(code)) return total - 6;\n         if (\"J7\".equals(code)) return total - 7;\n-        return total * 9 / 10;\n+        return Math.max(0, total * 9 / 10);\n     }\n }"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "CouponService.CouponService",
+                "startLine": 6,
+                "endLine": 16,
+                "text": "    public CouponService(CouponRepository repo) {\n        if (repo == null) throw new IllegalStateException(\"r0\");\n        if (repo == null) throw new IllegalStateException(\"r1\");\n        if (repo == null) throw new IllegalStateException(\"r2\");\n        if (repo == null) throw new IllegalStateException(\"r3\");\n        if (repo == null) throw new IllegalStateException(\"r4\");\n        if (repo == null) throw new IllegalStateException(\"r5\");\n        if (repo == null) throw new IllegalStateException(\"r6\");\n        if (repo == null) throw new IllegalStateException(\"r7\");\n        this.repo = java.util.Objects.requireNonNull(repo);\n    }"
+              },
+              {
+                "kind": "symbol",
+                "name": "CouponService.apply",
+                "startLine": 18,
+                "endLine": 28,
+                "text": "    public int apply(int total, String code) {\n        if (\"J0\".equals(code)) return total - 0;\n        if (\"J1\".equals(code)) return total - 1;\n        if (\"J2\".equals(code)) return total - 2;\n        if (\"J3\".equals(code)) return total - 3;\n        if (\"J4\".equals(code)) return total - 4;\n        if (\"J5\".equals(code)) return total - 5;\n        if (\"J6\".equals(code)) return total - 6;\n        if (\"J7\".equals(code)) return total - 7;\n        return Math.max(0, total * 9 / 10);\n    }"
+              }
+            ],
+            "estimatedTokens": 607
+          }
+        ],
+        "estimatedTokens": 607
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6607
+  }
+}

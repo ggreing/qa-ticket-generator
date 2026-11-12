@@ -1,0 +1,129 @@
+{
+  "name": "PRE-09 skipped lists every exclusion reason, sorted by path",
+  "input": {
+    "files": [
+      {
+        "path": "src/z/huge.ts",
+        "status": "modified",
+        "additions": 261,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,261 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_27 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_28 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_29 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_30 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_31 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_32 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_33 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_34 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_35 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_36 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_37 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_38 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_39 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_40 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_41 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_42 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_43 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_44 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_45 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_46 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_47 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_48 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_49 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_50 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_51 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_52 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_53 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_54 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_55 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_56 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_57 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_58 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_59 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_60 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_61 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_62 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_63 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_64 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_65 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_66 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_67 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_68 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_69 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_70 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_71 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_72 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_73 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_74 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_75 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_76 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_77 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_78 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_79 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_80 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_81 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_82 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_83 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_84 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_85 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_86 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_87 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_88 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_89 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_90 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_91 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_92 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_93 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_94 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_95 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_96 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_97 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_98 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_99 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_100 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_101 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_102 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_103 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_104 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_105 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_106 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_107 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_108 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_109 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_110 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_111 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_112 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_113 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_114 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_115 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_116 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_117 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_118 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_119 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_120 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_121 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_122 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_123 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_124 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_125 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_126 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_127 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_128 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_129 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_130 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_131 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_132 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_133 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_134 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_135 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_136 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_137 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_138 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_139 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_140 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_141 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_142 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_143 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_144 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_145 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_146 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_147 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_148 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_149 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_150 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_151 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_152 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_153 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_154 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_155 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_156 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_157 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_158 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_159 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_160 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_161 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_162 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_163 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_164 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_165 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_166 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_167 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_168 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_169 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_170 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_171 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_172 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_173 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_174 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_175 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_176 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_177 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_178 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_179 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_180 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_181 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_182 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_183 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_184 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_185 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_186 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_187 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_188 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_189 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_190 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_191 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_192 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_193 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_194 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_195 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_196 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_197 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_198 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_199 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_200 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_201 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_202 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_203 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_204 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_205 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_206 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_207 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_208 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_209 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_210 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_211 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_212 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_213 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_214 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_215 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_216 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_217 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_218 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_219 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_220 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_221 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_222 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_223 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_224 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_225 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_226 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_227 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_228 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_229 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_230 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_231 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_232 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_233 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_234 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_235 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_236 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_237 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_238 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_239 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_240 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_241 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_242 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_243 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_244 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_245 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_246 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_247 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_248 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_249 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_250 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_251 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_252 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_253 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_254 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_255 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_256 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_257 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_258 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_259 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_260 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "yarn.lock",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "assets/a.png",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "src/big.ts",
+        "status": "modified",
+        "additions": 9000,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "src/keep.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-a\n+b",
+        "patchMissing": false
+      },
+      {
+        "path": "src/gen.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,2 @@\n+// DO NOT EDIT\n x",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 4000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 1000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/keep.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -1,1 +1,1 @@",
+                "oldStart": 1,
+                "oldLines": 1,
+                "newStart": 1,
+                "newLines": 1,
+                "text": "-a\n+b"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 27
+          }
+        ],
+        "estimatedTokens": 27
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "assets/a.png",
+        "reason": "binary"
+      },
+      {
+        "path": "src/big.ts",
+        "reason": "patch_missing"
+      },
+      {
+        "path": "src/gen.ts",
+        "reason": "noise"
+      },
+      {
+        "path": "src/z/huge.ts",
+        "reason": "too_large"
+      },
+      {
+        "path": "yarn.lock",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 1027
+  }
+}

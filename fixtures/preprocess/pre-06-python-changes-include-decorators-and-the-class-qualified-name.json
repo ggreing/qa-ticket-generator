@@ -1,0 +1,94 @@
+{
+  "name": "PRE-06 Python changes include decorators and the class-qualified name",
+  "input": {
+    "files": [
+      {
+        "path": "api/coupons.py",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "patch": "@@ -24,7 +24,7 @@\n             return False\n         if self.code == \"X7\":\n             return False\n-        return 0 < self.percent <= 100\n+        return 0 < self.percent <= 90\n \n \n @app.route(\"/apply\")\n@@ -45,4 +45,4 @@\n         return total - 6\n     if code == \"P7\":\n         return total - 7\n-    return total * 0.9\n+    return round(total * 0.9, 2)",
+        "patchMissing": false,
+        "headContent": "from dataclasses import dataclass\n\n\n@dataclass\nclass Coupon:\n    code: str\n    percent: int\n\n    @property\n    def is_valid(self) -> bool:\n        if self.code == \"X0\":\n            return False\n        if self.code == \"X1\":\n            return False\n        if self.code == \"X2\":\n            return False\n        if self.code == \"X3\":\n            return False\n        if self.code == \"X4\":\n            return False\n        if self.code == \"X5\":\n            return False\n        if self.code == \"X6\":\n            return False\n        if self.code == \"X7\":\n            return False\n        return 0 < self.percent <= 90\n\n\n@app.route(\"/apply\")\ndef apply_coupon(total, code):\n    if code == \"P0\":\n        return total - 0\n    if code == \"P1\":\n        return total - 1\n    if code == \"P2\":\n        return total - 2\n    if code == \"P3\":\n        return total - 3\n    if code == \"P4\":\n        return total - 4\n    if code == \"P5\":\n        return total - 5\n    if code == \"P6\":\n        return total - 6\n    if code == \"P7\":\n        return total - 7\n    return round(total * 0.9, 2)"
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "api/coupons.py",
+            "status": "modified",
+            "score": 1.609,
+            "hunks": [
+              {
+                "header": "@@ -24,7 +24,7 @@",
+                "oldStart": 24,
+                "oldLines": 7,
+                "newStart": 24,
+                "newLines": 7,
+                "text": "             return False\n         if self.code == \"X7\":\n             return False\n-        return 0 < self.percent <= 100\n+        return 0 < self.percent <= 90\n \n \n @app.route(\"/apply\")"
+              },
+              {
+                "header": "@@ -45,4 +45,4 @@",
+                "oldStart": 45,
+                "oldLines": 4,
+                "newStart": 45,
+                "newLines": 4,
+                "text": "         return total - 6\n     if code == \"P7\":\n         return total - 7\n-    return total * 0.9\n+    return round(total * 0.9, 2)"
+              }
+            ],
+            "contexts": [
+              {
+                "kind": "symbol",
+                "name": "Coupon.is_valid",
+                "startLine": 9,
+                "endLine": 27,
+                "text": "    @property\n    def is_valid(self) -> bool:\n        if self.code == \"X0\":\n            return False\n        if self.code == \"X1\":\n            return False\n        if self.code == \"X2\":\n            return False\n        if self.code == \"X3\":\n            return False\n        if self.code == \"X4\":\n            return False\n        if self.code == \"X5\":\n            return False\n        if self.code == \"X6\":\n            return False\n        if self.code == \"X7\":\n            return False\n        return 0 < self.percent <= 90"
+              },
+              {
+                "kind": "symbol",
+                "name": "apply_coupon",
+                "startLine": 30,
+                "endLine": 48,
+                "text": "@app.route(\"/apply\")\ndef apply_coupon(total, code):\n    if code == \"P0\":\n        return total - 0\n    if code == \"P1\":\n        return total - 1\n    if code == \"P2\":\n        return total - 2\n    if code == \"P3\":\n        return total - 3\n    if code == \"P4\":\n        return total - 4\n    if code == \"P5\":\n        return total - 5\n    if code == \"P6\":\n        return total - 6\n    if code == \"P7\":\n        return total - 7\n    return round(total * 0.9, 2)"
+              }
+            ],
+            "estimatedTokens": 464
+          }
+        ],
+        "estimatedTokens": 464
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6464
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "name": "PRE-09 overflow switches to map_reduce with directory chunks, best chunk first",
+  "input": {
+    "files": [
+      {
+        "path": "src/orders/create.ts",
+        "status": "modified",
+        "additions": 31,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,31 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_27 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_28 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_29 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_30 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "src/orders/cancel.ts",
+        "status": "modified",
+        "additions": 27,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,27 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "src/billing/invoice.ts",
+        "status": "modified",
+        "additions": 40,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,40 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_27 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_28 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_29 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_30 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_31 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_32 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_33 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_34 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_35 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_36 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_37 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_38 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_39 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "src/billing/tax.ts",
+        "status": "modified",
+        "additions": 14,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,14 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/util/format.ts",
+        "status": "modified",
+        "additions": 9,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,9 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      },
+      {
+        "path": "docs/guide.md",
+        "status": "modified",
+        "additions": 18,
+        "deletions": 0,
+        "patch": "@@ -1,0 +1,18 @@\n+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 4000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 1000
+    }
+  },
+  "expected": {
+    "mode": "map_reduce",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/billing/invoice.ts",
+            "status": "modified",
+            "score": 3.714,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,40 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 40,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_27 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_28 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_29 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_30 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_31 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_32 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_33 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_34 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_35 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_36 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_37 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_38 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_39 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 938
+          },
+          {
+            "path": "docs/guide.md",
+            "status": "modified",
+            "score": 2.944,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,18 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 18,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 434
+          },
+          {
+            "path": "src/billing/tax.ts",
+            "status": "modified",
+            "score": 2.708,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,14 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 14,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 343
+          },
+          {
+            "path": "lib/util/format.ts",
+            "status": "modified",
+            "score": 2.303,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,9 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 9,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 230
+          }
+        ],
+        "estimatedTokens": 1945
+      },
+      {
+        "id": "c2",
+        "files": [
+          {
+            "path": "src/orders/create.ts",
+            "status": "modified",
+            "score": 3.466,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,31 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 31,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_27 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_28 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_29 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_30 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 732
+          },
+          {
+            "path": "src/orders/cancel.ts",
+            "status": "modified",
+            "score": 3.332,
+            "hunks": [
+              {
+                "header": "@@ -1,0 +1,27 @@",
+                "oldStart": 1,
+                "oldLines": 0,
+                "newStart": 1,
+                "newLines": 27,
+                "text": "+  total += line0_0 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_1 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_2 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_3 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_4 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_5 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_6 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_7 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_8 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_9 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_10 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_11 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_12 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_13 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_14 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_15 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_16 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_17 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_18 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_19 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_20 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_21 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_22 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_23 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_24 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_25 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n+  total += line0_26 * rate; // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 641
+          }
+        ],
+        "estimatedTokens": 1373
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 5318
+  }
+}

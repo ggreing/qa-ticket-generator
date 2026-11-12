@@ -1,0 +1,139 @@
+{
+  "name": "PRE-02 binary and media files are dropped",
+  "input": {
+    "files": [
+      {
+        "path": "src/app.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -3,3 +3,3 @@\n   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }",
+        "patchMissing": false
+      },
+      {
+        "path": "assets/logo.png",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "fonts/Inter.woff2",
+        "status": "added",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "docs/spec.pdf",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "release/app.zip",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patchMissing": true
+      },
+      {
+        "path": "web/public/icon.svg",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -1,1 +1,1 @@\n-<svg width=\"10\">\n+<svg width=\"12\">",
+        "patchMissing": false
+      },
+      {
+        "path": "lib/native.wasm",
+        "status": "modified",
+        "additions": 0,
+        "deletions": 0,
+        "patch": "Binary files a/lib/native.wasm and b/lib/native.wasm differ",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/app.ts",
+            "status": "modified",
+            "score": 1.099,
+            "hunks": [
+              {
+                "header": "@@ -3,3 +3,3 @@",
+                "oldStart": 3,
+                "oldLines": 3,
+                "newStart": 3,
+                "newLines": 3,
+                "text": "   const port = 3000;\n-  listen(port);\n+  listen(port, onReady);\n }"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 46
+          }
+        ],
+        "estimatedTokens": 46
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [
+      {
+        "path": "assets/logo.png",
+        "reason": "binary"
+      },
+      {
+        "path": "docs/spec.pdf",
+        "reason": "binary"
+      },
+      {
+        "path": "fonts/Inter.woff2",
+        "reason": "binary"
+      },
+      {
+        "path": "lib/native.wasm",
+        "reason": "binary"
+      },
+      {
+        "path": "release/app.zip",
+        "reason": "binary"
+      },
+      {
+        "path": "web/public/icon.svg",
+        "reason": "noise"
+      }
+    ],
+    "redactions": [],
+    "estimatedTokens": 6046
+  }
+}

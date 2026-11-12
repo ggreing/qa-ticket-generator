@@ -1,0 +1,113 @@
+{
+  "name": "PRE-03 go.mod, requirements.txt and pyproject.toml are summarized",
+  "input": {
+    "files": [
+      {
+        "path": "go.mod",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 2,
+        "patch": "@@ -1,7 +1,9 @@\n module github.com/acme/shop\n \n-go 1.22\n+go 1.23\n \n require (\n-\tgithub.com/stripe/stripe-go/v76 v76.0.0\n+\tgithub.com/stripe/stripe-go/v79 v79.1.0\n+\tgolang.org/x/sync v0.8.0 // indirect\n )\n+require github.com/google/uuid v1.6.0",
+        "patchMissing": false
+      },
+      {
+        "path": "api/requirements.txt",
+        "status": "modified",
+        "additions": 3,
+        "deletions": 2,
+        "patch": "@@ -1,3 +1,4 @@\n-Django==4.2.11\n+Django==5.0.6\n requests>=2.31\n+stripe>=10.0  # payments\n-celery\n+-r base.txt",
+        "patchMissing": false
+      },
+      {
+        "path": "api/requirements-dev.txt",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 0,
+        "patch": "@@ -1,1 +1,2 @@\n pytest==8.2.0\n+pytest-cov==5.0.0",
+        "patchMissing": false
+      },
+      {
+        "path": "api/pyproject.toml",
+        "status": "modified",
+        "additions": 4,
+        "deletions": 2,
+        "patch": "@@ -1,6 +1,7 @@\n [project]\n name = \"shop-api\"\n-version = \"0.4.0\"\n+version = \"0.5.0\"\n dependencies = [\n   \"fastapi>=0.110\",\n+  \"stripe>=10\",\n ]\n@@ -20,2 +21,3 @@\n [tool.poetry.group.test.dependencies]\n-pytest = \"^7.4\"\n+pytest = \"^8.2\"\n+hypothesis = { version = \"^6.100\", extras = [\"numpy\"] }",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "api/pyproject.toml",
+            "status": "modified",
+            "score": -0.054,
+            "hunks": [],
+            "contexts": [],
+            "summary": "added: hypothesis@^6.100 (test), stripe>=10; changed: pytest ^7.4 -> ^8.2 (test); other: -version = \"0.4.0\" | +version = \"0.5.0\"",
+            "estimatedTokens": 62
+          },
+          {
+            "path": "go.mod",
+            "status": "modified",
+            "score": -0.054,
+            "hunks": [],
+            "contexts": [],
+            "summary": "added: github.com/google/uuid@v1.6.0, github.com/stripe/stripe-go/v79@v79.1.0, golang.org/x/sync@v0.8.0 (indirect); removed: github.com/stripe/stripe-go/v76@v76.0.0; other: -go 1.22 | +go 1.23",
+            "estimatedTokens": 78
+          },
+          {
+            "path": "api/requirements.txt",
+            "status": "modified",
+            "score": -0.208,
+            "hunks": [],
+            "contexts": [],
+            "summary": "added: stripe>=10.0; removed: celery; changed: Django ==4.2.11 -> ==5.0.6; other: +-r base.txt",
+            "estimatedTokens": 53
+          },
+          {
+            "path": "api/requirements-dev.txt",
+            "status": "modified",
+            "score": -1.307,
+            "hunks": [],
+            "contexts": [],
+            "summary": "added: pytest-cov==5.0.0 (dev)",
+            "estimatedTokens": 34
+          }
+        ],
+        "estimatedTokens": 227
+      }
+    ],
+    "prdDocuments": [],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6227
+  }
+}
