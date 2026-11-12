@@ -205,6 +205,11 @@ Please report vulnerabilities privately as described in [`SECURITY.md`](SECURITY
 
 ## FAQ and limitations
 
+- **Labeling an existing PR does nothing after you added the workflow?** Pull requests opened before the workflow
+  file was added do not see the new workflow until GitHub refreshes their merge commit. Update the PR branch with
+  its base (the **Update branch** button, `gh pr update-branch <number>`, or merge/rebase the base branch and
+  push); with the label still on the PR, that push starts a run. Pull requests opened after the workflow was added
+  are not affected.
 - **Slack webhook mode** posts one new summary card per run. Updating the previous message and threaded
   details need bot mode (`slack-bot-token` + `slack-channel`).
 - **Issues in other private repositories** cannot be read with the default `GITHUB_TOKEN`. Pass a personal access

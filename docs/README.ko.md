@@ -199,6 +199,10 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
 
 ## FAQ와 제약
 
+- **워크플로를 추가했는데 기존 PR에 라벨을 붙여도 실행되지 않나요?** 워크플로 파일을 추가하기 전에 열린 PR은 GitHub가
+  merge 커밋을 갱신하기 전까지 새 워크플로를 보지 못합니다. PR 브랜치를 base로 갱신하세요(**Update branch** 버튼,
+  `gh pr update-branch <number>`, 또는 base를 merge/rebase한 뒤 push). 라벨이 붙어 있으면 그 push로 실행됩니다.
+  워크플로를 추가한 뒤에 연 PR에는 해당하지 않습니다.
 - **Slack Webhook 모드**는 실행마다 요약 카드 1개를 새로 보냅니다. 이전 메시지 갱신과 스레드 상세는 Bot 모드
   (`slack-bot-token` + `slack-channel`)가 필요합니다.
 - **다른 private 레포의 Issue**는 기본 `GITHUB_TOKEN`으로 읽을 수 없습니다. 개인 액세스 토큰(PAT)이나 GitHub App

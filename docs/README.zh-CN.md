@@ -193,6 +193,9 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
 
 ## 常见问题与限制
 
+- **添加工作流后,给已有 PR 加标签却没有运行?** 在添加工作流文件之前打开的 PR,在 GitHub 更新其合并提交之前看不到
+  新的工作流。请用 base 分支更新 PR 分支(**Update branch** 按钮、`gh pr update-branch <number>`,或 merge/rebase
+  base 分支后 push);只要标签还在,这次 push 就会触发运行。添加工作流之后新打开的 PR 不受影响。
 - **Slack Webhook 模式**每次运行只新发一张摘要卡片。更新之前的消息和在线程中发送详情需要 Bot 模式
   (`slack-bot-token` + `slack-channel`)。
 - **其他私有仓库中的 Issue** 无法用默认的 `GITHUB_TOKEN` 读取。请把个人访问令牌(PAT)或 GitHub App token 作为

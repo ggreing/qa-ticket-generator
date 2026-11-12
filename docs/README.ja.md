@@ -201,6 +201,10 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
 
 ## FAQ と制約
 
+- **ワークフローを追加したのに、既存の PR にラベルを付けても実行されない場合。** ワークフローファイルを追加する前に
+  開かれた PR は、GitHub がマージコミットを更新するまで新しいワークフローを認識しません。PR ブランチを base に追従させて
+  ください(**Update branch** ボタン、`gh pr update-branch <number>`、または base を merge/rebase して push)。ラベルが
+  付いていれば、その push で実行されます。ワークフローを追加した後に開いた PR には当てはまりません。
 - **Slack の Webhook モード**では、実行ごとにサマリーカードを 1 件新しく送ります。前のメッセージの更新とスレッドでの
   詳細には Bot モード(`slack-bot-token` + `slack-channel`)が必要です。
 - **別の private リポジトリの Issue** は既定の `GITHUB_TOKEN` では読めません。個人アクセストークン(PAT)か
