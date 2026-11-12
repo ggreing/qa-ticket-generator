@@ -16,12 +16,15 @@ loop. Deterministic checks (alignment status, findings recall, file validity, fo
 
 ## Report-level criteria (whole comment, 0–2)
 
-| Criterion                 | 0                                                                                                                                                                    | 1                              | 2                                                                                       |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
-| **Alignment correctness** | Misses or invents missing/contradicting requirements                                                                                                                 | Mostly right, one wrong status | Every finding status is correct (deterministic grade when ground truth exists)          |
-| **Concision**             | Duplicates and padding bury the important items                                                                                                                      | Some redundancy                | No duplicates; a reviewer gets the verdict and P0 actions from the top section alone    |
-| **Honesty**               | States unverifiable things as fact                                                                                                                                   | Hedges inconsistently          | Anything not visible in the diff/PRD is labelled as an assumption; no invented features |
-| **Coverage**              | Leaves out an important risk of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches) | One important risk is left out | Every important risk of the change has a ticket, merged where they overlap              |
+| Criterion                 | 0                                                                                                                                                                              | 1                              | 2                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | --------------------------------------------------------------------------------------- |
+| **Alignment correctness** | Misses or invents missing/contradicting requirements                                                                                                                           | Mostly right, one wrong status | Every finding status is correct (deterministic grade when ground truth exists)          |
+| **Concision**             | Duplicates and padding bury the important items                                                                                                                                | Some redundancy                | No duplicates; a reviewer gets the verdict and P0 actions from the top section alone    |
+| **Honesty**               | States unverifiable things as fact                                                                                                                                             | Hedges inconsistently          | Anything not visible in the diff/PRD is labelled as an assumption; no invented features |
+| **Coverage**              | Leaves out two or more important risks of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches) | One important risk is left out | Every important risk of the change has a ticket, merged where they overlap              |
+
+Traceability note: a scenario that tests a risk found in the code rather than a written requirement cites only the
+code location and can still score 2. Citing a requirement that is only loosely related lowers the score.
 
 ## Scoring
 

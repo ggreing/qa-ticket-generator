@@ -221,7 +221,9 @@ describe('rubric v2: coverage, and scores stored under v1', () => {
 
   it('M3.5 the judge is told to list the risks itself, without the expected answers', () => {
     expect(RUBRIC_SYSTEM).toContain('Score every scenario on four criteria and the report on four.');
-    expect(RUBRIC_SYSTEM).toContain('(`coverage`): 0 = Leaves out an important risk of this change');
+    expect(RUBRIC_SYSTEM).toContain(
+      '(`coverage`): 0 = Leaves out two or more important risks of this change',
+    );
     expect(RUBRIC_SYSTEM).toContain(
       'work out the important risks of this change yourself before you look at what the tickets cover',
     );

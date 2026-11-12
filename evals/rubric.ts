@@ -96,7 +96,7 @@ export const RUBRIC: Readonly<
   coverage: {
     name: 'Coverage',
     anchors: [
-      'Leaves out an important risk of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches)',
+      'Leaves out two or more important risks of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches)',
       'One important risk is left out',
       'Every important risk of the change has a ticket, merged where they overlap',
     ],
