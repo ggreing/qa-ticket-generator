@@ -1,0 +1,13 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1906",
+    "url": "https://github.com/acme/shop/issues/1906",
+    "raw": "acme/shop#1906"
+  },
+  "title": "Finance needs a ledger export",
+  "bodyMarkdown": "Finance downloads every merchant account's ledger at month end and imports it into the accounting\ntool, which is strict about number formats. Every amount has to be written with exactly two decimals,\nand debits carry a leading minus sign, so a debit of five cents reads -0.05 (AC1).\n\nThe biggest merchants have several hundred thousand entries. Loading them all at once has taken the\nreporting box down before, so the export reads and writes 5,000 entries at a time and never holds a\nwhole account in memory (AC2).\n\nMonth-end close runs against a deadline. An export of 100,000 entries has to finish within 30 seconds\non production data (AC3), otherwise the team falls back to asking engineering for a database dump.",
+  "acceptanceCriteria": [],
+  "url": "https://github.com/acme/shop/issues/1906",
+  "meta": {}
+}

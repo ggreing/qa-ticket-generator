@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2012,
+  "title": "Retry and sign outgoing merchant webhooks",
+  "body": "Merchants keep missing order events when their endpoint has a hiccup. Deliveries are now signed\nand retried with backoff; events that never get through land in the dead-letter table so support\ncan replay them by hand. We agreed on this in the platform sync, there is no written spec.",
+  "author": "felix",
+  "htmlUrl": "https://github.com/acme/shop/pull/2012",
+  "baseRef": "main",
+  "baseSha": "8f07fe8e0671813a1ff41e716ea19a1c3fd1a6d0",
+  "headRef": "feat/webhook-retries",
+  "headSha": "6dc21d6453a61ac223279336bbc04d150f0e368b",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

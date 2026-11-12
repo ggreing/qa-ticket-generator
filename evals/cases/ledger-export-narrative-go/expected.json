@@ -1,0 +1,63 @@
+{
+  "expectedAlignment": "partial",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Two decimals, leading minus sign for debits",
+      "labels": ["AC1"],
+      "keywords": ["two decimals", "minus sign"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Read and write 5,000 entries at a time",
+      "labels": ["AC2"],
+      "keywords": ["5,000 entries"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "100,000 entries exported within 30 seconds",
+      "labels": ["AC3"],
+      "keywords": ["30 seconds"],
+      "accept": ["unclear"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "amount-format",
+      "risk": "A five-cent debit is written as -0.05 and a 1,234.50 credit as 1234.50 (two decimals, sign only on debits)",
+      "keywords": [["-0.05", "0.05", "two decimal", "2 decimal", "minus", "negative", "sign"]]
+    },
+    {
+      "id": "page-boundary",
+      "risk": "Accounts with exactly 5,000 and 5,001 entries: every entry is exported once, none duplicated or skipped across the page boundary",
+      "keywords": [["5,000", "5000", "5,001", "5001", "page boundary", "pagination", "duplicate", "skipped"]]
+    },
+    {
+      "id": "empty-account",
+      "risk": "An account with no entries returns only the CSV header",
+      "keywords": [["empty", "no entries", "zero entries", "header only", "only the header"]]
+    },
+    {
+      "id": "mid-stream-error",
+      "risk": "A database error after the first page leaves a truncated file with a 200 status, which finance could import as complete",
+      "keywords": [["error", "fail"], ["truncat", "partial", "incomplete", "mid-stream", "midway", "half"]]
+    },
+    {
+      "id": "csv-escaping",
+      "risk": "Descriptions containing commas, quotes or newlines are escaped so columns stay aligned",
+      "keywords": [["comma", "quote", "newline", "escap"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Excel or PDF exports and date-range filters are in neither the issue nor the code",
+      "patterns": ["xlsx", "pdf export", "date range filter"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["finance", "go", "narrative-ac", "unclear", "performance"],
+  "notes": "Narrative PRD with no extractable criteria. AC3 is unclear by design: a 30-second target for 100,000 entries cannot be judged from code. AC1 and AC2 are implemented."
+}

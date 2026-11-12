@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2006,
+  "title": "Ledger CSV export for finance",
+  "body": "Closes #1906\n\nAdds GET /finance/accounts/{id}/ledger.csv. Entries are read with keyset pagination and written\nto the response as they arrive, so memory stays flat for large accounts.",
+  "author": "priya",
+  "htmlUrl": "https://github.com/acme/shop/pull/2006",
+  "baseRef": "main",
+  "baseSha": "2906e155068458888867e2abfaa45ff2beb5f32a",
+  "headRef": "feat/ledger-export",
+  "headSha": "70992edfb71aca9ebda9d278134cfe44c2ccd437",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

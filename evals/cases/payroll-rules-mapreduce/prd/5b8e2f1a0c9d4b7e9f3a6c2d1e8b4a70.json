@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "notion",
+    "id": "5b8e2f1a0c9d4b7e9f3a6c2d1e8b4a70",
+    "url": "https://www.notion.so/acme/Payroll-rules-2027-5b8e2f1a0c9d4b7e9f3a6c2d1e8b4a70",
+    "raw": "5b8e2f1a0c9d4b7e9f3a6c2d1e8b4a70"
+  },
+  "title": "Payroll rules 2027",
+  "bodyMarkdown": "# Payroll rules 2027\n\nWorks council agreement signed in October. Payroll currently runs from a spreadsheet that only\nthe payroll lead understands.\n\n## Acceptance Criteria\n- AC1: Hours beyond 40 in a calendar week (Monday to Sunday) are paid at 1.5 times the base rate.\n- AC2: Hours worked between 22:00 and 06:00 earn a night premium of 50% of the base rate on top of the regular pay.\n- AC3: Hours on a public holiday are paid at 2 times the base rate, and holiday hours do not count toward the 40-hour overtime threshold.\n- AC4: When rendering a payslip PDF fails, the job retries that payslip up to 3 times and then marks it FAILED so the other payslips still go out.\n\n## Rounding\nAmounts are calculated in cents; each pay line is rounded half up to the cent.",
+  "acceptanceCriteria": [
+    "AC1: Hours beyond 40 in a calendar week (Monday to Sunday) are paid at 1.5 times the base rate.",
+    "AC2: Hours worked between 22:00 and 06:00 earn a night premium of 50% of the base rate on top of the regular pay.",
+    "AC3: Hours on a public holiday are paid at 2 times the base rate, and holiday hours do not count toward the 40-hour overtime threshold.",
+    "AC4: When rendering a payslip PDF fails, the job retries that payslip up to 3 times and then marks it FAILED so the other payslips still go out."
+  ],
+  "url": "https://www.notion.so/acme/Payroll-rules-2027-5b8e2f1a0c9d4b7e9f3a6c2d1e8b4a70",
+  "meta": {}
+}

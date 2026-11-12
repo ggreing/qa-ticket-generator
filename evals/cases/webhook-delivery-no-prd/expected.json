@@ -1,0 +1,49 @@
+{
+  "expectedAlignment": "no_prd",
+  "mustFindings": [],
+  "mustScenarios": [
+    {
+      "id": "retry-schedule",
+      "risk": "A 503 or network error is retried after 1, 2, 4 and 8 seconds; after the 5th failed attempt the event goes to the dead-letter table",
+      "keywords": [["retr", "backoff", "back-off", "attempt"], ["5th", "fifth", "five", "5 attempts", "dead"]]
+    },
+    {
+      "id": "no-retry-4xx",
+      "risk": "A 400 or 404 response is not retried: the event goes straight to dead letters after one attempt",
+      "keywords": [
+        ["400", "404", "4xx", "client error"],
+        ["retr", "dead", "one attempt", "single attempt", "immediately"]
+      ]
+    },
+    {
+      "id": "retry-after-429",
+      "risk": "429 with Retry-After waits that many seconds before the next attempt, capped at 60 seconds",
+      "keywords": [["429", "retry-after", "retry after", "rate limit"]]
+    },
+    {
+      "id": "timeout",
+      "risk": "An endpoint that does not answer within 10 seconds counts as a failed attempt and is retried",
+      "keywords": [["timeout", "time out", "timed out", "10 s", "10-second", "10 second", "slow"]]
+    },
+    {
+      "id": "signature",
+      "risk": "Each attempt carries x-acme-signature t=<timestamp>,v1=<HMAC-SHA256 of timestamp.body>, recomputed with a fresh timestamp",
+      "keywords": [["signature", "hmac", "sign"]]
+    },
+    {
+      "id": "multi-endpoint",
+      "risk": "One endpoint failing does not stop or delay delivery to the other endpoints subscribed to the same event (deliveries run one after another today)",
+      "keywords": [["endpoint"], ["other", "another", "second", "multiple", "several", "each"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "There is no PRD; replay APIs and endpoint auto-disabling are not in the code either",
+      "patterns": ["replay api", "replay endpoint", "auto-disable", "automatically disable"],
+      "fields": ["scenarios"]
+    }
+  ],
+  "tags": ["webhooks", "typescript", "external-failure", "no_prd"],
+  "notes": "No PRD is linked. Alignment must be no_prd with no findings; scenarios come from the code alone."
+}

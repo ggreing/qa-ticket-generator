@@ -1,0 +1,70 @@
+{
+  "expectedAlignment": "aligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "At most 100 requests per rolling 60 seconds per key",
+      "labels": ["AC1"],
+      "keywords": ["100 requests", "rolling 60-second"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "429 with Retry-After rounded up",
+      "labels": ["AC2"],
+      "keywords": ["Retry-After", "HTTP 429"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Limits independent per key",
+      "labels": ["AC3"],
+      "keywords": ["other keys"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Exactly 100 of 150 parallel requests succeed",
+      "labels": ["AC4"],
+      "keywords": ["150 parallel", "exactly 100"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "hundred-first",
+      "risk": "The 100th request inside 60 seconds succeeds and the 101st gets 429",
+      "keywords": [["101", "100th", "over the limit", "exceed"], ["429", "reject", "too many"]]
+    },
+    {
+      "id": "retry-after",
+      "risk": "Retry-After holds the whole seconds until the oldest request leaves the window, rounded up (e.g. 12.3 s left → 13)",
+      "keywords": [["retry-after", "retry after"]]
+    },
+    {
+      "id": "window-slides",
+      "risk": "Once the oldest request is more than 60 seconds old a new request is allowed again (rolling, not fixed-minute, window)",
+      "keywords": [["60 s", "60-second", "60 second", "sliding", "rolling", "window"]]
+    },
+    {
+      "id": "other-key",
+      "risk": "A second key keeps working while the first key is limited",
+      "keywords": [["another key", "other key", "second key", "different key", "per key", "per-key", "key b"]]
+    },
+    {
+      "id": "parallel",
+      "risk": "150 parallel requests with one key yield exactly 100 successes and 50 responses with 429",
+      "keywords": [["parallel", "concurren", "simultaneous", "150"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Paid plan tiers and IP-based limits are in neither the ticket nor the code",
+      "patterns": ["paid tier", "premium tier", "per-ip limit", "ip-based limit"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["api", "go", "concurrency", "aligned"],
+  "notes": "Fully implemented: a per-key sliding log with a per-key mutex; Retry-After is rounded up."
+}

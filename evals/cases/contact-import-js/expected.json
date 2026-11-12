@@ -1,0 +1,76 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "At most 10,000 data rows, rejected before importing",
+      "labels": ["AC1"],
+      "keywords": ["10,000 data rows"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Invalid e-mail rows skipped and reported; valid rows still imported",
+      "labels": ["AC2"],
+      "keywords": ["invalid e-mail", "line number"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Existing e-mail updates the contact, case-insensitive",
+      "labels": ["AC3"],
+      "keywords": ["case-insensitively", "already exists"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "one-bad-row",
+      "risk": "A file with 99 valid rows and one invalid e-mail must import the 99 and report the bad line; today the whole import is refused with INVALID_EMAIL",
+      "keywords": [
+        ["invalid"],
+        ["skip", "line", "whole", "entire", "all rows", "valid rows", "abort", "reject"]
+      ]
+    },
+    {
+      "id": "row-limit",
+      "risk": "Exactly 10,000 data rows are accepted (header not counted); 10,001 are rejected with TOO_MANY_ROWS before anything is written",
+      "keywords": [["10,000", "10000", "10,001", "10001", "too_many_rows", "row limit"]]
+    },
+    {
+      "id": "duplicate-email",
+      "risk": "Importing a contact whose e-mail exists as Alice@Example.com (different case) updates it instead of creating a second contact",
+      "keywords": [
+        [
+          "duplicate",
+          "already exist",
+          "existing",
+          "case-insensitive",
+          "case insensitive",
+          "upper",
+          "lowercase"
+        ]
+      ]
+    },
+    {
+      "id": "batch-failure",
+      "risk": "A database error in the third batch of 500 leaves the first 1,000 contacts inserted with a 500 error response",
+      "keywords": [["batch", "500"], ["fail", "error", "partial"]]
+    },
+    {
+      "id": "csv-quoting",
+      "risk": "Quoted fields with commas, escaped quotes and CRLF line endings are parsed into the right columns",
+      "keywords": [["quote", "comma", "crlf", "\\r\\n", "escap"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Excel uploads and column mapping are in neither the issue nor the code",
+      "patterns": ["xlsx", "column mapping", "excel upload"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["crm", "javascript", "boundary", "contradicts", "missing"],
+  "notes": "AC2 is contradicted: the first invalid e-mail throws INVALID_EMAIL and nothing is imported. AC3 (update existing e-mail, case-insensitive) is absent: rows are always inserted."
+}

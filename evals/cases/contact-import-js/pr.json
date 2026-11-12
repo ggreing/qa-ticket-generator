@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2014,
+  "title": "CSV contact import for the CRM",
+  "body": "Closes #1914\n\nPOST /contacts/import takes a CSV upload (name,email,phone). The file is validated before\nanything is written, then inserted in batches of 500.",
+  "author": "ravi",
+  "htmlUrl": "https://github.com/acme/shop/pull/2014",
+  "baseRef": "main",
+  "baseSha": "1e4249b2bfc05308b7fbb6530121df5b8f94dcd0",
+  "headRef": "feat/contact-import",
+  "headSha": "d8f9890a8e5076846262ac84f171b4f2bde3e845",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

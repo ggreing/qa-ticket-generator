@@ -1,0 +1,78 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "No overselling under concurrency; ErrOutOfStock when short",
+      "labels": ["AC1"],
+      "keywords": ["below zero", "ErrOutOfStock"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Unconfirmed reservations released after 15 minutes",
+      "labels": ["AC2"],
+      "keywords": ["15 minutes", "released"],
+      "accept": ["missing"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "1 to 10 units per request",
+      "labels": ["AC3"],
+      "keywords": ["1 to 10 units", "ErrInvalidQuantity"],
+      "accept": ["contradicts"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "ten-units",
+      "risk": "Reserving exactly 10 units must succeed, but qty >= 10 rejects it (off-by-one at the upper bound)",
+      "keywords": [
+        [
+          "10 units",
+          "ten units",
+          "qty 10",
+          "quantity 10",
+          "quantity of 10",
+          "exactly 10",
+          "= 10",
+          ">= 10",
+          "boundary"
+        ]
+      ]
+    },
+    {
+      "id": "bounds",
+      "risk": "Quantities 0, -1 and 11 are rejected with ErrInvalidQuantity; 1 is accepted",
+      "keywords": [["errinvalidquantity", "400", "11", "zero", "negative"]]
+    },
+    {
+      "id": "last-unit-race",
+      "risk": "Two concurrent reservations for the last unit: exactly one succeeds, the other gets ErrOutOfStock and stock stays at 0",
+      "keywords": [
+        ["concurren", "parallel", "simultaneous", "race", "at the same time"],
+        ["stock", "last unit", "erroutofstock", "409"]
+      ]
+    },
+    {
+      "id": "expiry-release",
+      "risk": "An unconfirmed reservation older than 15 minutes is released and its units return to stock",
+      "keywords": [["15 min", "fifteen", "expir", "release"]]
+    },
+    {
+      "id": "confirm-keeps",
+      "risk": "A confirmed reservation is never released, even after 15 minutes",
+      "keywords": [["confirm"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Waitlists and back-order notifications exist in neither the issue nor the code",
+      "patterns": ["waitlist", "back-order", "backorder"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["inventory", "go", "concurrency", "boundary", "contradicts", "missing"],
+  "notes": "AC3 is contradicted at the boundary (qty >= 10 rejects 10 units) and AC2 is absent: expires_at is stored but nothing releases expired reservations."
+}

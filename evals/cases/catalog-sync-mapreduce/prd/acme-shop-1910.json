@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1910",
+    "url": "https://github.com/acme/shop/issues/1910",
+    "raw": "acme/shop#1910"
+  },
+  "title": "Sync the supplier catalog every night",
+  "bodyMarkdown": "The supplier publishes ~40k products. Ops currently uploads their CSV by hand twice a week.\n\n### Acceptance Criteria\n- AC1: The sync reads every page of the supplier catalog, following next_cursor until it is empty.\n- AC2: When the supplier API answers with a 5xx status or times out, the request for that page is retried up to 5 times with exponential backoff starting at 1 second (1, 2, 4, 8 and 16 seconds).\n- AC3: A price change of more than 30% (up or down) puts the product on the manual review list instead of updating its price.\n- AC4: Products that no longer appear in the supplier catalog are marked inactive, never deleted.\n\nThe supplier API is flaky around 02:00 UTC when they run their own backups.",
+  "acceptanceCriteria": [
+    "AC1: The sync reads every page of the supplier catalog, following next_cursor until it is empty.",
+    "AC2: When the supplier API answers with a 5xx status or times out, the request for that page is retried up to 5 times with exponential backoff starting at 1 second (1, 2, 4, 8 and 16 seconds).",
+    "AC3: A price change of more than 30% (up or down) puts the product on the manual review list instead of updating its price.",
+    "AC4: Products that no longer appear in the supplier catalog are marked inactive, never deleted."
+  ],
+  "url": "https://github.com/acme/shop/issues/1910",
+  "meta": {}
+}

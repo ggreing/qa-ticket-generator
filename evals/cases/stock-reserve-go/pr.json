@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2002,
+  "title": "Reserve stock when checkout starts",
+  "body": "Closes #1902\n\nCheckout now reserves the units before payment. The decrement is a single conditional\nUPDATE, so two shoppers racing for the last unit cannot both win.",
+  "author": "ayaan",
+  "htmlUrl": "https://github.com/acme/shop/pull/2002",
+  "baseRef": "main",
+  "baseSha": "cbab6c4e4d3528a22ab5b1aafcf0c6a1b8859e3e",
+  "headRef": "feat/stock-reservations",
+  "headSha": "0fc13f066a8a3216a4cc73ef6440e220b4a28489",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

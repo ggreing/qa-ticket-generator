@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1915",
+    "url": "https://github.com/acme/shop/issues/1915",
+    "raw": "acme/shop#1915"
+  },
+  "title": "Change subscription plans mid-cycle",
+  "bodyMarkdown": "Customers who upgrade today wait until renewal, and support issues manual credits.\n\n### Acceptance Criteria\n- AC1: Upgrading mid-cycle charges the price difference prorated by the days left in the billing cycle, rounded half up to the cent.\n- AC2: A downgrade takes effect on the next renewal date and nothing is refunded.\n- AC3: An upgrade on the last day of the cycle charges the difference for that one day.\n- AC4: If the card charge for an upgrade fails, the plan stays unchanged and the error PAYMENT_FAILED is returned.\n\nThe renewal date is the first day of the next cycle; a cycle runs from its start date up to, but not including, the renewal date.",
+  "acceptanceCriteria": [
+    "AC1: Upgrading mid-cycle charges the price difference prorated by the days left in the billing cycle, rounded half up to the cent.",
+    "AC2: A downgrade takes effect on the next renewal date and nothing is refunded.",
+    "AC3: An upgrade on the last day of the cycle charges the difference for that one day.",
+    "AC4: If the card charge for an upgrade fails, the plan stays unchanged and the error PAYMENT_FAILED is returned."
+  ],
+  "url": "https://github.com/acme/shop/issues/1915",
+  "meta": {}
+}

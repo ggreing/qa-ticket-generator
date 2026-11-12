@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2008,
+  "title": "Seat picker for the booking page",
+  "body": "Resolves #1908\n\nNew SeatPicker with a useSeatSelection hook. Sold and held seats come from the seat map API\nas status values and are rendered disabled.",
+  "author": "hana",
+  "htmlUrl": "https://github.com/acme/shop/pull/2008",
+  "baseRef": "main",
+  "baseSha": "d611794bf6373d35f106366fb52ea5480ae58637",
+  "headRef": "feat/seat-picker",
+  "headSha": "97ba8314c9f8f2dabcc79bd5d697207b1137bb14",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

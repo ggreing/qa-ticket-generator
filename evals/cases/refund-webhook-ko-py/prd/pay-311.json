@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "PAY-311",
+    "url": "https://acme.atlassian.net/browse/PAY-311",
+    "raw": "PAY-311"
+  },
+  "title": "결제사 환불 웹훅 처리",
+  "bodyMarkdown": "## 배경\n고객센터에서 결제사 관리자 화면으로 환불하면 우리 주문 데이터에는 반영되지 않는다.\n결제사 웹훅을 받아 환불 내역을 자동으로 맞춘다.\n\n## 인수 조건\n- AC1: X-Pay-Signature 헤더의 HMAC-SHA256 서명 검증에 실패하면 401을 반환하고 아무것도 기록하지 않는다.\n- AC2: 같은 event_id의 웹훅이 다시 오면 200을 반환하되 환불을 다시 처리하지 않는다.\n- AC3: 결제사 환불 조회 API가 5초 안에 응답하지 않으면 최대 3번까지 재시도하고, 그래도 실패하면 환불 상태를 FAILED로 기록한다.\n- AC4: 부분 환불 금액의 합이 원결제 금액을 넘으면 해당 환불을 거절하고 REFUND_EXCEEDS_PAYMENT 오류를 기록한다.\n\n## 참고\n결제사는 2xx 응답을 받지 못하면 같은 이벤트를 최대 24시간 동안 다시 보낸다.",
+  "acceptanceCriteria": [
+    "AC1: X-Pay-Signature 헤더의 HMAC-SHA256 서명 검증에 실패하면 401을 반환하고 아무것도 기록하지 않는다.",
+    "AC2: 같은 event_id의 웹훅이 다시 오면 200을 반환하되 환불을 다시 처리하지 않는다.",
+    "AC3: 결제사 환불 조회 API가 5초 안에 응답하지 않으면 최대 3번까지 재시도하고, 그래도 실패하면 환불 상태를 FAILED로 기록한다.",
+    "AC4: 부분 환불 금액의 합이 원결제 금액을 넘으면 해당 환불을 거절하고 REFUND_EXCEEDS_PAYMENT 오류를 기록한다."
+  ],
+  "url": "https://acme.atlassian.net/browse/PAY-311",
+  "meta": {}
+}

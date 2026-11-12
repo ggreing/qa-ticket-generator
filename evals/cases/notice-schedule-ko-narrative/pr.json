@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2005,
+  "title": "앱 공지 예약 발송",
+  "body": "기획: https://www.notion.so/acme/7c1e4b2a9d3f4e8a8b6c5d4e3f2a1b0c\n\n공지를 예약해 두면 워커가 매분 발송 대상을 찾아 보냅니다. 예약 취소 API도 함께 넣었습니다.",
+  "author": "jiwoo",
+  "htmlUrl": "https://github.com/acme/shop/pull/2005",
+  "baseRef": "main",
+  "baseSha": "24fc1251d778a1fd96c6c8246d215370596066c8",
+  "headRef": "feat/notice-schedule",
+  "headSha": "55d6116d2255453954041dcc2d362df070aed0ef",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

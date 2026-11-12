@@ -1,0 +1,70 @@
+{
+  "expectedAlignment": "aligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "At most 6 seats; the 7th shows a message and changes nothing",
+      "labels": ["AC1"],
+      "keywords": ["at most 6 seats", "7th seat"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Sold and held seats unavailable",
+      "labels": ["AC2"],
+      "keywords": ["sold and held"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Showtime change clears the selection",
+      "labels": ["AC3"],
+      "keywords": ["changing the showtime"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Continue disabled with no seat selected",
+      "labels": ["AC4"],
+      "keywords": ["continue button"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "seventh-seat",
+      "risk": "With 6 seats selected, clicking a 7th shows \"You can select up to 6 seats\" and the selection stays at 6",
+      "keywords": [["7th", "seventh", "7 seats", "up to 6", "more than 6", "sixth"]]
+    },
+    {
+      "id": "deselect-then-add",
+      "risk": "At 6 seats, deselecting one clears the message and allows choosing another seat",
+      "keywords": [["deselect", "unselect", "de-select", "remove a seat", "toggle off", "click again"]]
+    },
+    {
+      "id": "unavailable",
+      "risk": "Sold and held seats render disabled and clicking them does not add them",
+      "keywords": [["sold", "held", "unavailable"]]
+    },
+    {
+      "id": "showtime-reset",
+      "risk": "Switching to another showtime empties the selection and the error message",
+      "keywords": [["showtime"]]
+    },
+    {
+      "id": "continue-disabled",
+      "risk": "Continue is disabled with zero seats and enabled after selecting one",
+      "keywords": [["continue"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Wheelchair seats, seat prices and seat holds by the customer are in neither the issue nor the code",
+      "patterns": ["wheelchair", "seat price", "vip seat"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["booking", "tsx", "react", "aligned"],
+  "notes": "Fully implemented UI: 6-seat cap with message, disabled sold/held seats, reset on showtime change, disabled Continue."
+}

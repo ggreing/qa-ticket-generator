@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2001,
+  "title": "Order status machine and cancellation endpoint",
+  "body": "Implements https://acme.atlassian.net/browse/ORD-88\n\nMoves status changes into Order.transitionTo() so every caller goes through the same rules,\nand adds POST /orders/{id}/cancel. Cancelling a paid order refunds it through the gateway.\nAlso bumps the payment client and turns on the new cancel route in application.yml.",
+  "author": "diego",
+  "htmlUrl": "https://github.com/acme/shop/pull/2001",
+  "baseRef": "main",
+  "baseSha": "adb5634f693106731cbc9e9033a8158829d31dff",
+  "headRef": "feat/order-cancel",
+  "headSha": "b51b681e474d3bbf53c7d950119d022fa0d3d075",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

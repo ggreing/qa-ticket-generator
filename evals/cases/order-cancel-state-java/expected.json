@@ -1,0 +1,84 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Only forward transitions along the status chain",
+      "labels": ["AC1"],
+      "keywords": ["IllegalStatusTransition", "moves only along"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Cancel only while PENDING or PAID; SHIPPED/DELIVERED get 409",
+      "labels": ["AC2"],
+      "keywords": ["HTTP 409", "cancelled only while"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Full refund when a PAID order is cancelled",
+      "labels": ["AC3"],
+      "keywords": ["full captured amount"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Status history row per change",
+      "labels": ["AC4"],
+      "keywords": ["order_status_history"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "cancel-shipped",
+      "risk": "Cancelling a SHIPPED order must return 409, but CANCELLABLE includes SHIPPED so it succeeds",
+      "keywords": [["shipped"], ["409", "cancel"]]
+    },
+    {
+      "id": "cancel-delivered",
+      "risk": "Cancelling a DELIVERED order is refused with 409",
+      "keywords": [["delivered"], ["409", "reject", "refuse", "cannot", "not allowed"]]
+    },
+    {
+      "id": "refund-paid-only",
+      "risk": "Cancelling a PAID order refunds the full captured amount; cancelling a PENDING order calls no refund",
+      "keywords": [["refund"], ["pending", "paid"]]
+    },
+    {
+      "id": "skip-transition",
+      "risk": "Skipping a step (PENDING straight to SHIPPED) or going backwards is rejected with IllegalStatusTransition",
+      "keywords": [
+        [
+          "illegalstatustransition",
+          "skip",
+          "backward",
+          "invalid transition",
+          "pending to shipped",
+          "pending → shipped"
+        ]
+      ]
+    },
+    {
+      "id": "history",
+      "risk": "Each status change writes an order_status_history row with previous status, new status and actor id",
+      "keywords": [["history", "audit"]]
+    },
+    {
+      "id": "refund-failure",
+      "risk": "The gateway refund fails while cancelling a PAID order: the order must not end up CANCELLED without a refund",
+      "keywords": [["refund"], ["fail", "error", "timeout", "exception"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Partial refunds and store credit appear in neither the ticket nor the code",
+      "patterns": ["store credit", "partial refund"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["orders", "java", "state-machine", "noise", "contradicts", "missing"],
+  "notes": "AC2 is contradicted (OrderStatus.CANCELLABLE includes SHIPPED) and AC4 (status history table) has no code at all. Test, config and lockfile changes are noise."
+}

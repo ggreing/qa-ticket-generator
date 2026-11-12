@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2011,
+  "title": "Percentage rollouts for feature flags",
+  "body": "Closes #1911\n\nFlags get a rolloutPercent. Users are bucketed by an FNV-1a hash of flag key and user id, so the\nsame user keeps the same answer. Flag definitions are cached in memory for 60 seconds.\nAlso upgrades vitest and enables strict mode in tsconfig.",
+  "author": "nadia",
+  "htmlUrl": "https://github.com/acme/shop/pull/2011",
+  "baseRef": "main",
+  "baseSha": "e2940a79cc7bf17872673ec13cc9046cc91f1bd6",
+  "headRef": "feat/flag-rollout",
+  "headSha": "75c7b9d275649c229b41560e91b11c08f53dcb78",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

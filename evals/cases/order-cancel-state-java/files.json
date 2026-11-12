@@ -1,0 +1,74 @@
+[
+  {
+    "path": "src/main/java/com/acme/shop/order/OrderStatus.java",
+    "status": "added",
+    "additions": 25,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,25 @@\n+package com.acme.shop.order;\n+\n+import java.util.EnumSet;\n+import java.util.Set;\n+\n+public enum OrderStatus {\n+    PENDING,\n+    PAID,\n+    SHIPPED,\n+    DELIVERED,\n+    CANCELLED;\n+\n+    /** Statuses from which an order may be cancelled. */\n+    public static final Set<OrderStatus> CANCELLABLE = EnumSet.of(PENDING, PAID, SHIPPED);\n+\n+    /** The only forward step allowed from this status, or null for final statuses. */\n+    public OrderStatus next() {\n+        return switch (this) {\n+            case PENDING -> PAID;\n+            case PAID -> SHIPPED;\n+            case SHIPPED -> DELIVERED;\n+            case DELIVERED, CANCELLED -> null;\n+        };\n+    }\n+}",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\nimport java.util.EnumSet;\nimport java.util.Set;\n\npublic enum OrderStatus {\n    PENDING,\n    PAID,\n    SHIPPED,\n    DELIVERED,\n    CANCELLED;\n\n    /** Statuses from which an order may be cancelled. */\n    public static final Set<OrderStatus> CANCELLABLE = EnumSet.of(PENDING, PAID, SHIPPED);\n\n    /** The only forward step allowed from this status, or null for final statuses. */\n    public OrderStatus next() {\n        return switch (this) {\n            case PENDING -> PAID;\n            case PAID -> SHIPPED;\n            case SHIPPED -> DELIVERED;\n            case DELIVERED, CANCELLED -> null;\n        };\n    }\n}\n"
+  },
+  {
+    "path": "src/main/java/com/acme/shop/order/Order.java",
+    "status": "modified",
+    "additions": 17,
+    "deletions": 4,
+    "patch": "@@ -16,10 +16,23 @@\n         this.status = status;\n     }\n \n-    public void setStatus(OrderStatus status) {\n-        this.status = status;\n-        this.updatedAt = Instant.now();\n-    }\n+    /** Moves the order one step forward; anything but the next status is refused. */\n+    public void transitionTo(OrderStatus target) {\n+        if (status.next() != target) {\n+            throw new IllegalStatusTransition(status, target);\n+        }\n+        this.status = target;\n+        this.updatedAt = Instant.now();\n+    }\n+\n+    /** Cancels the order if its current status allows it. */\n+    public void cancel() {\n+        if (!OrderStatus.CANCELLABLE.contains(status)) {\n+            throw new IllegalStatusTransition(status, OrderStatus.CANCELLED);\n+        }\n+        this.status = OrderStatus.CANCELLED;\n+        this.updatedAt = Instant.now();\n+    }\n \n     public String id() { return id; }\n     public String customerId() { return customerId; }",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\nimport java.time.Instant;\n\npublic class Order {\n    private final String id;\n    private final String customerId;\n    private final long capturedAmountMinor;\n    private OrderStatus status;\n    private Instant updatedAt;\n\n    public Order(String id, String customerId, long capturedAmountMinor, OrderStatus status) {\n        this.id = id;\n        this.customerId = customerId;\n        this.capturedAmountMinor = capturedAmountMinor;\n        this.status = status;\n    }\n\n    /** Moves the order one step forward; anything but the next status is refused. */\n    public void transitionTo(OrderStatus target) {\n        if (status.next() != target) {\n            throw new IllegalStatusTransition(status, target);\n        }\n        this.status = target;\n        this.updatedAt = Instant.now();\n    }\n\n    /** Cancels the order if its current status allows it. */\n    public void cancel() {\n        if (!OrderStatus.CANCELLABLE.contains(status)) {\n            throw new IllegalStatusTransition(status, OrderStatus.CANCELLED);\n        }\n        this.status = OrderStatus.CANCELLED;\n        this.updatedAt = Instant.now();\n    }\n\n    public String id() { return id; }\n    public String customerId() { return customerId; }\n    public long capturedAmountMinor() { return capturedAmountMinor; }\n    public OrderStatus status() { return status; }\n    public Instant updatedAt() { return updatedAt; }\n}\n"
+  },
+  {
+    "path": "src/main/java/com/acme/shop/order/IllegalStatusTransition.java",
+    "status": "added",
+    "additions": 15,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,15 @@\n+package com.acme.shop.order;\n+\n+public class IllegalStatusTransition extends RuntimeException {\n+    private final OrderStatus from;\n+    private final OrderStatus to;\n+\n+    public IllegalStatusTransition(OrderStatus from, OrderStatus to) {\n+        super(\"cannot move order from \" + from + \" to \" + to);\n+        this.from = from;\n+        this.to = to;\n+    }\n+\n+    public OrderStatus from() { return from; }\n+    public OrderStatus to() { return to; }\n+}",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\npublic class IllegalStatusTransition extends RuntimeException {\n    private final OrderStatus from;\n    private final OrderStatus to;\n\n    public IllegalStatusTransition(OrderStatus from, OrderStatus to) {\n        super(\"cannot move order from \" + from + \" to \" + to);\n        this.from = from;\n        this.to = to;\n    }\n\n    public OrderStatus from() { return from; }\n    public OrderStatus to() { return to; }\n}\n"
+  },
+  {
+    "path": "src/main/java/com/acme/shop/order/OrderService.java",
+    "status": "modified",
+    "additions": 13,
+    "deletions": 2,
+    "patch": "@@ -11,9 +11,20 @@\n         this.payments = payments;\n     }\n \n-    public void markShipped(String orderId) {\n+    public void markShipped(String orderId, String actorId) {\n         Order order = orders.get(orderId);\n-        order.setStatus(OrderStatus.SHIPPED);\n+        order.transitionTo(OrderStatus.SHIPPED);\n         orders.save(order);\n     }\n+\n+    public Order cancel(String orderId, String actorId) {\n+        Order order = orders.get(orderId);\n+        OrderStatus before = order.status();\n+        order.cancel();\n+        if (before == OrderStatus.PAID) {\n+            payments.refund(order.id(), order.capturedAmountMinor());\n+        }\n+        orders.save(order);\n+        return order;\n+    }\n }",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\nimport com.acme.shop.payment.PaymentGateway;\n\npublic class OrderService {\n    private final OrderRepository orders;\n    private final PaymentGateway payments;\n\n    public OrderService(OrderRepository orders, PaymentGateway payments) {\n        this.orders = orders;\n        this.payments = payments;\n    }\n\n    public void markShipped(String orderId, String actorId) {\n        Order order = orders.get(orderId);\n        order.transitionTo(OrderStatus.SHIPPED);\n        orders.save(order);\n    }\n\n    public Order cancel(String orderId, String actorId) {\n        Order order = orders.get(orderId);\n        OrderStatus before = order.status();\n        order.cancel();\n        if (before == OrderStatus.PAID) {\n            payments.refund(order.id(), order.capturedAmountMinor());\n        }\n        orders.save(order);\n        return order;\n    }\n}\n"
+  },
+  {
+    "path": "src/main/java/com/acme/shop/order/OrderController.java",
+    "status": "modified",
+    "additions": 10,
+    "deletions": 1,
+    "patch": "@@ -12,7 +12,16 @@\n     }\n \n     public Response ship(Request req) {\n-        service.markShipped(req.pathParam(\"id\"));\n+        service.markShipped(req.pathParam(\"id\"), req.userId());\n         return Response.noContent();\n     }\n+\n+    public Response cancel(Request req) {\n+        try {\n+            Order order = service.cancel(req.pathParam(\"id\"), req.userId());\n+            return Response.ok(order);\n+        } catch (IllegalStatusTransition e) {\n+            throw new HttpException(409, \"order cannot be cancelled in status \" + e.from());\n+        }\n+    }\n }",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\nimport com.acme.shop.http.HttpException;\nimport com.acme.shop.http.Request;\nimport com.acme.shop.http.Response;\n\npublic class OrderController {\n    private final OrderService service;\n\n    public OrderController(OrderService service) {\n        this.service = service;\n    }\n\n    public Response ship(Request req) {\n        service.markShipped(req.pathParam(\"id\"), req.userId());\n        return Response.noContent();\n    }\n\n    public Response cancel(Request req) {\n        try {\n            Order order = service.cancel(req.pathParam(\"id\"), req.userId());\n            return Response.ok(order);\n        } catch (IllegalStatusTransition e) {\n            throw new HttpException(409, \"order cannot be cancelled in status \" + e.from());\n        }\n    }\n}\n"
+  },
+  {
+    "path": "src/test/java/com/acme/shop/order/OrderServiceTest.java",
+    "status": "added",
+    "additions": 22,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,22 @@\n+package com.acme.shop.order;\n+\n+import static org.junit.jupiter.api.Assertions.assertEquals;\n+import static org.mockito.Mockito.mock;\n+import static org.mockito.Mockito.verify;\n+\n+import com.acme.shop.payment.PaymentGateway;\n+import org.junit.jupiter.api.Test;\n+\n+class OrderServiceTest {\n+    private final OrderRepository orders = new InMemoryOrderRepository();\n+    private final PaymentGateway payments = mock(PaymentGateway.class);\n+    private final OrderService service = new OrderService(orders, payments);\n+\n+    @Test\n+    void cancelsPaidOrderAndRefunds() {\n+        orders.save(new Order(\"o-1\", \"c-1\", 4_990, OrderStatus.PAID));\n+        Order cancelled = service.cancel(\"o-1\", \"agent-7\");\n+        assertEquals(OrderStatus.CANCELLED, cancelled.status());\n+        verify(payments).refund(\"o-1\", 4_990);\n+    }\n+}",
+    "patchMissing": false,
+    "headContent": "package com.acme.shop.order;\n\nimport static org.junit.jupiter.api.Assertions.assertEquals;\nimport static org.mockito.Mockito.mock;\nimport static org.mockito.Mockito.verify;\n\nimport com.acme.shop.payment.PaymentGateway;\nimport org.junit.jupiter.api.Test;\n\nclass OrderServiceTest {\n    private final OrderRepository orders = new InMemoryOrderRepository();\n    private final PaymentGateway payments = mock(PaymentGateway.class);\n    private final OrderService service = new OrderService(orders, payments);\n\n    @Test\n    void cancelsPaidOrderAndRefunds() {\n        orders.save(new Order(\"o-1\", \"c-1\", 4_990, OrderStatus.PAID));\n        Order cancelled = service.cancel(\"o-1\", \"agent-7\");\n        assertEquals(OrderStatus.CANCELLED, cancelled.status());\n        verify(payments).refund(\"o-1\", 4_990);\n    }\n}\n"
+  },
+  {
+    "path": "src/main/resources/application.yml",
+    "status": "modified",
+    "additions": 2,
+    "deletions": 1,
+    "patch": "@@ -3,5 +3,6 @@\n orders:\n   routes:\n     ship: true\n+    cancel: true\n payment:\n-  client-version: 3.4.1\n+  client-version: 3.5.0",
+    "patchMissing": false,
+    "headContent": "server:\n  port: 8080\norders:\n  routes:\n    ship: true\n    cancel: true\npayment:\n  client-version: 3.5.0\n"
+  },
+  {
+    "path": "gradle.lockfile",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "patch": "@@ -1,3 +1,3 @@\n com.fasterxml.jackson.core:jackson-databind:2.17.1=compileClasspath,runtimeClasspath\n-com.acme.payments:payment-client:3.4.1=compileClasspath,runtimeClasspath\n+com.acme.payments:payment-client:3.5.0=compileClasspath,runtimeClasspath\n org.junit.jupiter:junit-jupiter:5.10.2=testCompileClasspath,testRuntimeClasspath",
+    "patchMissing": false,
+    "headContent": "com.fasterxml.jackson.core:jackson-databind:2.17.1=compileClasspath,runtimeClasspath\ncom.acme.payments:payment-client:3.5.0=compileClasspath,runtimeClasspath\norg.junit.jupiter:junit-jupiter:5.10.2=testCompileClasspath,testRuntimeClasspath\n"
+  }
+]

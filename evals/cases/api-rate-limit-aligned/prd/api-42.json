@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "API-42",
+    "url": "https://acme.atlassian.net/browse/API-42",
+    "raw": "API-42"
+  },
+  "title": "Rate limit the public API per key",
+  "bodyMarkdown": "## Context\nOne integration partner sent 40k requests in a minute and degraded the API for everyone.\n\n## Acceptance Criteria\n- AC1: Each API key may make at most 100 requests in any rolling 60-second window.\n- AC2: A request over the limit gets HTTP 429 with a Retry-After header holding the whole seconds until the oldest counted request leaves the window, rounded up.\n- AC3: Limits are counted per API key; one key reaching its limit does not slow down or block other keys.\n- AC4: The limit holds under concurrency: 150 parallel requests with one key produce exactly 100 successes.",
+  "acceptanceCriteria": [
+    "AC1: Each API key may make at most 100 requests in any rolling 60-second window.",
+    "AC2: A request over the limit gets HTTP 429 with a Retry-After header holding the whole seconds until the oldest counted request leaves the window, rounded up.",
+    "AC3: Limits are counted per API key; one key reaching its limit does not slow down or block other keys.",
+    "AC4: The limit holds under concurrency: 150 parallel requests with one key produce exactly 100 successes."
+  ],
+  "url": "https://acme.atlassian.net/browse/API-42",
+  "meta": {}
+}

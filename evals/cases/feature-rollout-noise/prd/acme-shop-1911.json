@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1911",
+    "url": "https://github.com/acme/shop/issues/1911",
+    "raw": "acme/shop#1911"
+  },
+  "title": "Gradual rollouts for feature flags",
+  "bodyMarkdown": "Flags are on/off for everyone today, so every launch is a big bang.\n\n### Acceptance Criteria\n- AC1: A user’s bucket comes from a stable hash of the flag key and the user id, so the same user always gets the same result for the same flag.\n- AC2: A rollout of 0% enables the flag for nobody and a rollout of 100% enables it for every user.\n- AC3: Flag definitions are cached for at most 60 seconds, so a change reaches every server within a minute.\n- AC4: Every change of a rollout percentage is written to the audit log with the old value, the new value and the actor.",
+  "acceptanceCriteria": [
+    "AC1: A user’s bucket comes from a stable hash of the flag key and the user id, so the same user always gets the same result for the same flag.",
+    "AC2: A rollout of 0% enables the flag for nobody and a rollout of 100% enables it for every user.",
+    "AC3: Flag definitions are cached for at most 60 seconds, so a change reaches every server within a minute.",
+    "AC4: Every change of a rollout percentage is written to the audit log with the old value, the new value and the actor."
+  ],
+  "url": "https://github.com/acme/shop/issues/1911",
+  "meta": {}
+}

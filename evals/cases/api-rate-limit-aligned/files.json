@@ -1,0 +1,29 @@
+[
+  {
+    "path": "internal/ratelimit/limiter.go",
+    "status": "added",
+    "additions": 63,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,63 @@\n+package ratelimit\n+\n+import (\n+\t\"math\"\n+\t\"sync\"\n+\t\"time\"\n+)\n+\n+// Limiter allows at most Limit requests per key in any rolling Window.\n+type Limiter struct {\n+\tLimit  int\n+\tWindow time.Duration\n+\tnow    func() time.Time\n+\n+\tmu   sync.Mutex\n+\tkeys map[string]*keyLog\n+}\n+\n+type keyLog struct {\n+\tmu    sync.Mutex\n+\ttimes []time.Time // accepted request times, oldest first\n+}\n+\n+func New(limit int, window time.Duration, now func() time.Time) *Limiter {\n+\treturn &Limiter{Limit: limit, Window: window, now: now, keys: map[string]*keyLog{}}\n+}\n+\n+func (l *Limiter) logFor(key string) *keyLog {\n+\tl.mu.Lock()\n+\tdefer l.mu.Unlock()\n+\tk, ok := l.keys[key]\n+\tif !ok {\n+\t\tk = &keyLog{}\n+\t\tl.keys[key] = k\n+\t}\n+\treturn k\n+}\n+\n+// Allow records the request and returns true, or returns false and how long to wait.\n+func (l *Limiter) Allow(key string) (bool, int) {\n+\tk := l.logFor(key)\n+\tk.mu.Lock()\n+\tdefer k.mu.Unlock()\n+\n+\tnow := l.now()\n+\tcutoff := now.Add(-l.Window)\n+\tdrop := 0\n+\tfor drop < len(k.times) && !k.times[drop].After(cutoff) {\n+\t\tdrop++\n+\t}\n+\tk.times = k.times[drop:]\n+\n+\tif len(k.times) >= l.Limit {\n+\t\twait := k.times[0].Add(l.Window).Sub(now)\n+\t\tsecs := int(math.Ceil(wait.Seconds()))\n+\t\tif secs < 1 {\n+\t\t\tsecs = 1\n+\t\t}\n+\t\treturn false, secs\n+\t}\n+\tk.times = append(k.times, now)\n+\treturn true, 0\n+}",
+    "patchMissing": false,
+    "headContent": "package ratelimit\n\nimport (\n\t\"math\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Limiter allows at most Limit requests per key in any rolling Window.\ntype Limiter struct {\n\tLimit  int\n\tWindow time.Duration\n\tnow    func() time.Time\n\n\tmu   sync.Mutex\n\tkeys map[string]*keyLog\n}\n\ntype keyLog struct {\n\tmu    sync.Mutex\n\ttimes []time.Time // accepted request times, oldest first\n}\n\nfunc New(limit int, window time.Duration, now func() time.Time) *Limiter {\n\treturn &Limiter{Limit: limit, Window: window, now: now, keys: map[string]*keyLog{}}\n}\n\nfunc (l *Limiter) logFor(key string) *keyLog {\n\tl.mu.Lock()\n\tdefer l.mu.Unlock()\n\tk, ok := l.keys[key]\n\tif !ok {\n\t\tk = &keyLog{}\n\t\tl.keys[key] = k\n\t}\n\treturn k\n}\n\n// Allow records the request and returns true, or returns false and how long to wait.\nfunc (l *Limiter) Allow(key string) (bool, int) {\n\tk := l.logFor(key)\n\tk.mu.Lock()\n\tdefer k.mu.Unlock()\n\n\tnow := l.now()\n\tcutoff := now.Add(-l.Window)\n\tdrop := 0\n\tfor drop < len(k.times) && !k.times[drop].After(cutoff) {\n\t\tdrop++\n\t}\n\tk.times = k.times[drop:]\n\n\tif len(k.times) >= l.Limit {\n\t\twait := k.times[0].Add(l.Window).Sub(now)\n\t\tsecs := int(math.Ceil(wait.Seconds()))\n\t\tif secs < 1 {\n\t\t\tsecs = 1\n\t\t}\n\t\treturn false, secs\n\t}\n\tk.times = append(k.times, now)\n\treturn true, 0\n}\n"
+  },
+  {
+    "path": "internal/ratelimit/middleware.go",
+    "status": "added",
+    "additions": 24,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,24 @@\n+package ratelimit\n+\n+import (\n+\t\"net/http\"\n+\t\"strconv\"\n+)\n+\n+// Middleware rejects requests over the per-key limit with 429 and Retry-After.\n+func Middleware(l *Limiter, next http.Handler) http.Handler {\n+\treturn http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n+\t\tkey := r.Header.Get(\"X-Api-Key\")\n+\t\tif key == \"\" {\n+\t\t\thttp.Error(w, \"missing api key\", http.StatusUnauthorized)\n+\t\t\treturn\n+\t\t}\n+\t\tok, retryAfter := l.Allow(key)\n+\t\tif !ok {\n+\t\t\tw.Header().Set(\"Retry-After\", strconv.Itoa(retryAfter))\n+\t\t\thttp.Error(w, \"rate limit exceeded\", http.StatusTooManyRequests)\n+\t\t\treturn\n+\t\t}\n+\t\tnext.ServeHTTP(w, r)\n+\t})\n+}",
+    "patchMissing": false,
+    "headContent": "package ratelimit\n\nimport (\n\t\"net/http\"\n\t\"strconv\"\n)\n\n// Middleware rejects requests over the per-key limit with 429 and Retry-After.\nfunc Middleware(l *Limiter, next http.Handler) http.Handler {\n\treturn http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {\n\t\tkey := r.Header.Get(\"X-Api-Key\")\n\t\tif key == \"\" {\n\t\t\thttp.Error(w, \"missing api key\", http.StatusUnauthorized)\n\t\t\treturn\n\t\t}\n\t\tok, retryAfter := l.Allow(key)\n\t\tif !ok {\n\t\t\tw.Header().Set(\"Retry-After\", strconv.Itoa(retryAfter))\n\t\t\thttp.Error(w, \"rate limit exceeded\", http.StatusTooManyRequests)\n\t\t\treturn\n\t\t}\n\t\tnext.ServeHTTP(w, r)\n\t})\n}\n"
+  },
+  {
+    "path": "cmd/api/main.go",
+    "status": "modified",
+    "additions": 4,
+    "deletions": 1,
+    "patch": "@@ -3,12 +3,15 @@\n import (\n \t\"log\"\n \t\"net/http\"\n+\t\"time\"\n \n \t\"github.com/acme/shop/internal/api\"\n+\t\"github.com/acme/shop/internal/ratelimit\"\n )\n \n func main() {\n \tmux := http.NewServeMux()\n \tapi.Register(mux)\n-\tlog.Fatal(http.ListenAndServe(\":8080\", mux))\n+\tlimiter := ratelimit.New(100, 60*time.Second, time.Now)\n+\tlog.Fatal(http.ListenAndServe(\":8080\", ratelimit.Middleware(limiter, mux)))\n }",
+    "patchMissing": false,
+    "headContent": "package main\n\nimport (\n\t\"log\"\n\t\"net/http\"\n\t\"time\"\n\n\t\"github.com/acme/shop/internal/api\"\n\t\"github.com/acme/shop/internal/ratelimit\"\n)\n\nfunc main() {\n\tmux := http.NewServeMux()\n\tapi.Register(mux)\n\tlimiter := ratelimit.New(100, 60*time.Second, time.Now)\n\tlog.Fatal(http.ListenAndServe(\":8080\", ratelimit.Middleware(limiter, mux)))\n}\n"
+  }
+]

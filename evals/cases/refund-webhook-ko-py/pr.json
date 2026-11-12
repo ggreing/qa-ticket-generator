@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2003,
+  "title": "결제사 환불 웹훅 수신 처리",
+  "body": "관련 티켓: https://acme.atlassian.net/browse/PAY-311\n\n결제사가 보내는 refund.completed 웹훅을 받아 환불 내역을 기록합니다.\n서명 검증과 event_id 기준 중복 처리 방지를 넣었고, 환불 상세는 결제사 API로 다시 조회합니다.",
+  "author": "seoyeon",
+  "htmlUrl": "https://github.com/acme/shop/pull/2003",
+  "baseRef": "main",
+  "baseSha": "bdc2236c31c8f2ca8aa4021688b830d59a18e5d7",
+  "headRef": "feat/refund-webhook",
+  "headSha": "970daae41f151b511a6814a228035329ebfe003c",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}
