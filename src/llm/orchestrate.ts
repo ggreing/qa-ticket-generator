@@ -101,6 +101,50 @@ export function normalizeReport(
   return { report: { ...report, prdAlignment: { status, findings }, scenarios, risks }, warnings };
 }
 
+export interface RunPlan {
+  /** Chunks that will be sent, highest priority first. */
+  planned: CodeChunk[];
+  /** Lowest-priority chunks left out to fit `maxCostUsd`. */
+  dropped: CodeChunk[];
+  /** Estimated cost of the planned calls; above `maxCostUsd` only when one chunk alone is. */
+  estimateUsd: number;
+}
+
+/**
+ * LLM-10 — the pre-call cost plan: estimates every map call and the reduce call from token
+ * estimates and `expectedOutputTokens`, and drops chunks from the lowest priority upward while
+ * the total exceeds `maxCostUsd`. Pure; the eval runner uses it to quote a run's cost.
+ */
+export function planRun(
+  chunks: CodeChunk[],
+  provider: Pick<LlmProvider, 'estimateCostUsd'>,
+  context: PromptContext,
+  options: Pick<OrchestrateOptions, 'maxCostUsd' | 'expectedOutputTokens'>,
+): RunPlan {
+  const sharedTokens = estimateTokens(
+    SYSTEM_PROMPT +
+      languageInstruction(context.language) +
+      buildPrdSection(context) +
+      buildMetadataSection(context),
+  );
+  const callCost = (inputTokens: number): number =>
+    provider.estimateCostUsd({
+      inputTokens,
+      outputTokens: options.expectedOutputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+  const estimateRun = (list: CodeChunk[]): number => {
+    const maps = list.reduce((sum, c) => sum + callCost(sharedTokens + c.estimatedTokens), 0);
+    const reduce = list.length > 1 ? callCost(sharedTokens + list.length * PARTIAL_REPORT_TOKENS) : 0;
+    return maps + reduce;
+  };
+
+  let planned = chunks;
+  while (planned.length > 1 && estimateRun(planned) > options.maxCostUsd) planned = planned.slice(0, -1);
+  return { planned, dropped: chunks.slice(planned.length), estimateUsd: estimateRun(planned) };
+}
+
 /**
  * LLM-07/10 — runs the review: one call in `single` mode, or one call per chunk (bounded
  * concurrency) followed by a merge call in `map_reduce` mode.
@@ -135,29 +179,7 @@ export async function orchestrate(
   };
 
   // ── LLM-10: pre-call estimate ───────────────────────────────────────────────
-  const sharedTokens = estimateTokens(
-    SYSTEM_PROMPT +
-      languageInstruction(context.language) +
-      buildPrdSection(context) +
-      buildMetadataSection(context),
-  );
-  const callCost = (inputTokens: number): number =>
-    provider.estimateCostUsd({
-      inputTokens,
-      outputTokens: options.expectedOutputTokens,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-    });
-  const estimateRun = (chunks: CodeChunk[]): number => {
-    const maps = chunks.reduce((sum, c) => sum + callCost(sharedTokens + c.estimatedTokens), 0);
-    const reduce = chunks.length > 1 ? callCost(sharedTokens + chunks.length * PARTIAL_REPORT_TOKENS) : 0;
-    return maps + reduce;
-  };
-
-  let planned = pre.chunks;
-  while (planned.length > 1 && estimateRun(planned) > options.maxCostUsd) planned = planned.slice(0, -1);
-  const dropped = pre.chunks.slice(planned.length);
-  const estimate = estimateRun(planned);
+  const { planned, dropped, estimateUsd: estimate } = planRun(pre.chunks, provider, context, options);
   if (estimate > options.maxCostUsd) {
     // The cap is a hard limit (SPEC G4): nothing is sent to the model.
     throw new QtgError(
