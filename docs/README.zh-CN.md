@@ -5,10 +5,6 @@
 <!-- Badges (CI, release, license) are added when the repository is published. -->
 
 > 🚧 **正在开发中(pre-v0.1),暂不可用。** input 和输出格式可能还会变化。
->
-> 本文档描述的是 v0.1 计划实现的行为。目前已实现:触发判定、PRD 获取(GitHub Issues、Jira Cloud、Notion)、
-> 带成本保护的报告生成、PR 评论 / Slack / Job Summary 发布,以及 CLI。仍在开发:diff 预处理(噪声过滤、
-> 函数级上下文、密钥脱敏、token 打包),依赖它的功能标注为 _(开发中)_。
 
 这是一个 GitHub Action:用 Claude 将 Pull Request 的代码变更与关联的需求文档(GitHub Issues、Jira Cloud、Notion)
 进行交叉校验,并把 BDD(Given / When / Then)格式的 QA 场景和 PRD 一致性报告发布到 PR 和 Slack。
@@ -18,9 +14,10 @@
 ![架构:GitHub 事件 → 触发判定 → 上下文与 PRD 获取 → 预处理 → Claude → PR 评论、Slack、Job Summary](diagrams/architecture.png)
 
 1. **触发。** 给 PR 添加 `needs-ai-qa` 标签即开始运行;标签保留期间,每次新的 push 都会重新运行(可配置)。
-   只改动噪声文件(lock 文件、构建产物、快照等)的 push 会被跳过 _(开发中)_。
+   只改动噪声文件(lock 文件、构建产物、快照等)的 push 会被跳过。
 2. **获取与准备。** 通过 GitHub、Jira、Notion 的 API 读取 diff 和关联的 PRD,从不 checkout 你的代码。
-   去掉噪声文件,把上下文扩展到包含变更的函数或类,对密钥脱敏,并按重要程度把文件装入 token 预算 _(开发中)_。
+   去掉噪声文件,把上下文扩展到包含变更的函数或类(通过 tree-sitter 支持 TypeScript/TSX、JavaScript、Python、Java、Go),
+   对密钥脱敏,并按重要程度把文件装入 token 预算。大型 PR 会被拆成几部分分别审查,再合并结果。
 3. **生成与发布。** Claude 将代码与验收标准(AC)对比,返回正常路径、边界和异常场景,以及缺失或矛盾的需求。
    报告以一条 PR 评论发布并在每次运行时更新,可选发送到 Slack,并始终写入 Job Summary。
 
@@ -171,16 +168,18 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
 
 - 每次运行都有估算成本上限 `max-cost-usd`(默认 **$2.00**)。调用 Claude 之前先估算成本,超出上限时从优先级低的文件
   开始排除,并在报告中列出被排除的文件。
-- `token-budget` 限制单次 LLM 调用的输入(默认 150,000 token),更大的 PR 会被拆分处理。
+- `token-budget` 限制单次 LLM 调用的输入(默认 150,000 token),更大的 PR 会被拆分处理。关联的 PRD
+  最多占用该预算的 30%。
 - 对于一般的 PR,使用 Claude Opus 5.5、`effort: high` 时,单次运行**估计**约为 $0.15–$0.40。
   这是设计阶段的估算,并非实测;每次运行的估算成本显示在报告底部。
-- 只改动噪声文件的 push 不会调用 Claude _(开发中)_。
+- 只改动噪声文件的 push 不会调用 Claude。
 
 ## 安全与数据流
 
 - **不 checkout。** 从不 checkout 或执行 PR 代码,所有内容都通过 API 读取。
 - **默认跳过 fork PR。** 文档中的 `pull_request_target` 启用方式只在维护者添加标签时运行。
-- **密钥脱敏。** 在发送给模型之前,对 diff、文件内容和 PRD 中的密钥进行脱敏,并在报告中显示脱敏数量 _(开发中)_。
+- **密钥脱敏。** 在发送给模型之前,对 diff、文件内容、PRD 以及 PR 标题和正文中的密钥进行脱敏,
+  并在报告中显示脱敏数量。
   token 在日志中会被屏蔽,日志只记录大小和数量。
 - **代码和 PRD 只发送到 Anthropic API。** 没有遥测。
 - **配置从 base 分支读取**,模型输出只作为数据处理:转义 HTML,使 Slack 提及失效,链接仅限 PR、PRD 原文和本仓库。

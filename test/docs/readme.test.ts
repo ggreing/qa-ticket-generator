@@ -113,10 +113,10 @@ describe('README translations', () => {
     for (const md of others) expect(blocks(md)).toEqual(blocks(en ?? ''));
   });
 
-  it('DOC the "in progress" markers are carried into every translation', () => {
-    const count = (md: string) =>
-      (md.match(/_\(in progress\)_|_\(진행 중\)_|_\(実装中\)_|_\(开发中\)_/g) ?? []).length;
-    const [en, ...others] = READMES.map(read);
-    for (const md of others) expect(count(md)).toBe(count(en ?? ''));
+  it('DOC no README still carries the pre-preprocessing status note or "in progress" markers', () => {
+    // Preprocessing shipped (main 69f6bfb); these must not come back without a matching feature gap.
+    const leftovers =
+      /_\((?:in progress|진행 중|実装中|开发中)\)_|Still in progress|아직 진행 중인 것|実装済み:|仍在开发/;
+    for (const [i, md] of READMES.map(read).entries()) expect(md, READMES[i]).not.toMatch(leftovers);
   });
 });
