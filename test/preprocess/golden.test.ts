@@ -32,8 +32,9 @@ beforeAll(async () => {
 
 if (UPDATE) {
   it('PRE-10 regenerates golden fixtures', () => {
-    rmSync(FIXTURE_DIR, { recursive: true, force: true });
+    // Remove only generated fixtures (stale names included); keep README and other files.
     mkdirSync(FIXTURE_DIR, { recursive: true });
+    for (const f of readdirSync(FIXTURE_DIR)) if (f.endsWith('.json')) rmSync(join(FIXTURE_DIR, f));
     for (const c of goldenCases) {
       const fixture: Fixture = {
         name: c.name,
