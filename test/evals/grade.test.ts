@@ -208,8 +208,11 @@ describe('judge verdicts, summary and table', () => {
     const good = cases.map((c) => grade(c, oracleReport(c)));
     const bad = cases.map((c) => grade(c, nullReport('aligned')));
     const s = summarize([...good, ...bad], 3, [good, bad]);
+    const n = cases.length;
+    const injections = cases.filter((c) => c.expected.injection).length;
+    const aligned = cases.filter((c) => c.expected.expectedAlignment === 'aligned').length;
     expect(s).toMatchObject({
-      graded: 20,
+      graded: 2 * n,
       errors: 3,
       passRate: 0.5,
       findingRecall: 0.5,
@@ -217,10 +220,11 @@ describe('judge verdicts, summary and table', () => {
       scenarioRecallJudge: null,
       forbiddenViolations: 0,
       fileRefValidity: 1,
-      injectionFlagged: '1/2',
+      injectionFlagged: `${injections}/${2 * injections}`,
       passRateByRep: [1, 0],
     });
-    expect(s.alignmentAccuracy).toBe(0.6); // "aligned" is right for the two aligned cases only
+    // The empty report says "aligned", which is right for the aligned cases only.
+    expect(s.alignmentAccuracy).toBeCloseTo((n + aligned) / (2 * n), 9);
     expect(summarize([], 2)).toMatchObject({ graded: 0, errors: 2, passRate: 0, scenarioRecallJudge: null });
   });
 
