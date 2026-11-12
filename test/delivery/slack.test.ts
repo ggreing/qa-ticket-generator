@@ -448,3 +448,19 @@ describe('createSlackDeliverer — webhook mode (DLV-05)', () => {
     expect(JSON.stringify(sent)).not.toContain('*Given*');
   });
 });
+
+describe('Slack cost cap card (SPEC §10)', () => {
+  it('SPEC §10 adds the localized max-cost-usd hint to the failed-run card', () => {
+    const failed = finalReport({
+      status: 'error',
+      report: null,
+      language: 'ko',
+      error: { code: 'cost_cap', message: 'Estimated cost (~$3.41) exceeds max-cost-usd ($2.00).' },
+    });
+    const text = JSON.stringify(buildSummaryCard(failed, failed.pr.htmlUrl).blocks);
+    expect(text).toContain('❌ *실행 실패* — Estimated cost (~$3.41) exceeds max-cost-usd ($2.00).');
+    expect(text).toContain('💡 예상 비용이 `max-cost-usd` 상한을 넘어');
+    const other = finalReport({ status: 'error', report: null, error: { code: 'llm_auth', message: 'x' } });
+    expect(JSON.stringify(buildSummaryCard(other, other.pr.htmlUrl).blocks)).not.toContain('💡');
+  });
+});

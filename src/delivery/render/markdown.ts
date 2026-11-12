@@ -237,6 +237,8 @@ function renderReport(final: FinalReport, opts: RenderOptions): string {
   if (final.status === 'error') {
     const message = final.error?.message ?? '';
     lines.push(`❌ **${t.runFailed}**${message ? ` — ${mdInline(message, policy)}` : ''}`, '');
+    const hint = final.error ? t.errorHint[final.error.code] : undefined;
+    if (hint) lines.push(`> 💡 ${hint}`, '');
     if (final.error?.code) lines.push(`${t.errorCode}: ${mdCode(final.error.code)}`, '');
   } else if (final.skipReason === 'no_files') {
     lines.push(`ℹ️ ${t.noFiles}`, '');

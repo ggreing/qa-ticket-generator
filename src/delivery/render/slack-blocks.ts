@@ -20,6 +20,15 @@ export interface SlackMessage {
 
 type Scenario = QaReport['scenarios'][number];
 
+/** Localized "what to do" line for error codes that have one (SPEC §10), e.g. `cost_cap`. */
+function errorHint(final: FinalReport, t: Strings): string {
+  const hint = final.error ? t.errorHint[final.error.code] : undefined;
+  return hint
+    ? `
+💡 ${hint}`
+    : '';
+}
+
 const section = (text: string): KnownBlock => ({
   type: 'section',
   text: { type: 'mrkdwn', text: truncate(text, MAX_SECTION_CHARS) },
@@ -72,7 +81,7 @@ export function buildSummaryCard(final: FinalReport, fullReportUrl: string): Sla
   if (final.status !== 'ok' || !final.report) {
     const status =
       final.status === 'error'
-        ? `❌ *${t.runFailed}*${final.error ? ` — ${slackText(final.error.message, policy)}` : ''}`
+        ? `❌ *${t.runFailed}*${final.error ? ` — ${slackText(final.error.message, policy)}` : ''}${errorHint(final, t)}`
         : `ℹ️ ${final.skipReason === 'no_files' ? t.noFiles : t.skipped}`;
     return {
       text: `${plainTitle}: ${final.status === 'error' ? t.runFailed : t.skipped}`,

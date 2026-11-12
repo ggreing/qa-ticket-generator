@@ -300,3 +300,32 @@ describe('renderSummaryMarkdown (DLV-07)', () => {
     expect(body).toContain('— ノイズ');
   });
 });
+
+describe('cost cap error state (SPEC §10, LLM-10)', () => {
+  const costCap = {
+    code: 'cost_cap',
+    message:
+      'The estimated cost of analyzing even the highest-priority files (~$3.41) exceeds max-cost-usd ($2.00), so nothing was analyzed.',
+  };
+
+  it.each(LANGUAGES)('SPEC §10 tells the user in %s to raise max-cost-usd', (language) => {
+    const hint = strings(language).errorHint.cost_cap ?? '';
+    expect(hint).toContain('`max-cost-usd`');
+    expect(hint).toContain('`token-budget`');
+    const body = renderPrComment(
+      finalReport({ status: 'error', report: null, language, error: costCap }, { calls: 0, mode: 'none' }),
+    );
+    expect(body).toContain(`❌ **${strings(language).runFailed}** — The estimated cost of analyzing`);
+    expect(body).toContain('(~$3.41) exceeds max-cost-usd ($2.00)');
+    expect(body).toContain(`> 💡 ${hint}`);
+    expect(body).toContain(`${strings(language).errorCode}: <code>cost&#95;cap</code>`);
+    expect(body).not.toContain('###');
+  });
+
+  it('SPEC §10 shows no hint line for error codes without one', () => {
+    const body = renderPrComment(
+      finalReport({ status: 'error', report: null, error: { code: 'llm_schema', message: 'bad output' } }),
+    );
+    expect(body).not.toContain('💡');
+  });
+});

@@ -35,6 +35,10 @@ export const en: Strings = {
     "This comment was cut to fit GitHub's size limit. The full report is in the workflow's Job Summary and in report.json.",
   runFailed: 'Run failed',
   errorCode: 'Error code',
+  errorHint: {
+    cost_cap:
+      'The estimated cost is above the `max-cost-usd` limit, so no analysis was run. Raise `max-cost-usd` in the workflow, or lower `token-budget` to analyze the change in smaller parts.',
+  },
   noFiles:
     'No logic changes to analyze — every changed file was filtered out (lock files, generated code, binaries and similar).',
   skipped: 'Analysis was skipped',

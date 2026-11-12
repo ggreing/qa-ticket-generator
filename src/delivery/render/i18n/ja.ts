@@ -30,6 +30,10 @@ export const ja: Strings = {
     'GitHub のコメント長の上限に合わせて内容を切り詰めました。完全なレポートはワークフローの Job Summary と report.json にあります。',
   runFailed: '実行失敗',
   errorCode: 'エラーコード',
+  errorHint: {
+    cost_cap:
+      '推定コストが `max-cost-usd` の上限を超えたため、分析は実行していません。ワークフローで `max-cost-usd` を引き上げるか、`token-budget` を下げて変更をより小さな単位で分析してください。',
+  },
   noFiles:
     '分析対象のロジック変更がありません — 変更ファイルはすべて除外されました(lock ファイル、自動生成コード、バイナリなど)。',
   skipped: '分析をスキップしました',

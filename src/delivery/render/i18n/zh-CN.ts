@@ -29,6 +29,10 @@ export const zhCN: Strings = {
   truncated: '为符合 GitHub 评论长度限制,内容已被截断。完整报告见工作流的 Job Summary 和 report.json。',
   runFailed: '运行失败',
   errorCode: '错误代码',
+  errorHint: {
+    cost_cap:
+      '预估成本超过 `max-cost-usd` 上限,因此未执行分析。请在工作流中调高 `max-cost-usd`,或调低 `token-budget`,把变更拆成更小的部分进行分析。',
+  },
   noFiles: '没有需要分析的逻辑变更 — 所有变更文件均被过滤(lock 文件、自动生成的代码、二进制文件等)。',
   skipped: '已跳过分析',
   dryRun: '试运行',
