@@ -1,29 +1,32 @@
 import type { Strings } from './types';
 
 export const ja: Strings = {
-  title: 'AI QA シナリオ',
-  alignment: 'PRD 整合性',
+  title: 'AI QA',
   alignmentStatus: { aligned: '一致', partial: '一部一致', misaligned: '不一致', no_prd: 'PRD なし' },
   noPrd: 'リンクされた PRD がありません — コードのみから推定したシナリオです(信頼度は低め)',
   linked: 'リンク済みドキュメント',
+  actionNeeded: (n) => `要対応 (${n})`,
+  allCovered: (n) => `対応不要 — 要件 ${n} 件をすべて充足`,
+  needsCheck: (n) => `要確認 (${n})`,
+  p0Checklist: (n) => `P0 チェックリスト (${n})`,
+  noP0: 'P0 シナリオなし',
+  more: (n) => `ほか ${n} 件`,
+  card: { given: '前提', data: 'データ', steps: '手順', expected: '期待結果', related: '関連', why: '理由' },
+  confidence: '信頼度',
+  level: { high: '高', medium: '中', low: '低' },
+  otherTickets: (n) => `P1 · P2 チケット (${n})`,
+  requirementDetails: (n) => `要件ごとの判定 (${n})`,
   sections: {
-    alignment: 'PRD 整合性',
-    scenarios: 'シナリオ',
     risks: 'リスク',
-    assumptions: '前提',
+    assumptions: '前提条件',
     notes: '補足',
     skippedFiles: '除外したファイル',
     redactions: 'マスクした秘密情報',
   },
   table: { requirement: '要件', status: '状態', evidence: '根拠' },
   requirementStatus: { covered: '充足', missing: '未実装', contradicts: '矛盾', unclear: '不明' },
-  scenarioType: { happy_path: '正常系', edge_case: '境界', negative: '異常系', regression: '回帰' },
-  level: { high: '高', medium: '中', low: '低' },
-  related: '関連',
-  why: '理由',
-  confidence: '信頼度',
-  omittedScenarios: (n) =>
-    `GitHub のコメント長の上限に収めるため、優先度の低いシナリオ ${n} 件を省略しました。完全なレポートはワークフローの Job Summary と report.json にあります。`,
+  omittedTickets: (n) =>
+    `GitHub のコメント長の上限に収めるため、優先度の低いチケット ${n} 件を省略しました。完全なレポートはワークフローの Job Summary と report.json にあります。`,
   omittedFindings: (n) =>
     `GitHub のコメント長の上限に収めるため、要件 ${n} 行を省略しました。完全なレポートはワークフローの Job Summary と report.json にあります。`,
   truncated:
@@ -56,9 +59,7 @@ export const ja: Strings = {
   slack: {
     openPr: 'PR を開く',
     viewReport: 'レポート全文を見る',
-    scenarios: 'シナリオ',
-    topRisks: '主なリスク',
-    findings: '確認が必要な要件',
-    detailsInThread: 'シナリオの詳細はスレッドにあります。',
+    tickets: 'チケット',
+    detailsInThread: 'チケットの詳細はスレッドにあります。',
   },
 };

@@ -1,7 +1,26 @@
-/** PR comment Markdown renderer, i18n en/ko/ja/zh-CN (SPEC §4.6, DLV-03/06/09). Owner: qa-work-session-c(fable). */
+/**
+ * PR comment Markdown renderer in the QA-ticket layout (SPEC §4.6 M3.5, DLV-03/06/09), i18n
+ * en/ko/ja/zh-CN. Order: verdict, action needed, P0 checklist, P0 ticket cards, P1/P2 cards in
+ * one fold, verdict per requirement, risks, assumptions, notes, footer.
+ * Owner: qa-work-session-c(fable).
+ */
 import type { FinalReport, PrdRef, QaReport, RunMeta } from '../../core/contracts';
-import { isAllowedUrl, type LinkPolicy, linkPolicyFor, mdCode, mdInline } from '../sanitize';
+import { isAllowedUrl, type LinkPolicy, linkPolicyFor, mdCode, mdInline, truncate } from '../sanitize';
 import { type Strings, strings } from './i18n';
+import {
+  actionFindings,
+  expectedSummary,
+  type Finding,
+  MAX_ACTION_ITEMS,
+  MAX_CHECKLIST_ITEMS,
+  MAX_EVIDENCE_CHARS,
+  MAX_REQUIREMENT_CHARS,
+  nonEmpty,
+  type Scenario,
+  splitRequirement,
+  ticketTag,
+  unclearFindings,
+} from './ticket';
 
 /** GitHub rejects issue comments longer than this. */
 export const MAX_COMMENT_CHARS = 65_536;
@@ -10,12 +29,9 @@ export const STATE_RESERVE = 1_024;
 
 export const ALIGNMENT_BADGE = { aligned: '✅', partial: '⚠️', misaligned: '❌', no_prd: '➖' } as const;
 export const SEVERITY_ICON = { high: '🔴', medium: '🟠', low: '🟡' } as const;
-const REQUIREMENT_ICON = { covered: '✅', missing: '❌', contradicts: '⛔', unclear: '❓' } as const;
+export const REQUIREMENT_ICON = { covered: '✅', missing: '❌', contradicts: '⛔', unclear: '❓' } as const;
 const SOURCE_LABEL = { github: 'GitHub', jira: 'Jira', notion: 'Notion' } as const;
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
-
-type Scenario = QaReport['scenarios'][number];
-type Finding = QaReport['prdAlignment']['findings'][number];
 
 interface RenderOptions {
   /** Maximum length of the result; `Infinity` for the Job Summary. */
@@ -40,7 +56,7 @@ function header(final: FinalReport, t: Strings): string {
   const base = `## 🧪 ${t.title} — ${mdCode(final.meta.sha.slice(0, 7))}`;
   if (final.status !== 'ok' || !final.report) return base;
   const status = final.report.prdAlignment.status;
-  return `${base} · ${ALIGNMENT_BADGE[status]} ${t.alignment}: **${t.alignmentStatus[status]}**`;
+  return `${base} · ${ALIGNMENT_BADGE[status]} **${t.alignmentStatus[status]}**`;
 }
 
 function linkedLine(refs: PrdRef[], t: Strings, policy: LinkPolicy): string | null {
@@ -53,31 +69,104 @@ function linkedLine(refs: PrdRef[], t: Strings, policy: LinkPolicy): string | nu
   return `> ${t.linked}: ${items.join(', ')}`;
 }
 
+/** One line of the top lists: `❌ **AC2** text — evidence <code>file</code>`. */
+function findingLine(f: Finding, policy: LinkPolicy): string {
+  const { label, text } = splitRequirement(f.requirement);
+  const name = label ? `**${mdInline(label, policy)}** ` : '';
+  const file = f.files[0]
+    ? ` ${mdCode(f.files[0])}${f.files.length > 1 ? ` +${f.files.length - 1}` : ''}`
+    : '';
+  const evidence = f.evidence.trim()
+    ? ` — ${mdInline(truncate(f.evidence, MAX_EVIDENCE_CHARS), policy)}`
+    : '';
+  return `- ${REQUIREMENT_ICON[f.status]} ${name}${mdInline(truncate(text, MAX_REQUIREMENT_CHARS), policy)}${evidence}${file}`;
+}
+
+function capped(lines: string[], max: number, t: Strings): string[] {
+  return lines.length > max ? [...lines.slice(0, max), `- … ${t.more(lines.length - max)}`] : lines;
+}
+
+/** The part a reviewer reads without unfolding anything: what to fix, then what to test first. */
+function topSection(report: QaReport, t: Strings, policy: LinkPolicy): string[] {
+  const out: string[] = [];
+  const findings = report.prdAlignment.findings;
+  const action = actionFindings(report);
+  const unclear = unclearFindings(report);
+  if (action.length > 0) {
+    out.push(`**${t.actionNeeded(action.length)}**`);
+    out.push(
+      ...capped(
+        action.map((f) => findingLine(f, policy)),
+        MAX_ACTION_ITEMS,
+        t,
+      ),
+      '',
+    );
+  } else if (findings.length > 0 && unclear.length === 0) {
+    out.push(`✅ **${t.allCovered(findings.length)}**`, '');
+  }
+  if (unclear.length > 0) {
+    out.push(`**${t.needsCheck(unclear.length)}**`);
+    out.push(
+      ...capped(
+        unclear.map((f) => findingLine(f, policy)),
+        MAX_ACTION_ITEMS,
+        t,
+      ),
+      '',
+    );
+  }
+
+  const p0 = report.scenarios.filter((s) => s.priority === 'P0');
+  if (p0.length > 0) {
+    out.push(`**${t.p0Checklist(p0.length)}**`);
+    const lines = p0.map((s) => {
+      const expected = expectedSummary(s);
+      return `- [ ] **${mdInline(s.id, policy)}** ${mdInline(s.title, policy)}${expected ? ` → ${mdInline(expected, policy)}` : ''}`;
+    });
+    out.push(...capped(lines, MAX_CHECKLIST_ITEMS, t), '');
+  } else if (report.scenarios.length > 0) {
+    out.push(`_${t.noP0}_`, '');
+  }
+  return out;
+}
+
+function listField(label: string, items: string[], policy: LinkPolicy, ordered = false): string[] {
+  const values = nonEmpty(items);
+  if (values.length === 0) return [];
+  if (values.length === 1 && !ordered) return [`- **${label}**: ${mdInline(values[0] as string, policy)}`];
+  return [
+    `- **${label}**:`,
+    ...values.map((value, i) => `  ${ordered ? `${i + 1}.` : '-'} ${mdInline(value, policy)}`),
+  ];
+}
+
+/** A folded ticket: preconditions, data, numbered steps, expected result, related requirement and files. */
+function ticketCard(s: Scenario, t: Strings, policy: LinkPolicy): string {
+  const lines = [
+    `<details><summary><b>${mdInline(s.id, policy)} ${mdInline(s.title, policy)}</b> [${mdInline(ticketTag(s), policy)}]</summary>`,
+    '',
+    ...listField(t.card.given, s.given, policy),
+  ];
+  const data = nonEmpty(s.testData);
+  if (data.length > 0) lines.push(`- **${t.card.data}**: ${data.map(mdCode).join(' · ')}`);
+  lines.push(...listField(t.card.steps, s.when, policy, true), ...listField(t.card.expected, s.then, policy));
+  const related = [
+    ...nonEmpty(s.relatedRequirements).map((r) => mdInline(r, policy)),
+    ...s.relatedFiles.map(mdCode),
+  ];
+  if (related.length > 0) lines.push(`- **${t.card.related}**: ${related.join(' · ')}`);
+  // Confidence is shown only when the model flagged doubt; "high" is the unmarked case.
+  if (s.rationale.trim()) lines.push(`- **${t.card.why}**: ${mdInline(s.rationale, policy)}`);
+  if (s.confidence !== 'high') lines.push(`- **${t.confidence}**: ${t.level[s.confidence]}`);
+  lines.push('', '</details>');
+  return lines.join('\n');
+}
+
 function findingRow(f: Finding, t: Strings, policy: LinkPolicy, showSource: boolean): string {
   const source = showSource && f.source.trim() ? ` · ${mdCode(f.source)}` : '';
   const files = f.files.length > 0 ? ` ${f.files.map(mdCode).join(' ')}` : '';
   return `| ${mdInline(f.requirement, policy)}${source} | ${REQUIREMENT_ICON[f.status]} ${t.requirementStatus[f.status]} | ${mdInline(f.evidence, policy)}${files} |`;
-}
-
-function steps(keyword: string, items: string[], policy: LinkPolicy): string[] {
-  return items
-    .filter((item) => item.trim() !== '')
-    .map((item, i) => `- **${i === 0 ? keyword : 'And'}** ${mdInline(item, policy)}`);
-}
-
-function scenarioBlock(s: Scenario, t: Strings, policy: LinkPolicy): string {
-  const related = [...s.relatedRequirements.map((r) => mdInline(r, policy)), ...s.relatedFiles.map(mdCode)];
-  const lines = [
-    `<details><summary><b>[${s.priority}][${t.scenarioType[s.type]}] ${mdInline(s.id, policy)} · ${mdInline(s.title, policy)}</b></summary>`,
-    '',
-    ...steps('Given', s.given, policy),
-    ...steps('When', s.when, policy),
-    ...steps('Then', s.then, policy),
-  ];
-  if (related.length > 0) lines.push(`- _${t.related}_: ${related.join(' · ')}`);
-  const why = s.rationale.trim() ? `_${t.why}_: ${mdInline(s.rationale, policy)} · ` : '';
-  lines.push(`- ${why}_${t.confidence}_: ${t.level[s.confidence]}`, '', '</details>');
-  return lines.join('\n');
 }
 
 function footer(meta: RunMeta, t: Strings): string {
@@ -160,11 +249,14 @@ function renderOk(
   const linked = linkedLine(meta.prdSources, t, policy);
   if (linked) head.push(linked);
   if (head.length > 2) head.push('');
-  if (report.summary.trim()) head.push(mdInline(report.summary, policy), '');
+  head.push(...topSection(report, t, policy));
 
+  // Scenarios arrive sorted P0 → P2 (normalizeReport), so P0 cards come first and stay unfolded
+  // one level; everything else shares a single fold.
+  const p0Cards = report.scenarios.filter((s) => s.priority === 'P0').map((s) => ticketCard(s, t, policy));
+  const otherCards = report.scenarios.filter((s) => s.priority !== 'P0').map((s) => ticketCard(s, t, policy));
   const showSource = new Set(report.prdAlignment.findings.map((f) => f.source.trim())).size > 1;
   const findingRows = report.prdAlignment.findings.map((f) => findingRow(f, t, policy, showSource));
-  const scenarioBlocks = report.scenarios.map((s) => scenarioBlock(s, t, policy));
 
   const tail: string[] = [];
   if (report.risks.length > 0) {
@@ -186,37 +278,45 @@ function renderOk(
   if (opts.detailed) tail.push(...details(meta, t));
   tail.push(footer(meta, t));
 
-  const compose = (scenarioCount: number, findingCount: number): string => {
+  const total = p0Cards.length + otherCards.length;
+  const compose = (cardCount: number, findingCount: number): string => {
     const lines = [...head];
-    if (findingRows.length > 0) {
-      lines.push(
-        `### ${t.sections.alignment}`,
-        '',
-        `| ${t.table.requirement} | ${t.table.status} | ${t.table.evidence} |`,
-        '| --- | --- | --- |',
-        ...findingRows.slice(0, findingCount),
-        '',
-      );
-      if (findingCount < findingRows.length) {
-        lines.push(`> ${t.omittedFindings(findingRows.length - findingCount)}`, '');
-      }
+    for (const card of p0Cards.slice(0, cardCount)) lines.push(card, '');
+    const others = otherCards.slice(0, Math.max(0, cardCount - p0Cards.length));
+    if (others.length > 0) {
+      lines.push(`<details><summary>${t.otherTickets(otherCards.length)}</summary>`, '');
+      for (const card of others) lines.push(card, '');
+      lines.push('</details>', '');
     }
-    lines.push(`### ${t.sections.scenarios} (${scenarioBlocks.length})`, '');
-    for (const block of scenarioBlocks.slice(0, scenarioCount)) lines.push(block, '');
-    if (scenarioCount < scenarioBlocks.length) {
-      lines.push(`> ${t.omittedScenarios(scenarioBlocks.length - scenarioCount)}`, '');
+    if (cardCount < total) lines.push(`> ${t.omittedTickets(total - cardCount)}`, '');
+
+    if (findingRows.length > 0 || report.summary.trim()) {
+      lines.push(`<details><summary>${t.requirementDetails(findingRows.length)}</summary>`, '');
+      if (report.summary.trim()) lines.push(mdInline(report.summary, policy), '');
+      if (findingRows.length > 0) {
+        lines.push(
+          `| ${t.table.requirement} | ${t.table.status} | ${t.table.evidence} |`,
+          '| --- | --- | --- |',
+          ...findingRows.slice(0, findingCount),
+          '',
+        );
+        if (findingCount < findingRows.length) {
+          lines.push(`> ${t.omittedFindings(findingRows.length - findingCount)}`, '');
+        }
+      }
+      lines.push('</details>', '');
     }
     lines.push(...tail);
     return lines.join('\n');
   };
 
-  // DLV-03: scenarios are already folded; when the comment is still too long, drop them from the
-  // lowest priority upward (they are sorted P0 → P2), then requirement rows, then cut.
-  let scenarioCount = scenarioBlocks.length;
+  // DLV-03: when the comment is too long, drop ticket cards from the lowest priority upward (the
+  // top section keeps every P0 title), then requirement rows, then cut.
+  let cardCount = total;
   let findingCount = findingRows.length;
-  let body = compose(scenarioCount, findingCount);
-  while (body.length > opts.limit && scenarioCount > 0) body = compose(--scenarioCount, findingCount);
-  while (body.length > opts.limit && findingCount > 0) body = compose(scenarioCount, --findingCount);
+  let body = compose(cardCount, findingCount);
+  while (body.length > opts.limit && cardCount > 0) body = compose(--cardCount, findingCount);
+  while (body.length > opts.limit && findingCount > 0) body = compose(cardCount, --findingCount);
   return hardLimit(body, opts.limit, t);
 }
 

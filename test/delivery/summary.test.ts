@@ -26,7 +26,7 @@ describe('createSummaryDeliverer (DLV-07)', () => {
 
     expect(deliverer.channel).toBe('summary');
     expect(res).toEqual({ channel: 'summary', ok: true, url: '/tmp/runner/report.json' });
-    expect(written.markdown).toContain('## 🧪 AI QA Scenarios');
+    expect(written.markdown).toContain('## 🧪 AI QA — ');
     expect(written.markdown).toContain('Skipped files (3)');
     expect(written.markdown).toContain('<code>package-lock.json</code> — noise');
     expect(JSON.parse(written.json ?? '')).toEqual(final);
@@ -66,6 +66,6 @@ describe('createSummaryDeliverer (DLV-07)', () => {
     const b = await createSummaryDeliverer(failingJson.sink).deliver(finalReport(), { v: 1 });
     expect(b.ok).toBe(false);
     expect(b.url).toBeUndefined();
-    expect(failingJson.written.markdown).toContain('AI QA Scenarios');
+    expect(failingJson.written.markdown).toContain('🧪 AI QA');
   });
 });

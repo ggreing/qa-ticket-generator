@@ -1,14 +1,34 @@
 import type { Strings } from './types';
 
 export const en: Strings = {
-  title: 'AI QA Scenarios',
-  alignment: 'PRD alignment',
-  alignmentStatus: { aligned: 'Aligned', partial: 'Partial', misaligned: 'Misaligned', no_prd: 'No PRD' },
+  title: 'AI QA',
+  alignmentStatus: {
+    aligned: 'Aligned',
+    partial: 'Partially aligned',
+    misaligned: 'Misaligned',
+    no_prd: 'No PRD',
+  },
   noPrd: 'No linked PRD — scenarios are inferred from code only (low confidence)',
   linked: 'Linked',
+  actionNeeded: (n) => `Action needed (${n})`,
+  allCovered: (n) => `No action needed — all ${n} requirement(s) are covered`,
+  needsCheck: (n) => `Needs a check (${n})`,
+  p0Checklist: (n) => `P0 checklist (${n})`,
+  noP0: 'No P0 scenarios',
+  more: (n) => `and ${n} more`,
+  card: {
+    given: 'Preconditions',
+    data: 'Data',
+    steps: 'Steps',
+    expected: 'Expected',
+    related: 'Related',
+    why: 'Why',
+  },
+  confidence: 'Confidence',
+  level: { high: 'high', medium: 'medium', low: 'low' },
+  otherTickets: (n) => `P1 · P2 tickets (${n})`,
+  requirementDetails: (n) => `Verdict per requirement (${n})`,
   sections: {
-    alignment: 'PRD Alignment',
-    scenarios: 'Scenarios',
     risks: 'Risks',
     assumptions: 'Assumptions',
     notes: 'Notes',
@@ -22,13 +42,8 @@ export const en: Strings = {
     contradicts: 'contradicts',
     unclear: 'unclear',
   },
-  scenarioType: { happy_path: 'Happy', edge_case: 'Edge', negative: 'Negative', regression: 'Regression' },
-  level: { high: 'high', medium: 'medium', low: 'low' },
-  related: 'Related',
-  why: 'Why',
-  confidence: 'Confidence',
-  omittedScenarios: (n) =>
-    `${n} lower-priority scenario(s) were left out to fit GitHub's comment size limit. The full report is in the workflow's Job Summary and in report.json.`,
+  omittedTickets: (n) =>
+    `${n} lower-priority ticket(s) were left out to fit GitHub's comment size limit. The full report is in the workflow's Job Summary and in report.json.`,
   omittedFindings: (n) =>
     `${n} requirement row(s) were left out to fit GitHub's comment size limit. The full report is in the workflow's Job Summary and in report.json.`,
   truncated:
@@ -61,9 +76,7 @@ export const en: Strings = {
   slack: {
     openPr: 'Open PR',
     viewReport: 'View full report',
-    scenarios: 'Scenarios',
-    topRisks: 'Top risks',
-    findings: 'Requirements needing attention',
-    detailsInThread: 'Scenario details are in the thread.',
+    tickets: 'Tickets',
+    detailsInThread: 'Ticket details are in the thread.',
   },
 };

@@ -6,14 +6,25 @@ type Scenario = QaReport['scenarios'][number];
 
 export interface Strings {
   title: string;
-  alignment: string;
   alignmentStatus: Record<AlignmentStatus, string>;
   /** DLV-09 badge. */
   noPrd: string;
   linked: string;
+  /** Top section (SPEC §4.6, M3.5): what the author must fix, then the P0 checklist. */
+  actionNeeded: (count: number) => string;
+  allCovered: (count: number) => string;
+  needsCheck: (count: number) => string;
+  p0Checklist: (count: number) => string;
+  noP0: string;
+  /** "and N more", for lists capped to keep the top section on one screen. */
+  more: (count: number) => string;
+  /** Ticket card field labels. */
+  card: { given: string; data: string; steps: string; expected: string; related: string; why: string };
+  confidence: string;
+  level: Record<Scenario['confidence'], string>;
+  otherTickets: (count: number) => string;
+  requirementDetails: (count: number) => string;
   sections: {
-    alignment: string;
-    scenarios: string;
     risks: string;
     assumptions: string;
     notes: string;
@@ -22,13 +33,8 @@ export interface Strings {
   };
   table: { requirement: string; status: string; evidence: string };
   requirementStatus: Record<Finding['status'], string>;
-  scenarioType: Record<Scenario['type'], string>;
-  level: Record<Scenario['confidence'], string>;
-  related: string;
-  why: string;
-  confidence: string;
-  /** DLV-03 notice. */
-  omittedScenarios: (count: number) => string;
+  /** DLV-03 notices. */
+  omittedTickets: (count: number) => string;
   omittedFindings: (count: number) => string;
   truncated: string;
   runFailed: string;
@@ -49,9 +55,7 @@ export interface Strings {
   slack: {
     openPr: string;
     viewReport: string;
-    scenarios: string;
-    topRisks: string;
-    findings: string;
+    tickets: string;
     detailsInThread: string;
   };
 }

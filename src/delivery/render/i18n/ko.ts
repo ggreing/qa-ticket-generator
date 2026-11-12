@@ -1,14 +1,22 @@
 import type { Strings } from './types';
 
 export const ko: Strings = {
-  title: 'AI QA 시나리오',
-  alignment: 'PRD 정합성',
+  title: 'AI QA',
   alignmentStatus: { aligned: '일치', partial: '부분 일치', misaligned: '불일치', no_prd: 'PRD 없음' },
   noPrd: '연결된 PRD가 없습니다 — 코드만으로 추론한 시나리오입니다(신뢰도 낮음)',
   linked: '연결된 문서',
+  actionNeeded: (n) => `조치 필요 (${n})`,
+  allCovered: (n) => `조치 필요 없음 — 요구사항 ${n}개 모두 충족`,
+  needsCheck: (n) => `확인 필요 (${n})`,
+  p0Checklist: (n) => `P0 체크리스트 (${n})`,
+  noP0: 'P0 시나리오 없음',
+  more: (n) => `외 ${n}건`,
+  card: { given: '전제', data: '데이터', steps: '단계', expected: '기대', related: '관련', why: '이유' },
+  confidence: '신뢰도',
+  level: { high: '높음', medium: '보통', low: '낮음' },
+  otherTickets: (n) => `P1 · P2 티켓 (${n})`,
+  requirementDetails: (n) => `요구사항별 판정 (${n})`,
   sections: {
-    alignment: 'PRD 정합성',
-    scenarios: '시나리오',
     risks: '리스크',
     assumptions: '가정',
     notes: '참고',
@@ -17,13 +25,8 @@ export const ko: Strings = {
   },
   table: { requirement: '요구사항', status: '상태', evidence: '근거' },
   requirementStatus: { covered: '충족', missing: '누락', contradicts: '상충', unclear: '불명확' },
-  scenarioType: { happy_path: '정상', edge_case: '엣지', negative: '예외', regression: '회귀' },
-  level: { high: '높음', medium: '보통', low: '낮음' },
-  related: '관련',
-  why: '이유',
-  confidence: '신뢰도',
-  omittedScenarios: (n) =>
-    `GitHub 코멘트 길이 제한 때문에 우선순위가 낮은 시나리오 ${n}개를 생략했습니다. 전체 리포트는 워크플로의 Job Summary와 report.json에 있습니다.`,
+  omittedTickets: (n) =>
+    `GitHub 코멘트 길이 제한 때문에 우선순위가 낮은 티켓 ${n}개를 생략했습니다. 전체 리포트는 워크플로의 Job Summary와 report.json에 있습니다.`,
   omittedFindings: (n) =>
     `GitHub 코멘트 길이 제한 때문에 요구사항 ${n}개 행을 생략했습니다. 전체 리포트는 워크플로의 Job Summary와 report.json에 있습니다.`,
   truncated:
@@ -56,9 +59,7 @@ export const ko: Strings = {
   slack: {
     openPr: 'PR 열기',
     viewReport: '전체 리포트 보기',
-    scenarios: '시나리오',
-    topRisks: '주요 리스크',
-    findings: '확인이 필요한 요구사항',
-    detailsInThread: '시나리오 상세는 스레드에 있습니다.',
+    tickets: '티켓',
+    detailsInThread: '티켓 상세는 스레드에 있습니다.',
   },
 };

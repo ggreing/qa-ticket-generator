@@ -1,46 +1,65 @@
-## 🧪 AI QA 场景 — <code>a1b2c3d</code> · ⚠️ PRD 一致性: **部分一致**
+## 🧪 AI QA — <code>a1b2c3d</code> · ⚠️ **部分一致**
 
 > 关联文档: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
 
-Adds coupon application to checkout.
+**需要处理 (1)**
+- ❌ **AC3** expired coupons are rejected — No expiry comparison in coupon.ts <code>src/coupon.ts</code>
 
-### PRD 一致性
+**P0 检查清单 (1)**
+- [ ] **TC-01** Apply a coupon one second before expiry → the discount is applied
+
+<details><summary><b>TC-01 Apply a coupon one second before expiry</b> [P0 · AC3]</summary>
+
+- **前置条件**: a coupon that expires in 1 second
+- **数据**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **步骤**:
+  1. the user applies it at checkout
+- **预期结果**: the discount is applied
+- **相关**: AC3: expired coupons are rejected · <code>src/coupon.ts</code>
+- **原因**: Boundary of the expiry rule.
+
+</details>
+
+<details><summary>P1 · P2 工单 (2)</summary>
+
+<details><summary><b>TC-02 Apply the same coupon twice in parallel</b> [P1 · AC1]</summary>
+
+- **前置条件**:
+  - a coupon that was never used
+  - two checkout tabs for the same cart
+- **数据**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **步骤**:
+  1. both tabs apply the coupon at the same moment
+- **预期结果**:
+  - exactly one request succeeds
+  - the other one gets a <code>COUPON&#95;ALREADY&#95;USED</code> error
+- **相关**: AC1: a coupon can be applied once · <code>src/coupon.ts</code>
+- **原因**: Boundary of the expiry rule.
+- **可信度**: 中
+
+</details>
+
+<details><summary><b>TC-03 Checkout without a coupon still works</b> [P2]</summary>
+
+- **前置条件**: a cart without a coupon
+- **数据**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **步骤**:
+  1. the user pays
+- **预期结果**: the total is unchanged
+- **可信度**: 低
+
+</details>
+
+</details>
+
+<details><summary>逐项需求判定 (2)</summary>
+
+Adds coupon application to checkout.
 
 | 需求 | 状态 | 依据 |
 | --- | --- | --- |
 | AC1: a coupon can be applied once | ✅ 已覆盖 | CouponService.apply() checks usage <code>src/coupon.ts</code> |
 | AC3: expired coupons are rejected | ❌ 缺失 | No expiry comparison in coupon.ts <code>src/coupon.ts</code> |
-
-### 场景 (3)
-
-<details><summary><b>[P0][边界] S-01 · Apply a coupon one second before expiry</b></summary>
-
-- **Given** a coupon that expires in 1 second
-- **When** the user applies it at checkout
-- **Then** the discount is applied
-- _相关_: AC3: expired coupons are rejected · <code>src/coupon.ts</code>
-- _原因_: Boundary of the expiry rule. · _可信度_: 高
-
-</details>
-
-<details><summary><b>[P1][异常] S-02 · Apply the same coupon twice in parallel</b></summary>
-
-- **Given** a coupon that was never used
-- **And** two checkout tabs for the same cart
-- **When** both tabs apply the coupon at the same moment
-- **Then** exactly one request succeeds
-- **And** the other one gets a <code>COUPON&#95;ALREADY&#95;USED</code> error
-- _相关_: AC1: a coupon can be applied once · <code>src/coupon.ts</code>
-- _原因_: Boundary of the expiry rule. · _可信度_: 中
-
-</details>
-
-<details><summary><b>[P2][回归] S-03 · Checkout without a coupon still works</b></summary>
-
-- **Given** a cart without a coupon
-- **When** the user pays
-- **Then** the total is unchanged
-- _可信度_: 低
 
 </details>
 
