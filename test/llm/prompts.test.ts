@@ -9,6 +9,7 @@ import {
   buildMetadataSection,
   buildPrdSection,
   buildSkippedSection,
+  buildTaskInstruction,
   guardData,
 } from '../../src/llm/prompts/user';
 import { fakeReport } from '../helpers/fakes';
@@ -43,7 +44,8 @@ describe('system prompt (SPEC §8)', () => {
   });
 
   it('LLM-06 keeps the system prompt free of per-call values', () => {
-    expect(SYSTEM_PROMPT).not.toMatch(/\d+ scenarios/);
+    // The configurable limit lives in the task instruction; the fixed "at most 8" guidance is not per call.
+    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
     expect(PROMPT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
   });
 
@@ -66,7 +68,7 @@ describe('system prompt (SPEC §8)', () => {
     );
     expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
     // Wording changes ship under a new version so result files can be told apart.
-    expect(PROMPT_VERSION).toBe('2026-11-12.3');
+    expect(PROMPT_VERSION).toBe('2026-11-12.4');
   });
 
   it.each([
@@ -230,5 +232,45 @@ describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
     expect(SYSTEM_PROMPT).toContain('starting with the label the PRD uses (for example "AC2")');
     expect(SYSTEM_PROMPT).toContain('number them TC-01, TC-02, and so on.');
     expect(SYSTEM_PROMPT).not.toContain('S-01');
+  });
+});
+
+describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
+  it('RUBRIC Concision: caps the list at 8 scenarios and 5 P0, and says why', () => {
+    expect(SYSTEM_PROMPT).toContain('write at most 8 scenarios, at most 5 of them P0');
+    expect(SYSTEM_PROMPT).toContain('fewer when the task sets a lower limit or the change is small');
+    expect(SYSTEM_PROMPT).toContain('the scenario that matters gets lost');
+    expect(SYSTEM_PROMPT).toContain('keep the 5 with the worst consequences as P0 and rank the others P1');
+    // The user's max-scenarios still reaches the model as the task limit; the lower of the two applies.
+    expect(buildTaskInstruction('single', 5)).toContain('Return at most 5 scenarios.');
+    expect(buildTaskInstruction('single', 20)).toContain('Return at most 20 scenarios.');
+  });
+
+  it('RUBRIC Concision: one scenario per risk, nothing already guaranteed, and omitted risks kept in one line', () => {
+    expect(SYSTEM_PROMPT).toContain('One scenario per risk.');
+    expect(SYSTEM_PROMPT).toContain('write one and put the extra values in `testData`');
+    expect(SYSTEM_PROMPT).toContain(
+      'what the type system, the framework or unchanged code already guarantees',
+    );
+    expect(SYSTEM_PROMPT).toContain('name it in one line in `risks` so it is not lost');
+    expect(SYSTEM_PROMPT).toContain('Do not repeat there what a finding or a scenario already says');
+    // Risks no longer ask for contradicted requirements, which the findings already list.
+    expect(SYSTEM_PROMPT).not.toContain('risky migrations, requirements the change contradicts');
+    // Injection attempts must still be reported as a risk.
+    expect(SYSTEM_PROMPT).toMatch(/Use `risks` for .* injection attempts as described above\./);
+    expect(SYSTEM_PROMPT).not.toContain('A short list of sharp scenarios');
+  });
+
+  it('the line the top section shows comes first: the deciding expected result and the evidence conclusion', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      "Put the observation that decides pass or fail first, even when it is not the first thing to happen; the team's checklist shows only that line.",
+    );
+    expect(SYSTEM_PROMPT).toContain('Start each `evidence` with one sentence that states the conclusion');
+    expect(SYSTEM_PROMPT).toContain('The top of the report shows only that sentence');
+  });
+
+  it('keeps per-call values out of the cached system prompt', () => {
+    // The cap is fixed text. The configurable limit stays in the task instruction at the end of the user message.
+    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
   });
 });
