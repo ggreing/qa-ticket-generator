@@ -104,6 +104,10 @@ right before publishing.**
       With Docker: `docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest git --redact /repo`.
       Fix findings by rotating the secret first, then rewriting history if needed.
 - [ ] Confirm all fixtures and examples are synthetic (no real customer data, PRDs or tokens).
+- [ ] **Owner policy: no AI co-author attribution.** Strip `Co-Authored-By:` trailers that name an AI assistant
+      from every commit message before the first push (the history is local-only until then), and verify:
+      `git log --all --format=%B | grep -ci 'co-authored-by'` prints `0`. PR descriptions must not carry
+      "Generated with …" lines either.
 - [ ] Replace every `TODO(pin)` in `.github/workflows/*.yml` with the full commit SHA of the referenced release
       and keep the version comment (Dependabot keeps SHA pins up to date afterwards).
 
