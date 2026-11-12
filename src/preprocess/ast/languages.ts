@@ -3,37 +3,16 @@
  * grammars/manifest.json). A "symbol" is a function, method or class-like declaration.
  */
 import type { Node } from 'web-tree-sitter';
-import { extension } from '../noise';
+import { AST_LANGUAGE_EXTENSIONS, type AstLanguage } from '../../core/languages';
 
-export type AstLanguage = 'typescript' | 'tsx' | 'javascript' | 'python' | 'java' | 'go';
+export type { AstLanguage } from '../../core/languages';
+/**
+ * File → grammar mapping is shared with the GitHub reader (CTX-03 fetches head contents for the
+ * same extensions), so it lives in `src/core/languages.ts`.
+ */
+export { astLanguageForPath } from '../../core/languages';
 
-export const SUPPORTED_AST_LANGUAGES: readonly AstLanguage[] = [
-  'typescript',
-  'tsx',
-  'javascript',
-  'python',
-  'java',
-  'go',
-];
-
-const EXTENSIONS: Record<string, AstLanguage> = {
-  ts: 'typescript',
-  mts: 'typescript',
-  cts: 'typescript',
-  tsx: 'tsx',
-  js: 'javascript',
-  mjs: 'javascript',
-  cjs: 'javascript',
-  jsx: 'javascript',
-  py: 'python',
-  pyi: 'python',
-  java: 'java',
-  go: 'go',
-};
-
-export function languageForPath(path: string): AstLanguage | null {
-  return EXTENSIONS[extension(path)] ?? null;
-}
+export const SUPPORTED_AST_LANGUAGES = Object.keys(AST_LANGUAGE_EXTENSIONS) as readonly AstLanguage[];
 
 export function isAstLanguage(value: string): value is AstLanguage {
   return (SUPPORTED_AST_LANGUAGES as readonly string[]).includes(value);

@@ -15,7 +15,7 @@ import type {
   SkippedFile,
 } from '../core/contracts';
 import { expandContexts } from './ast/expand';
-import { languageForPath } from './ast/languages';
+import { astLanguageForPath } from './ast/languages';
 import type { AstRuntime } from './ast/runtime';
 import { parsePatch, sideLines } from './diff';
 import { manifestKind, summarizeManifest } from './manifest';
@@ -101,9 +101,8 @@ function contextsFor(
   if (file.headContent === undefined || file.headContent === '') return [];
   // Added files are fully visible in their diff; removed files have no head contents.
   if (file.status === 'added' || file.status === 'removed') return [];
-  const language = languageForPath(file.path);
-  const enabled = language !== null && input.options.astLanguages.includes(language);
-  const parser = enabled ? (ast.parsers.get(language) ?? null) : null;
+  const language = astLanguageForPath(file.path, input.options.astLanguages);
+  const parser = language ? (ast.parsers.get(language) ?? null) : null;
   const redactedLines = splitLines(redactText(file.headContent));
   return expandContexts({
     rawContent: file.headContent,
