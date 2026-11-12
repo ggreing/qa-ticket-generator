@@ -229,6 +229,10 @@ describe('rubric v2: coverage, and scores stored under v1', () => {
     expect(RUBRIC_SYSTEM).toContain('so a short report can score 2');
     expect(RUBRIC_SYSTEM).toContain('No risk left out is 2, one is 1, two or more is 0.');
     expect(RUBRIC_SYSTEM).toContain('A risk that is only mentioned in the risks section');
+    // Round 1: no-PRD cases and code-only risks could not reach 2 on traceability, and citing the
+    // nearest AC was the only way to "have a source". Leaving the requirement out is now correct.
+    expect(RUBRIC_SYSTEM).toContain('citing no requirement is then correct and can score 2');
+    expect(RUBRIC_SYSTEM).toContain('citing a loosely related requirement is the fault');
     // Nothing from expected.json reaches the judge: it has to find the risks in the PRD and the diff.
     const input = buildRubricInput(coupon, report, '');
     expect(input).not.toContain('mustScenarios');

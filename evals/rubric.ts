@@ -168,6 +168,7 @@ ${rubricText(REPORT_CRITERIA)}
 
 How to apply it:
 - Check claims against the material. A scenario that cites an AC or a file earns traceability only if that AC says what the scenario tests and that file contains the code it exercises. A finding status is correct only if the diff supports it.
+- Traceability needs a requirement only where one applies. When no requirement covers a scenario (there is no PRD, or the risk comes from the code alone), judge it on the code location: citing no requirement is then correct and can score 2, and citing a loosely related requirement is the fault.
 - Score what is written. A different but valid choice of scenarios is not a fault; a scenario you would not have written can still score 2.
 - Use the whole scale. 2 means the anchor is fully met, and most real output has scenarios at 1.
 - For concision, read the top of the rendered comment the way a reviewer would: verdict, what needs action, the P0 checklist.
