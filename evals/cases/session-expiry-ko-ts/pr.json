@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2004,
+  "title": "세션 유휴 만료와 로그아웃 정리",
+  "body": "Closes #1904\n\n세션 저장소에 마지막 사용 시각과 절대 만료 시각을 두고, 인증 미들웨어에서 둘 다 검사합니다.\n로그아웃 API도 새로 추가했습니다.",
+  "author": "minjun",
+  "htmlUrl": "https://github.com/acme/shop/pull/2004",
+  "baseRef": "main",
+  "baseSha": "342cd98269522cab6ad2f98af4274c2a624cd786",
+  "headRef": "feat/session-expiry",
+  "headSha": "97f9fe19da8ffbd30c1a4485bb7dce3f39e6cb5c",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

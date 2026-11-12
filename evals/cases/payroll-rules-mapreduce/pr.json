@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2009,
+  "title": "Payroll rules engine: overtime, night and holiday pay",
+  "body": "Spec: https://www.notion.so/acme/Payroll-rules-2027-5b8e2f1a0c9d4b7e9f3a6c2d1e8b4a70\n\nReplaces the spreadsheet formulas with PayCalculator and three pay rules. Each rule turns the\nweek's shifts into pay lines; the payslip job renders one PDF per employee.",
+  "author": "olga",
+  "htmlUrl": "https://github.com/acme/shop/pull/2009",
+  "baseRef": "main",
+  "baseSha": "9a30e51fc1b2ac311ae45ac809e04dac76eb18af",
+  "headRef": "feat/payroll-rules",
+  "headSha": "1761184e84c493d9254f9a2c3783cebefcbf2a6a",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1908",
+    "url": "https://github.com/acme/shop/issues/1908",
+    "raw": "acme/shop#1908"
+  },
+  "title": "Let customers pick their seats",
+  "bodyMarkdown": "Today the booking page assigns seats automatically and customers complain they cannot sit together.\n\n- [ ] AC1: A customer can select at most 6 seats; trying to select a 7th seat shows \"You can select up to 6 seats\" and leaves the selection unchanged.\n- [ ] AC2: Sold and held seats are shown as unavailable and cannot be selected.\n- [ ] AC3: Changing the showtime clears the current selection.\n- [ ] AC4: The Continue button is disabled while no seat is selected.",
+  "acceptanceCriteria": [
+    "AC1: A customer can select at most 6 seats; trying to select a 7th seat shows \"You can select up to 6 seats\" and leaves the selection unchanged.",
+    "AC2: Sold and held seats are shown as unavailable and cannot be selected.",
+    "AC3: Changing the showtime clears the current selection.",
+    "AC4: The Continue button is disabled while no seat is selected."
+  ],
+  "url": "https://github.com/acme/shop/issues/1908",
+  "meta": {}
+}

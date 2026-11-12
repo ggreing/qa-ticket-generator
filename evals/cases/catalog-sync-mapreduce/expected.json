@@ -1,0 +1,90 @@
+{
+  "expectedAlignment": "partial",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Every catalog page read via next_cursor",
+      "labels": ["AC1"],
+      "keywords": ["next_cursor"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Retry 5xx and timeouts up to 5 times with exponential backoff",
+      "labels": ["AC2"],
+      "keywords": ["exponential backoff", "5xx"],
+      "accept": ["missing"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Price changes over 30% go to manual review",
+      "labels": ["AC3"],
+      "keywords": ["more than 30%", "manual review"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Vanished products marked inactive, not deleted",
+      "labels": ["AC4"],
+      "keywords": ["marked inactive"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "retry-5xx",
+      "risk": "The supplier answers 503 on page 7: the page must be retried with 1, 2, 4, 8 and 16 second backoff; today the first error ends the run",
+      "keywords": [
+        ["5xx", "500", "502", "503", "504", "timeout", "time out", "timed out"],
+        ["retr", "backoff", "back-off", "attempt"]
+      ]
+    },
+    {
+      "id": "failure-no-partial",
+      "risk": "A failure on a later page leaves the catalog untouched: no change from the earlier pages is written",
+      "keywords": [
+        [
+          "partial",
+          "rollback",
+          "roll back",
+          "untouched",
+          "unchanged",
+          "nothing is written",
+          "no change",
+          "transaction",
+          "atomic"
+        ]
+      ]
+    },
+    {
+      "id": "threshold-boundary",
+      "risk": "A price change of exactly 30% is applied directly; 30.01% (or a 31% drop) goes to the review list",
+      "keywords": [["30%", "30 %", "31%", "threshold", "exactly 30"]]
+    },
+    {
+      "id": "price-drop-review",
+      "risk": "A large price drop (more than 30% down) also goes to review, not only increases",
+      "keywords": [["drop", "decrease", "down", "lower", "reduction"]]
+    },
+    {
+      "id": "inactive",
+      "risk": "A product missing from the supplier feed is marked inactive and keeps its row; a returning product is not reactivated automatically",
+      "keywords": [["inactive", "deactivat", "disappear", "no longer", "removed from"]]
+    },
+    {
+      "id": "cursor-end",
+      "risk": "Pagination stops when next_cursor is empty or null; a last page with zero items does not loop",
+      "keywords": [["cursor", "last page", "pagination", "next page"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Image sync and currency conversion are in neither the issue nor the code",
+      "patterns": ["image sync", "product image", "currency conversion", "exchange rate"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["catalog", "python", "multi-file", "map-reduce", "external-failure", "missing"],
+  "notes": "Map-reduce case (10 files). AC2 is absent: SupplierClient.fetch_page has a timeout but no retry or backoff. Changes are written in one transaction at the end, so a failure leaves nothing half-applied."
+}

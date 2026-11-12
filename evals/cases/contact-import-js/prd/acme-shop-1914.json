@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1914",
+    "url": "https://github.com/acme/shop/issues/1914",
+    "raw": "acme/shop#1914"
+  },
+  "title": "Import contacts from CSV",
+  "bodyMarkdown": "Sales teams paste contacts from trade fairs into spreadsheets and want to upload them in one go.\n\n### Acceptance Criteria\n- AC1: An import file may contain at most 10,000 data rows (the header row not counted); a larger file is rejected before any row is imported.\n- AC2: Rows with an invalid e-mail address are skipped and listed in the result with their line number; the valid rows are still imported.\n- AC3: A contact whose e-mail address already exists is updated instead of created again; e-mail addresses are compared case-insensitively.",
+  "acceptanceCriteria": [
+    "AC1: An import file may contain at most 10,000 data rows (the header row not counted); a larger file is rejected before any row is imported.",
+    "AC2: Rows with an invalid e-mail address are skipped and listed in the result with their line number; the valid rows are still imported.",
+    "AC3: A contact whose e-mail address already exists is updated instead of created again; e-mail addresses are compared case-insensitively."
+  ],
+  "url": "https://github.com/acme/shop/issues/1914",
+  "meta": {}
+}

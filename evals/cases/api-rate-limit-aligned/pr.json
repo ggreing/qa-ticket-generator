@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2007,
+  "title": "Per-key rate limit for the public API",
+  "body": "Jira: https://acme.atlassian.net/browse/API-42\n\nSliding-window limiter keyed by API key, wired in as middleware in front of every /v1 route.\nEach key has its own lock, so different keys never wait on each other.",
+  "author": "tomas",
+  "htmlUrl": "https://github.com/acme/shop/pull/2007",
+  "baseRef": "main",
+  "baseSha": "2d7e63d7e58a64e56dab1011c123c9de6c523b7e",
+  "headRef": "feat/api-rate-limit",
+  "headSha": "945e806fde2c4cee9f325193eb8ff0694ca38239",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

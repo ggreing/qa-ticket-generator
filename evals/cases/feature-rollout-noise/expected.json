@@ -1,0 +1,75 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Stable hash bucket per flag and user",
+      "labels": ["AC1"],
+      "keywords": ["stable hash"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "0% enables nobody, 100% enables everybody",
+      "labels": ["AC2"],
+      "keywords": ["rollout of 100%", "every user"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Definitions cached for at most 60 seconds",
+      "labels": ["AC3"],
+      "keywords": ["60 seconds"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Audit log entry for every rollout change",
+      "labels": ["AC4"],
+      "keywords": ["audit log"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "hundred-percent",
+      "risk": "At 100% rollout users in bucket 100 stay disabled (buckets are 1–100 and the check is bucket < percent), so about 1% of users never get the flag",
+      "keywords": [["100%", "100 %", "100 percent", "bucket 100", "every user", "all users"]]
+    },
+    {
+      "id": "zero-percent",
+      "risk": "At 0% rollout no user gets the flag",
+      "keywords": [["0%", "0 %", "zero", "0 percent"]]
+    },
+    {
+      "id": "stable",
+      "risk": "The same user evaluated repeatedly (and on different servers) gets the same answer; raising the percentage only adds users",
+      "keywords": [["same user", "stable", "consistent", "determinis", "sticky", "repeated"]]
+    },
+    {
+      "id": "cache-ttl",
+      "risk": "After a rollout change, servers pick it up within 60 seconds and not before the cached entry expires",
+      "keywords": [["cache", "ttl", "60 s", "60-second", "60 second", "one minute", "within a minute"]]
+    },
+    {
+      "id": "audit",
+      "risk": "Changing a rollout percentage writes an audit entry with old value, new value and actor",
+      "keywords": [["audit"]]
+    },
+    {
+      "id": "invalid-percent",
+      "risk": "Rollout values -1, 101 and 12.5 are rejected with RangeError",
+      "keywords": [["101", "-1", "negative", "invalid", "rangeerror", "non-integer", "12.5"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "User segments, country targeting and A/B metrics are in neither the issue nor the code",
+      "patterns": ["user segment", "country target", "a/b metric", "conversion rate"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["flags", "typescript", "noise", "boundary", "contradicts", "missing"],
+  "notes": "AC2 is contradicted at the upper bound (buckets 1–100 with bucket < percent leaves bucket 100 out at 100%) and AC4 (audit log) is absent. Tests, snapshot, lockfile and tsconfig are noise."
+}

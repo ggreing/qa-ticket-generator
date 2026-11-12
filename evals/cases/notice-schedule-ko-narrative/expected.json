@@ -1,0 +1,61 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "예약 시각은 저장 시점으로부터 최소 10분 뒤",
+      "labels": ["AC1"],
+      "keywords": ["최소 10분"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "발송 1분 전까지만 취소 가능",
+      "labels": ["AC2"],
+      "keywords": ["1분 전"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "발송 실패 시 예약한 관리자에게 알림",
+      "labels": ["AC3"],
+      "keywords": ["관리자에게"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "cancel-cutoff",
+      "risk": "A cancel request 30 seconds before send_at must be refused (cut-off is 1 minute before), but the code accepts cancels until send_at",
+      "keywords": [
+        ["cancel", "취소"],
+        ["1 min", "1분", "one minute", "60 second", "30 second", "before send", "cut-off", "cutoff", "직전"]
+      ]
+    },
+    {
+      "id": "lead-time-boundary",
+      "risk": "Scheduling exactly 10 minutes ahead is accepted; 9 minutes 59 seconds ahead is rejected with SEND_AT_TOO_SOON",
+      "keywords": [["10 min", "10분", "ten min", "9 min", "send_at_too_soon", "lead"]]
+    },
+    {
+      "id": "failure-alert",
+      "risk": "A failed send must notify the admin who scheduled it; today it is only logged and marked FAILED",
+      "keywords": [["fail", "실패"], ["admin", "notify", "alert", "관리자", "알림"]]
+    },
+    {
+      "id": "cancel-after-send",
+      "risk": "Cancelling a notice that is already SENT or FAILED is refused with NOT_CANCELLABLE",
+      "keywords": [["sent", "failed", "not_cancellable", "already", "발송된", "이미"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Recurring notices and audience targeting are in neither the page nor the code",
+      "patterns": ["recurring", "segment target", "audience target"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["notifications", "python", "korean", "narrative-ac", "contradicts", "missing"],
+  "notes": "Korean narrative PRD with no extractable criteria. AC2 is contradicted (cancel allowed until send_at, not 1 minute before) and AC3 is absent (failures are only logged)."
+}

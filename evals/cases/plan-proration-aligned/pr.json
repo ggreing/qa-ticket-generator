@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2015,
+  "title": "Prorated plan upgrades, downgrades at renewal",
+  "body": "Closes #1915\n\nUpgrades charge the prorated difference right away; downgrades are scheduled for the renewal date.\nThe plan is switched only after the charge succeeds.",
+  "author": "sven",
+  "htmlUrl": "https://github.com/acme/shop/pull/2015",
+  "baseRef": "main",
+  "baseSha": "55ae6d80d5d656bbfcfc87eb4e2267a62eb31285",
+  "headRef": "feat/plan-proration",
+  "headSha": "4784c789a1f2061a0b7e9a4e3a081ef072a20199",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

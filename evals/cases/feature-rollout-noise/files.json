@@ -1,0 +1,74 @@
+[
+  {
+    "path": "src/flags/bucket.ts",
+    "status": "added",
+    "additions": 17,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,17 @@\n+const FNV_OFFSET = 0x811c9dc5;\n+const FNV_PRIME = 0x01000193;\n+\n+/** 32-bit FNV-1a. */\n+export function fnv1a(input: string): number {\n+  let hash = FNV_OFFSET;\n+  for (let i = 0; i < input.length; i++) {\n+    hash ^= input.charCodeAt(i);\n+    hash = Math.imul(hash, FNV_PRIME) >>> 0;\n+  }\n+  return hash >>> 0;\n+}\n+\n+/** The user's bucket for a flag, from 1 to 100. */\n+export function bucketOf(flagKey: string, userId: string): number {\n+  return (fnv1a(`${flagKey}:${userId}`) % 100) + 1;\n+}",
+    "patchMissing": false,
+    "headContent": "const FNV_OFFSET = 0x811c9dc5;\nconst FNV_PRIME = 0x01000193;\n\n/** 32-bit FNV-1a. */\nexport function fnv1a(input: string): number {\n  let hash = FNV_OFFSET;\n  for (let i = 0; i < input.length; i++) {\n    hash ^= input.charCodeAt(i);\n    hash = Math.imul(hash, FNV_PRIME) >>> 0;\n  }\n  return hash >>> 0;\n}\n\n/** The user's bucket for a flag, from 1 to 100. */\nexport function bucketOf(flagKey: string, userId: string): number {\n  return (fnv1a(`${flagKey}:${userId}`) % 100) + 1;\n}\n"
+  },
+  {
+    "path": "src/flags/evaluate.ts",
+    "status": "added",
+    "additions": 15,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,15 @@\n+import { bucketOf } from './bucket';\n+import type { FlagCache } from './cache';\n+\n+export interface Flag {\n+  key: string;\n+  enabled: boolean;\n+  /** 0 to 100. */\n+  rolloutPercent: number;\n+}\n+\n+export async function isEnabled(cache: FlagCache, flagKey: string, userId: string): Promise<boolean> {\n+  const flag = await cache.get(flagKey);\n+  if (!flag || !flag.enabled) return false;\n+  return bucketOf(flag.key, userId) < flag.rolloutPercent;\n+}",
+    "patchMissing": false,
+    "headContent": "import { bucketOf } from './bucket';\nimport type { FlagCache } from './cache';\n\nexport interface Flag {\n  key: string;\n  enabled: boolean;\n  /** 0 to 100. */\n  rolloutPercent: number;\n}\n\nexport async function isEnabled(cache: FlagCache, flagKey: string, userId: string): Promise<boolean> {\n  const flag = await cache.get(flagKey);\n  if (!flag || !flag.enabled) return false;\n  return bucketOf(flag.key, userId) < flag.rolloutPercent;\n}\n"
+  },
+  {
+    "path": "src/flags/cache.ts",
+    "status": "added",
+    "additions": 24,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,24 @@\n+import type { Flag } from './evaluate';\n+\n+export const FLAG_CACHE_TTL_MS = 60_000;\n+\n+export interface FlagSource {\n+  load(key: string): Promise<Flag | null>;\n+}\n+\n+export class FlagCache {\n+  private readonly entries = new Map<string, { flag: Flag | null; loadedAt: number }>();\n+\n+  constructor(\n+    private readonly source: FlagSource,\n+    private readonly now: () => number = Date.now,\n+  ) {}\n+\n+  async get(key: string): Promise<Flag | null> {\n+    const hit = this.entries.get(key);\n+    if (hit && this.now() - hit.loadedAt < FLAG_CACHE_TTL_MS) return hit.flag;\n+    const flag = await this.source.load(key);\n+    this.entries.set(key, { flag, loadedAt: this.now() });\n+    return flag;\n+  }\n+}",
+    "patchMissing": false,
+    "headContent": "import type { Flag } from './evaluate';\n\nexport const FLAG_CACHE_TTL_MS = 60_000;\n\nexport interface FlagSource {\n  load(key: string): Promise<Flag | null>;\n}\n\nexport class FlagCache {\n  private readonly entries = new Map<string, { flag: Flag | null; loadedAt: number }>();\n\n  constructor(\n    private readonly source: FlagSource,\n    private readonly now: () => number = Date.now,\n  ) {}\n\n  async get(key: string): Promise<Flag | null> {\n    const hit = this.entries.get(key);\n    if (hit && this.now() - hit.loadedAt < FLAG_CACHE_TTL_MS) return hit.flag;\n    const flag = await this.source.load(key);\n    this.entries.set(key, { flag, loadedAt: this.now() });\n    return flag;\n  }\n}\n"
+  },
+  {
+    "path": "src/flags/admin.ts",
+    "status": "modified",
+    "additions": 8,
+    "deletions": 0,
+    "patch": "@@ -7,4 +7,12 @@\n     const flag = await this.flags.get(key);\n     await this.flags.save({ ...flag, enabled });\n   }\n+\n+  async setRollout(key: string, percent: number, actorId: string): Promise<void> {\n+    if (!Number.isInteger(percent) || percent < 0 || percent > 100) {\n+      throw new RangeError('rollout percent must be an integer from 0 to 100');\n+    }\n+    const flag = await this.flags.get(key);\n+    await this.flags.save({ ...flag, rolloutPercent: percent, updatedBy: actorId });\n+  }\n }",
+    "patchMissing": false,
+    "headContent": "import type { FlagRepository } from './repository';\n\nexport class FlagAdmin {\n  constructor(private readonly flags: FlagRepository) {}\n\n  async setEnabled(key: string, enabled: boolean): Promise<void> {\n    const flag = await this.flags.get(key);\n    await this.flags.save({ ...flag, enabled });\n  }\n\n  async setRollout(key: string, percent: number, actorId: string): Promise<void> {\n    if (!Number.isInteger(percent) || percent < 0 || percent > 100) {\n      throw new RangeError('rollout percent must be an integer from 0 to 100');\n    }\n    const flag = await this.flags.get(key);\n    await this.flags.save({ ...flag, rolloutPercent: percent, updatedBy: actorId });\n  }\n}\n"
+  },
+  {
+    "path": "src/flags/__tests__/bucket.test.ts",
+    "status": "added",
+    "additions": 16,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,16 @@\n+import { describe, expect, it } from 'vitest';\n+import { bucketOf } from '../bucket';\n+\n+describe('bucketOf', () => {\n+  it('is stable for the same flag and user', () => {\n+    expect(bucketOf('new-checkout', 'u-1')).toBe(bucketOf('new-checkout', 'u-1'));\n+  });\n+\n+  it('stays within 1..100', () => {\n+    for (let i = 0; i < 1000; i++) {\n+      const b = bucketOf('f', `u-${i}`);\n+      expect(b).toBeGreaterThanOrEqual(1);\n+      expect(b).toBeLessThanOrEqual(100);\n+    }\n+  });\n+});",
+    "patchMissing": false,
+    "headContent": "import { describe, expect, it } from 'vitest';\nimport { bucketOf } from '../bucket';\n\ndescribe('bucketOf', () => {\n  it('is stable for the same flag and user', () => {\n    expect(bucketOf('new-checkout', 'u-1')).toBe(bucketOf('new-checkout', 'u-1'));\n  });\n\n  it('stays within 1..100', () => {\n    for (let i = 0; i < 1000; i++) {\n      const b = bucketOf('f', `u-${i}`);\n      expect(b).toBeGreaterThanOrEqual(1);\n      expect(b).toBeLessThanOrEqual(100);\n    }\n  });\n});\n"
+  },
+  {
+    "path": "src/flags/__tests__/__snapshots__/evaluate.test.ts.snap",
+    "status": "added",
+    "additions": 9,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,9 @@\n+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n+\n+exports[`isEnabled > rollout table 1`] = `\n+[\n+  \"u-1: true\",\n+  \"u-2: false\",\n+  \"u-3: true\",\n+]\n+`;",
+    "patchMissing": false,
+    "headContent": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`isEnabled > rollout table 1`] = `\n[\n  \"u-1: true\",\n  \"u-2: false\",\n  \"u-3: true\",\n]\n`;\n"
+  },
+  {
+    "path": "package-lock.json",
+    "status": "modified",
+    "additions": 2,
+    "deletions": 2,
+    "patch": "@@ -1,4 +1,4 @@\n     \"node_modules/vitest\": {\n-      \"version\": \"5.0.4\",\n-      \"resolved\": \"https://registry.npmjs.org/vitest/-/vitest-5.0.4.tgz\",\n+      \"version\": \"5.1.0\",\n+      \"resolved\": \"https://registry.npmjs.org/vitest/-/vitest-5.1.0.tgz\",\n       \"dev\": true,",
+    "patchMissing": false,
+    "headContent": "    \"node_modules/vitest\": {\n      \"version\": \"5.1.0\",\n      \"resolved\": \"https://registry.npmjs.org/vitest/-/vitest-5.1.0.tgz\",\n      \"dev\": true,\n"
+  },
+  {
+    "path": "tsconfig.json",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "patch": "@@ -1,7 +1,7 @@\n {\n   \"compilerOptions\": {\n     \"target\": \"ES2023\",\n-    \"strict\": false,\n+    \"strict\": true,\n     \"module\": \"ESNext\"\n   }\n }",
+    "patchMissing": false,
+    "headContent": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2023\",\n    \"strict\": true,\n    \"module\": \"ESNext\"\n  }\n}\n"
+  }
+]

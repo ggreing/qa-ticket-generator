@@ -1,0 +1,75 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Overtime at 1.5x beyond 40 hours per Monday–Sunday week",
+      "labels": ["AC1"],
+      "keywords": ["beyond 40", "1.5 times"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Night premium 50% for 22:00–06:00",
+      "labels": ["AC2"],
+      "keywords": ["night premium", "22:00 and 06:00"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Holiday hours at 2x, excluded from the overtime threshold",
+      "labels": ["AC3"],
+      "keywords": ["public holiday", "2 times"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Payslip rendering retried 3 times, then FAILED without stopping the run",
+      "labels": ["AC4"],
+      "keywords": ["payslip PDF", "marks it FAILED"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "night-0500-0600",
+      "risk": "Work between 05:00 and 06:00 must earn the night premium, but NIGHT_END is 05:00 so that hour is unpaid",
+      "keywords": [["05:00", "5:00", "06:00", "6:00", "night_end", "5 am", "6 am"]]
+    },
+    {
+      "id": "overtime-boundary",
+      "risk": "Exactly 40 hours gives no overtime line; 40 h 30 min gives 30 overtime minutes at 1.5x",
+      "keywords": [["40"], ["overtime"]]
+    },
+    {
+      "id": "week-boundary",
+      "risk": "A shift crossing Sunday midnight into Monday is split: hours before midnight count toward the old week, hours after toward the new one",
+      "keywords": [["sunday", "monday", "week boundary", "midnight", "crosses"]]
+    },
+    {
+      "id": "holiday-excluded",
+      "risk": "A week with 8 holiday hours and 40 other hours has no overtime; holiday hours are paid 2x",
+      "keywords": [["holiday"]]
+    },
+    {
+      "id": "render-failure",
+      "risk": "One payslip PDF fails to render: it is retried up to 3 times and marked FAILED while the rest of the run continues (today the exception stops the whole job)",
+      "keywords": [["render", "pdf", "payslip"], ["fail", "retry", "exception", "error"]]
+    },
+    {
+      "id": "rounding",
+      "risk": "Fractional minutes and rates round half up to the cent on each pay line",
+      "keywords": [["round", "half up", "half-up", "cent"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Tax withholding and sick pay are in neither the spec nor the code",
+      "patterns": ["withholding", "sick pay", "income tax"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["payroll", "java", "multi-file", "map-reduce", "boundary", "contradicts", "missing"],
+  "notes": "Map-reduce case (12 files). AC2 is contradicted (night window ends at 05:00, not 06:00) and AC4 is absent (PayslipJob has no retry or FAILED status; one render error stops the run)."
+}

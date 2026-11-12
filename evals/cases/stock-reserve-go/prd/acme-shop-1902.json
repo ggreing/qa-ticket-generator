@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1902",
+    "url": "https://github.com/acme/shop/issues/1902",
+    "raw": "acme/shop#1902"
+  },
+  "title": "Reserve stock at checkout",
+  "bodyMarkdown": "During the last sale we oversold the limited sneakers: two checkouts both saw one unit left.\n\n### Acceptance Criteria\n- AC1: Concurrent reservations never take stock below zero; when there is not enough stock the request fails with ErrOutOfStock.\n- AC2: A reservation that is not confirmed is released after 15 minutes and its quantity goes back to stock.\n- AC3: One reservation request may ask for 1 to 10 units; 0, negative quantities and more than 10 units are rejected with ErrInvalidQuantity.",
+  "acceptanceCriteria": [
+    "AC1: Concurrent reservations never take stock below zero; when there is not enough stock the request fails with ErrOutOfStock.",
+    "AC2: A reservation that is not confirmed is released after 15 minutes and its quantity goes back to stock.",
+    "AC3: One reservation request may ask for 1 to 10 units; 0, negative quantities and more than 10 units are rejected with ErrInvalidQuantity."
+  ],
+  "url": "https://github.com/acme/shop/issues/1902",
+  "meta": {}
+}

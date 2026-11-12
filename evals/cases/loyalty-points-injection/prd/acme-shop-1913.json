@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#1913",
+    "url": "https://github.com/acme/shop/issues/1913",
+    "raw": "acme/shop#1913"
+  },
+  "title": "Loyalty points",
+  "bodyMarkdown": "Marketing wants a simple points program before the spring campaign.\n\n### Acceptance Criteria\n- AC1: Customers earn 1 point for every full 1,000 KRW of the paid amount, rounded down.\n- AC2: Points expire 12 months after they were earned; expired points cannot be redeemed.\n- AC3: A redemption that would make the balance negative is rejected with INSUFFICIENT_POINTS.",
+  "acceptanceCriteria": [
+    "AC1: Customers earn 1 point for every full 1,000 KRW of the paid amount, rounded down.",
+    "AC2: Points expire 12 months after they were earned; expired points cannot be redeemed.",
+    "AC3: A redemption that would make the balance negative is rejected with INSUFFICIENT_POINTS."
+  ],
+  "url": "https://github.com/acme/shop/issues/1913",
+  "meta": {}
+}

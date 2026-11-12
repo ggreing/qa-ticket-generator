@@ -1,0 +1,29 @@
+[
+  {
+    "path": "src/auth/session-store.ts",
+    "status": "modified",
+    "additions": 20,
+    "deletions": 2,
+    "patch": "@@ -1,14 +1,32 @@\n+import { settings } from '../config/settings';\n+\n+export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;\n+\n export interface Session {\n   id: string;\n   userId: string;\n   createdAt: number;\n+  lastSeenAt: number;\n+  absoluteExpiresAt: number;\n }\n \n export interface SessionStore {\n   get(id: string): Promise<Session | null>;\n   put(session: Session): Promise<void>;\n+  delete(id: string): Promise<void>;\n }\n \n-export function newSession(id: string, userId: string, now: number): Session {\n-  return { id, userId, createdAt: now };\n+export function newSession(id: string, userId: string, now: number): Session {\n+  return {\n+    id,\n+    userId,\n+    createdAt: now,\n+    lastSeenAt: now,\n+    absoluteExpiresAt: now + settings.sessionAbsoluteTtlMs,\n+  };\n }\n+\n+/** True when the session has been idle too long or has passed its absolute lifetime. */\n+export function isExpired(session: Session, now: number): boolean {\n+  return now - session.lastSeenAt > IDLE_TIMEOUT_MS || now >= session.absoluteExpiresAt;\n+}",
+    "patchMissing": false,
+    "headContent": "import { settings } from '../config/settings';\n\nexport const IDLE_TIMEOUT_MS = 30 * 60 * 1000;\n\nexport interface Session {\n  id: string;\n  userId: string;\n  createdAt: number;\n  lastSeenAt: number;\n  absoluteExpiresAt: number;\n}\n\nexport interface SessionStore {\n  get(id: string): Promise<Session | null>;\n  put(session: Session): Promise<void>;\n  delete(id: string): Promise<void>;\n}\n\nexport function newSession(id: string, userId: string, now: number): Session {\n  return {\n    id,\n    userId,\n    createdAt: now,\n    lastSeenAt: now,\n    absoluteExpiresAt: now + settings.sessionAbsoluteTtlMs,\n  };\n}\n\n/** True when the session has been idle too long or has passed its absolute lifetime. */\nexport function isExpired(session: Session, now: number): boolean {\n  return now - session.lastSeenAt > IDLE_TIMEOUT_MS || now >= session.absoluteExpiresAt;\n}\n"
+  },
+  {
+    "path": "src/auth/middleware.ts",
+    "status": "modified",
+    "additions": 7,
+    "deletions": 1,
+    "patch": "@@ -1,9 +1,15 @@\n-import type { SessionStore } from './session-store';\n+import { isExpired, type SessionStore } from './session-store';\n \n export function requireSession(store: SessionStore, clock: () => number) {\n   return async (req: Request & { sessionId?: string; userId?: string }) => {\n     const session = req.sessionId ? await store.get(req.sessionId) : null;\n     if (!session) return new Response('unauthorized', { status: 401 });\n+    const now = clock();\n+    if (isExpired(session, now)) {\n+      await store.delete(session.id);\n+      return new Response('session expired', { status: 401 });\n+    }\n+    await store.put({ ...session, lastSeenAt: now });\n     req.userId = session.userId;\n     return null;\n   };",
+    "patchMissing": false,
+    "headContent": "import { isExpired, type SessionStore } from './session-store';\n\nexport function requireSession(store: SessionStore, clock: () => number) {\n  return async (req: Request & { sessionId?: string; userId?: string }) => {\n    const session = req.sessionId ? await store.get(req.sessionId) : null;\n    if (!session) return new Response('unauthorized', { status: 401 });\n    const now = clock();\n    if (isExpired(session, now)) {\n      await store.delete(session.id);\n      return new Response('session expired', { status: 401 });\n    }\n    await store.put({ ...session, lastSeenAt: now });\n    req.userId = session.userId;\n    return null;\n  };\n}\n"
+  },
+  {
+    "path": "src/auth/logout.ts",
+    "status": "added",
+    "additions": 8,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,8 @@\n+import type { SessionStore } from './session-store';\n+\n+export function logoutHandler(store: SessionStore) {\n+  return async (req: Request & { sessionId?: string }) => {\n+    if (req.sessionId) await store.delete(req.sessionId);\n+    return new Response(null, { status: 204, headers: { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' } });\n+  };\n+}",
+    "patchMissing": false,
+    "headContent": "import type { SessionStore } from './session-store';\n\nexport function logoutHandler(store: SessionStore) {\n  return async (req: Request & { sessionId?: string }) => {\n    if (req.sessionId) await store.delete(req.sessionId);\n    return new Response(null, { status: 204, headers: { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' } });\n  };\n}\n"
+  }
+]

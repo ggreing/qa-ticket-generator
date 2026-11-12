@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "ORD-88",
+    "url": "https://acme.atlassian.net/browse/ORD-88",
+    "raw": "ORD-88"
+  },
+  "title": "Order cancellation rules",
+  "bodyMarkdown": "## Background\nCustomer support cancels orders by editing the database. We want one cancel endpoint with\nclear rules, and a history of status changes for disputes.\n\n## Acceptance Criteria\n- AC1: An order moves only along PENDING → PAID → SHIPPED → DELIVERED; any other transition is rejected with IllegalStatusTransition.\n- AC2: An order can be cancelled only while it is PENDING or PAID; cancelling a SHIPPED or DELIVERED order returns HTTP 409.\n- AC3: Cancelling a PAID order refunds the full captured amount through the payment gateway.\n- AC4: Every status change is written to the order_status_history table with the previous status, the new status and the actor id.\n\n## Notes\nOnce the parcel is with the carrier, the warehouse cannot stop it, which is why shipped orders\ngo through the returns flow instead.",
+  "acceptanceCriteria": [
+    "AC1: An order moves only along PENDING → PAID → SHIPPED → DELIVERED; any other transition is rejected with IllegalStatusTransition.",
+    "AC2: An order can be cancelled only while it is PENDING or PAID; cancelling a SHIPPED or DELIVERED order returns HTTP 409.",
+    "AC3: Cancelling a PAID order refunds the full captured amount through the payment gateway.",
+    "AC4: Every status change is written to the order_status_history table with the previous status, the new status and the actor id."
+  ],
+  "url": "https://acme.atlassian.net/browse/ORD-88",
+  "meta": {}
+}

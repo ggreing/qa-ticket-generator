@@ -1,0 +1,70 @@
+{
+  "expectedAlignment": "aligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Prorated upgrade charge, half-up to the cent",
+      "labels": ["AC1"],
+      "keywords": ["prorated", "half up"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Downgrade at next renewal, no refund",
+      "labels": ["AC2"],
+      "keywords": ["downgrade"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Last-day upgrade charges one day",
+      "labels": ["AC3"],
+      "keywords": ["last day"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Failed charge leaves the plan unchanged; PAYMENT_FAILED",
+      "labels": ["AC4"],
+      "keywords": ["PAYMENT_FAILED", "card charge"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "proration-amount",
+      "risk": "Upgrading from 10.00 to 25.00 with 10 of 30 days left charges 5.00; a difference that does not divide evenly rounds half up",
+      "keywords": [["prorat", "days left", "remaining days", "half up", "half-up", "round"]]
+    },
+    {
+      "id": "last-day",
+      "risk": "An upgrade on the day before the renewal date charges exactly one day of the difference",
+      "keywords": [["last day", "one day", "1 day", "day before renewal", "final day"]]
+    },
+    {
+      "id": "first-day",
+      "risk": "An upgrade on the first day of the cycle charges the full difference",
+      "keywords": [["first day", "full difference", "whole cycle", "start of the cycle", "cycle start"]]
+    },
+    {
+      "id": "downgrade",
+      "risk": "A downgrade keeps the current plan until the renewal date, schedules the new one and refunds nothing",
+      "keywords": [["downgrade"]]
+    },
+    {
+      "id": "payment-failure",
+      "risk": "A declined card returns PAYMENT_FAILED (402) and the subscription keeps its old plan",
+      "keywords": [["payment_failed", "declin", "charge fails", "payment fails", "failed charge", "402"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Coupons, trials and annual billing are in neither the issue nor the code",
+      "patterns": ["free trial", "annual plan", "yearly plan", "coupon"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["billing", "kotlin", "boundary", "aligned"],
+  "notes": "Fully implemented: proration by days left with half-up rounding, scheduled downgrades, plan switched only after a successful charge."
+}

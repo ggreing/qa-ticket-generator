@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2010,
+  "title": "Nightly supplier catalog sync",
+  "body": "Closes #1910\n\nPulls the supplier catalog page by page, maps it onto our products and applies all changes in\none transaction at the end of the run. Big price moves go to the review queue instead.\nRun with: python -m catalog.cli sync-catalog",
+  "author": "kwame",
+  "htmlUrl": "https://github.com/acme/shop/pull/2010",
+  "baseRef": "main",
+  "baseSha": "1fef904e56e98588a4254151d85e17e983bab124",
+  "headRef": "feat/catalog-sync",
+  "headSha": "9d216d237fc462002bf084bf19521d3820ede1e9",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

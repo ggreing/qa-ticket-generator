@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 2013,
+  "title": "Loyalty points: earn on purchase, redeem at checkout",
+  "body": "Closes #1913\n\nPoints are earned when an order is paid and can be redeemed at checkout. The ledger keeps one\nrow per earn or redeem, and the balance is derived from it.",
+  "author": "ines",
+  "htmlUrl": "https://github.com/acme/shop/pull/2013",
+  "baseRef": "main",
+  "baseSha": "b40421d0d5feaca12fc8cc6517e53337befbee51",
+  "headRef": "feat/loyalty-points",
+  "headSha": "47854a159e7f34aa4a7218bd8f01a768be008035",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

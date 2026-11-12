@@ -1,0 +1,72 @@
+{
+  "expectedAlignment": "partial",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "서명 검증 실패 시 401, 기록 없음",
+      "labels": ["AC1"],
+      "keywords": ["X-Pay-Signature", "HMAC-SHA256"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "같은 event_id 재전송은 200, 재처리 없음",
+      "labels": ["AC2"],
+      "keywords": ["event_id"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "조회 API 5초 타임아웃, 최대 3회 재시도, 실패 시 FAILED",
+      "labels": ["AC3"],
+      "keywords": ["5초 안에", "3번까지 재시도"],
+      "accept": ["missing"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "부분 환불 합계가 원결제 초과 시 거절",
+      "labels": ["AC4"],
+      "keywords": ["REFUND_EXCEEDS_PAYMENT", "부분 환불"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "gateway-timeout",
+      "risk": "The refund lookup API does not answer within 5 seconds: it must be retried up to 3 times and then the refund recorded as FAILED (today there is no timeout and no retry)",
+      "keywords": [
+        ["timeout", "time out", "timed out", "5 second", "5s", "5초", "타임아웃", "retry", "재시도"]
+      ]
+    },
+    {
+      "id": "bad-signature",
+      "risk": "A webhook with a wrong or missing X-Pay-Signature gets 401 and nothing is recorded",
+      "keywords": [["signature", "서명"], ["401", "reject", "invalid", "거절"]]
+    },
+    {
+      "id": "duplicate-event",
+      "risk": "The same event_id delivered twice returns 200 the second time and records the refund only once",
+      "keywords": [["event_id", "duplicate", "same event", "twice", "redeliver", "중복", "재전송"]]
+    },
+    {
+      "id": "over-refund-boundary",
+      "risk": "Partial refunds summing exactly to the payment amount are accepted; one unit more is rejected with REFUND_EXCEEDS_PAYMENT",
+      "keywords": [["refund_exceeds_payment", "exceed", "over-refund", "more than the payment", "초과"]]
+    },
+    {
+      "id": "concurrent-duplicates",
+      "risk": "Two deliveries of the same event arrive at the same time: only one refund row is written",
+      "keywords": [["concurren", "parallel", "simultaneous", "at the same time", "race", "동시"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Chargebacks and refund e-mails to customers are in neither the ticket nor the code",
+      "patterns": ["chargeback", "refund email", "refund e-mail"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["payments", "python", "korean", "external-failure", "missing"],
+  "notes": "Korean PRD. AC3 (5s timeout, 3 retries, FAILED status) is absent: get_refund has no timeout and no retry, and a failure surfaces as an exception."
+}
