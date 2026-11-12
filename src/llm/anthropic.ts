@@ -19,7 +19,7 @@ import { estimateCostUsd, resolvePrice } from './pricing';
 import { buildReduceTail } from './prompts/reduce';
 import { languageInstruction, SYSTEM_PROMPT } from './prompts/system';
 import { buildGenerateTail, buildMetadataSection, buildPrdSection } from './prompts/user';
-import { addUsage, billedError, ZERO_USAGE } from './usage';
+import { addUsage, billedError, withBilledUsage, ZERO_USAGE } from './usage';
 
 export interface AnthropicProviderOptions {
   apiKey: string;
@@ -233,7 +233,9 @@ export function createAnthropicProvider(
       : null;
     let usage: LlmUsage = ZERO_USAGE;
     for (let attempt = 1; attempt <= SCHEMA_ATTEMPTS; attempt++) {
-      const message = await send(body, signal, prefixKey);
+      const message = await send(body, signal, prefixKey).catch((err: unknown) => {
+        throw withBilledUsage(err, usage); // an earlier attempt of this call may already be billed
+      });
       usage = addUsage(usage, toUsage(message.usage));
       // LLM-04 — check why the model stopped before reading its content.
       if (message.stop_reason === 'refusal') {
