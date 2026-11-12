@@ -39,6 +39,7 @@ describe('resolveConfig', () => {
       maxCostUsd: 2,
       maxScenarios: 20,
       prComment: true,
+      commentAuthor: null,
       slack: { mode: 'off' },
       jira: null,
       notionToken: null,

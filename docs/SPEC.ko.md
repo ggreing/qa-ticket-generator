@@ -151,32 +151,33 @@ jobs:
 
 ### 4.2 Action Inputs
 
-| Input                                             | 필수 | 기본값                            | 설명                                                                                       |
-| ------------------------------------------------- | ---- | --------------------------------- | ------------------------------------------------------------------------------------------ |
-| `anthropic-api-key`                               | ✅   | —                                 | Anthropic API 키                                                                           |
-| `github-token`                                    |      | `${{ github.token }}`             | PR·파일 조회, 코멘트 작성                                                                  |
-| `model`                                           |      | `claude-opus-5-5`                 | LLM 모델 ID                                                                                |
-| `effort`                                          |      | `high`                            | `low`·`medium`·`high`·`xhigh`·`max` (추론 깊이와 비용)                                     |
-| `language`                                        |      | `en`                              | `en`·`ko`·`ja`·`zh-CN`. 별칭 `kr`·`jp`·`cn`·`zh` 허용(대소문자 무시). 그 외 값은 설정 오류 |
-| `trigger-label`                                   |      | `needs-ai-qa`                     | 실행 라벨                                                                                  |
-| `rerun-on-push`                                   |      | `true`                            | 라벨이 유지되는 동안 push 시 재실행                                                        |
-| `require-prd`                                     |      | `false`                           | PRD 링크가 없으면 실패                                                                     |
-| `token-budget`                                    |      | `150000`                          | **LLM 호출 1회**당 입력 토큰 예산(추정). 넘으면 Map-Reduce로 분할                          |
-| `max-cost-usd`                                    |      | `2.00`                            | **실행 1번**의 추정 비용 상한(USD). 호출 전에 추정해 넘으면 점수가 낮은 청크부터 제외      |
-| `max-scenarios`                                   |      | `20`                              | 최대 시나리오 수                                                                           |
-| `pr-comment`                                      |      | `true`                            | PR 코멘트 발행 여부                                                                        |
-| `slack-bot-token`                                 |      | —                                 | Slack Bot Token(`xoxb-`). 있으면 Bot 모드                                                  |
-| `slack-channel`                                   |      | —                                 | Bot 모드 채널(ID 또는 `#name`)                                                             |
-| `slack-webhook-url`                               |      | —                                 | Bot Token이 없을 때 쓰는 Webhook 모드                                                      |
-| `jira-base-url` / `jira-email` / `jira-api-token` |      | —                                 | Jira Cloud 연동(3개 모두 있어야 활성화)                                                    |
-| `jira-project-keys`                               |      | —                                 | 허용 프로젝트 키 목록(`PROJ,WEB`). 오탐 방지용(예: `UTF-8`)                                |
-| `notion-token`                                    |      | —                                 | Notion Integration 토큰                                                                    |
-| `config-path`                                     |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일 경로                                                                        |
-| `fail-on`                                         |      | `none`                            | `none`·`misaligned`·`partial`. 정합성이 기준에 못 미치면 체크 실패                         |
-| `fail-on-error`                                   |      | `false`                           | 내부 오류 시 체크 실패 여부(기본은 warning만 남겨 머지를 막지 않는다)                      |
-| `allow-fork-prs`                                  |      | `false`                           | fork PR 실행 허용(옵트인 워크플로 전용)                                                    |
-| `server-fallback`                                 |      | `true`                            | Anthropic 서버 측 refusal fallback 사용 여부 (LLM-05)                                      |
-| `dry-run`                                         |      | `false`                           | 발행하지 않고 Job Summary에만 출력                                                         |
+| Input                                             | 필수 | 기본값                            | 설명                                                                                                                      |
+| ------------------------------------------------- | ---- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `anthropic-api-key`                               | ✅   | —                                 | Anthropic API 키                                                                                                          |
+| `github-token`                                    |      | `${{ github.token }}`             | PR·파일 조회, 코멘트 작성                                                                                                 |
+| `model`                                           |      | `claude-opus-5-5`                 | LLM 모델 ID                                                                                                               |
+| `effort`                                          |      | `high`                            | `low`·`medium`·`high`·`xhigh`·`max` (추론 깊이와 비용)                                                                    |
+| `language`                                        |      | `en`                              | `en`·`ko`·`ja`·`zh-CN`. 별칭 `kr`·`jp`·`cn`·`zh` 허용(대소문자 무시). 그 외 값은 설정 오류                                |
+| `trigger-label`                                   |      | `needs-ai-qa`                     | 실행 라벨                                                                                                                 |
+| `rerun-on-push`                                   |      | `true`                            | 라벨이 유지되는 동안 push 시 재실행                                                                                       |
+| `require-prd`                                     |      | `false`                           | PRD 링크가 없으면 실패                                                                                                    |
+| `token-budget`                                    |      | `150000`                          | **LLM 호출 1회**당 입력 토큰 예산(추정). 넘으면 Map-Reduce로 분할                                                         |
+| `max-cost-usd`                                    |      | `2.00`                            | **실행 1번**의 추정 비용 상한(USD). 호출 전에 추정해 넘으면 점수가 낮은 청크부터 제외                                     |
+| `max-scenarios`                                   |      | `20`                              | 최대 시나리오 수                                                                                                          |
+| `pr-comment`                                      |      | `true`                            | PR 코멘트 발행 여부                                                                                                       |
+| `comment-author`                                  |      | —                                 | 리포트 코멘트 작성자 login. 커스텀 GitHub App 토큰일 때만 지정(예: `my-app[bot]`). GITHUB_TOKEN과 PAT는 자동 감지(DLV-01) |
+| `slack-bot-token`                                 |      | —                                 | Slack Bot Token(`xoxb-`). 있으면 Bot 모드                                                                                 |
+| `slack-channel`                                   |      | —                                 | Bot 모드 채널(ID 또는 `#name`)                                                                                            |
+| `slack-webhook-url`                               |      | —                                 | Bot Token이 없을 때 쓰는 Webhook 모드                                                                                     |
+| `jira-base-url` / `jira-email` / `jira-api-token` |      | —                                 | Jira Cloud 연동(3개 모두 있어야 활성화)                                                                                   |
+| `jira-project-keys`                               |      | —                                 | 허용 프로젝트 키 목록(`PROJ,WEB`). 오탐 방지용(예: `UTF-8`)                                                               |
+| `notion-token`                                    |      | —                                 | Notion Integration 토큰                                                                                                   |
+| `config-path`                                     |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일 경로                                                                                                       |
+| `fail-on`                                         |      | `none`                            | `none`·`misaligned`·`partial`. 정합성이 기준에 못 미치면 체크 실패                                                        |
+| `fail-on-error`                                   |      | `false`                           | 내부 오류 시 체크 실패 여부(기본은 warning만 남겨 머지를 막지 않는다)                                                     |
+| `allow-fork-prs`                                  |      | `false`                           | fork PR 실행 허용(옵트인 워크플로 전용)                                                                                   |
+| `server-fallback`                                 |      | `true`                            | Anthropic 서버 측 refusal fallback 사용 여부 (LLM-05)                                                                     |
+| `dry-run`                                         |      | `false`                           | 발행하지 않고 Job Summary에만 출력                                                                                        |
 
 **Outputs**: `report-path`(report.json 경로), `scenario-count`, `alignment-status`(`aligned`·`partial`·`misaligned`·`no_prd`), `cost-usd`, `skipped-reason`.
 

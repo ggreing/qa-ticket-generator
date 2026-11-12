@@ -58,6 +58,8 @@ export interface QtgConfig {
   maxCostUsd: number;
   maxScenarios: number;
   prComment: boolean;
+  /** DLV-01 — trusted author of the marker comment; empty = auto-detect from the token. */
+  commentAuthor: string | null;
   slack: { mode: 'bot'; token: string; channel: string } | { mode: 'webhook'; url: string } | { mode: 'off' };
   jira: { baseUrl: string; email: string; apiToken: string; acceptanceCriteriaField?: string } | null;
   jiraProjectKeys: string[];
@@ -178,6 +180,7 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
     maxCostUsd: num(input('max-cost-usd'), 'max-cost-usd', DEFAULTS.maxCostUsd, 0.01, 100),
     maxScenarios: num(input('max-scenarios'), 'max-scenarios', DEFAULTS.maxScenarios, 1, 50),
     prComment: bool(input('pr-comment'), 'pr-comment', true),
+    commentAuthor: input('comment-author').trim() || null,
     slack,
     jira,
     jiraProjectKeys: (inputKeys.length ? inputKeys : (repo.prd.jiraProjectKeys ?? [])).map((k) =>

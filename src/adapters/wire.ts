@@ -109,7 +109,10 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
     {
       logger,
       github: reader,
-      commentStore: createPrCommentStore(req.octokit),
+      commentStore: createPrCommentStore(req.octokit, {
+        logger,
+        ...(cfg.commentAuthor ? { trustedAuthor: cfg.commentAuthor } : {}),
+      }),
       prdProviders: [
         createGitHubIssueProvider(req.octokit),
         createJiraProvider(cfg.jira),
