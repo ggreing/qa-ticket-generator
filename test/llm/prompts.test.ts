@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULTS } from '../../src/core/config';
 import type { Language } from '../../src/core/contracts';
 import { buildReduceTail } from '../../src/llm/prompts/reduce';
 import { languageInstruction, PROMPT_VERSION, SYSTEM_PROMPT } from '../../src/llm/prompts/system';
@@ -8,9 +9,11 @@ import {
   buildGenerateTail,
   buildMetadataSection,
   buildPrdSection,
+  buildScenarioLimit,
   buildSkippedSection,
   buildTaskInstruction,
   guardData,
+  MAX_P0_SCENARIOS,
 } from '../../src/llm/prompts/user';
 import { fakeReport } from '../helpers/fakes';
 import { chunk, prdDoc, promptContext } from './support';
@@ -44,8 +47,9 @@ describe('system prompt (SPEC §8)', () => {
   });
 
   it('LLM-06 keeps the system prompt free of per-call values', () => {
-    // The configurable limit lives in the task instruction; the fixed "at most 8" guidance is not per call.
-    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
+    // The scenario and P0 limits come from max-scenarios, so they live in the task instruction.
+    expect(SYSTEM_PROMPT).not.toMatch(/\b\d+ (?:P0 )?scenarios/);
+    expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
     expect(PROMPT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
   });
 
@@ -184,7 +188,7 @@ describe('user message (SPEC §8)', () => {
     const map = buildGenerateTail({ ...base, phase: 'map' });
     expect(map).toMatch(/one part/);
     expect(map).toMatch(/mark the finding "unclear"/);
-    expect(map).toContain('Return at most 7 scenarios.');
+    expect(map).toContain('Return at most 7 scenarios, at most 5 of them P0.');
     const single = buildGenerateTail({ ...base, phase: 'single' });
     expect(single).toContain('Review the pull request above.');
     expect(single).not.toMatch(/one part/);
@@ -216,7 +220,9 @@ describe('reduce prompt (SPEC §8, LLM-07)', () => {
     expect(tail).toMatch(/2 reviewers/);
     expect(tail).toMatch(/merge duplicates/i);
     expect(tail).toMatch(/re-rank priorities/);
-    expect(tail).toContain('Return at most 12 scenarios');
+    expect(tail).toContain(
+      'Return at most 12 scenarios, at most 5 of them P0. Keep the ones that matter most',
+    );
   });
 });
 
@@ -236,14 +242,33 @@ describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
 });
 
 describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
-  it('RUBRIC Concision: caps the list at 8 scenarios and 5 P0, and says why', () => {
-    expect(SYSTEM_PROMPT).toContain('write at most 8 scenarios, at most 5 of them P0');
-    expect(SYSTEM_PROMPT).toContain('fewer when the task sets a lower limit or the change is small');
+  it('RUBRIC Concision: the system prompt says why the list is short and points at the task for the limits', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'stay within the limits the task gives for scenarios and for P0 scenarios, and write fewer when the change is small.',
+    );
     expect(SYSTEM_PROMPT).toContain('the scenario that matters gets lost');
-    expect(SYSTEM_PROMPT).toContain('keep the 5 with the worst consequences as P0 and rank the others P1');
-    // The user's max-scenarios still reaches the model as the task limit; the lower of the two applies.
-    expect(buildTaskInstruction('single', 5)).toContain('Return at most 5 scenarios.');
-    expect(buildTaskInstruction('single', 20)).toContain('Return at most 20 scenarios.');
+    expect(SYSTEM_PROMPT).toContain(
+      'When more scenarios seem to be P0 than the task allows, keep the ones with the worst consequences as P0 and rank the others P1.',
+    );
+  });
+
+  it('RUBRIC Concision: the limits follow max-scenarios, with at most 5 P0 (default 8 → "8 scenarios, 5 P0")', () => {
+    expect(MAX_P0_SCENARIOS).toBe(5);
+    // The default configuration gives the same numbers round 1 was run with.
+    expect(DEFAULTS.maxScenarios).toBe(8);
+    expect(buildScenarioLimit(DEFAULTS.maxScenarios)).toBe(
+      'Return at most 8 scenarios, at most 5 of them P0.',
+    );
+    expect(buildScenarioLimit(20)).toBe('Return at most 20 scenarios, at most 5 of them P0.');
+    expect(buildScenarioLimit(6)).toBe('Return at most 6 scenarios, at most 5 of them P0.');
+    // At or below 5 the total already bounds P0, so the second number would only be noise.
+    expect(buildScenarioLimit(5)).toBe('Return at most 5 scenarios.');
+    expect(buildScenarioLimit(1)).toBe('Return at most 1 scenario.');
+    for (const phase of ['single', 'map'] as const) {
+      expect(buildTaskInstruction(phase, 8)).toMatch(
+        / Return at most 8 scenarios, at most 5 of them P0\.\n<\/task>$/,
+      );
+    }
   });
 
   it('RUBRIC Concision: one scenario per risk, nothing already guaranteed, and omitted risks kept in one line', () => {
@@ -270,7 +295,16 @@ describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
   });
 
   it('keeps per-call values out of the cached system prompt', () => {
-    // The cap is fixed text. The configurable limit stays in the task instruction at the end of the user message.
-    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
+    // A different max-scenarios must not change the cached prefix: the numbers are only in the tail.
+    const tailOf = (maxScenarios: number): string =>
+      buildGenerateTail({
+        phase: 'single',
+        chunk: chunk('c1', ['src/a.ts']),
+        skipped: [],
+        context: promptContext({ maxScenarios }),
+      });
+    expect(tailOf(8)).toContain('at most 8 scenarios, at most 5 of them P0.');
+    expect(tailOf(3)).toContain('Return at most 3 scenarios.');
+    expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
   });
 });

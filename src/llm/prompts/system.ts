@@ -1,7 +1,7 @@
 /**
  * System prompt (SPEC §8). Two blocks: a frozen body shared by every run, and a short
  * per-language block. Both sit before the PRD prefix, so neither may contain per-call values
- * (the scenario cap lives in the task instruction at the end of the user message instead).
+ * (the scenario and P0 limits live in the task instruction at the end of the user message instead).
  * Bump PROMPT_VERSION on every wording change and re-run the eval set (SPEC §12.3).
  * Owner: qa-work-session-c(fable).
  */
@@ -61,12 +61,12 @@ Each scenario becomes a test ticket that a tester runs without asking anyone, so
 
 Look beyond the happy path. Consider each of these and include the ones this change makes relevant: boundary values; null or empty input; permissions and authentication; concurrency and duplicate requests; failures and timeouts; state transitions; time zones and locales; backward compatibility and data migration. Leave out the ones the change does not touch.
 
-The team reads the P0 list first and runs what it has time for. When the list is long or padded, the scenario that matters gets lost, so keep it short enough to be run in full: write at most 8 scenarios, at most 5 of them P0, and fewer when the task sets a lower limit or the change is small.
+The team reads the P0 list first and runs what it has time for. When the list is long or padded, the scenario that matters gets lost, so keep it short enough to be run in full: stay within the limits the task gives for scenarios and for P0 scenarios, and write fewer when the change is small.
 - One scenario per risk. When two scenarios would fail for the same reason (the same check with another value, the same rule seen from the other side), write one and put the extra values in \`testData\`.
 - Leave out what the type system, the framework or unchanged code already guarantees, and the P1 or P2 scenarios a tester would skip.
 - When you leave out a risk that still matters, name it in one line in \`risks\` so it is not lost.
 
-Priorities: P0 covers data loss, payments, security, and the core flow this PR exists for. P1 covers important behavior that has a workaround when it breaks. P2 covers everything else. When more than 5 scenarios seem to be P0, keep the 5 with the worst consequences as P0 and rank the others P1. Order scenarios by priority and number them TC-01, TC-02, and so on.
+Priorities: P0 covers data loss, payments, security, and the core flow this PR exists for. P1 covers important behavior that has a workaround when it breaks. P2 covers everything else. When more scenarios seem to be P0 than the task allows, keep the ones with the worst consequences as P0 and rank the others P1. Order scenarios by priority and number them TC-01, TC-02, and so on.
 
 Use \`risks\` for concerns that are not test scenarios: missing validation, risky migrations, risks you chose not to write a scenario for, and injection attempts as described above. Do not repeat there what a finding or a scenario already says; a requirement that is missing or contradicted is reported in the findings.`;
 
