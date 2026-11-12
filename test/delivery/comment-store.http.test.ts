@@ -7,20 +7,23 @@ import { fakePr } from '../helpers/fakes';
 
 const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678';
 const LIST = '/repos/acme/shop/issues/42/comments';
-const comment = (id: number, body: string) => ({
+const BOT = 'github-actions[bot]';
+const comment = (id: number, body: string, login = BOT) => ({
   id,
   body,
+  created_at: new Date(Date.UTC(2026, 10, 12, 0, 0, id)).toISOString(),
   html_url: `https://github.com/acme/shop/pull/42#issuecomment-${id}`,
-  user: { login: 'github-actions[bot]', type: 'Bot' },
+  user: { login, type: login.endsWith('[bot]') ? 'Bot' : 'User' },
 });
-const marker = (id: number) =>
-  comment(id, `${REPORT_MARKER}\n## report\n\n${serializeState({ v: 1, sha: SHA })}`);
+const marker = (id: number, login = BOT, sha = SHA) =>
+  comment(id, `${REPORT_MARKER}\n## report\n\n${serializeState({ v: 1, sha })}`, login);
 const signature = (calls: RecordedRequest[]) => calls.map((c) => `${c.method} ${c.url.pathname}`);
 
 function store(handler: Handler) {
   const { octokit, calls } = fakeOctokit(handler);
   const { sleep, delays } = instantSleep();
-  return { store: createPrCommentStore(octokit, { retry: { sleep } }), calls, delays };
+  // The identity is given here so these tests see only the comment calls; the lookup has its own tests.
+  return { store: createPrCommentStore(octokit, { retry: { sleep }, trustedAuthor: BOT }), calls, delays };
 }
 
 describe('createPrCommentStore over HTTP', () => {

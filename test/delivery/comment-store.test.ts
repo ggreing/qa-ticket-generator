@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DeliveryState } from '../../src/core/contracts';
 import type { Octokit } from '../../src/core/octokit';
-import { composeComment, createPrCommentStore } from '../../src/delivery/comment-store';
+import { ACTIONS_BOT_LOGIN, composeComment, createPrCommentStore } from '../../src/delivery/comment-store';
 import { MAX_COMMENT_CHARS } from '../../src/delivery/render/markdown';
 import { parseState, REPORT_MARKER, serializeState } from '../../src/delivery/state';
 import { fakePr } from '../helpers/fakes';
@@ -20,11 +20,23 @@ const FULL_STATE: DeliveryState = {
 interface FakeComment {
   id: number;
   body?: string | null;
+  /** Defaults to the Actions bot, which is what the store trusts when GET /user is denied. */
+  login?: string;
 }
 
 function fakeOctokit(comments: FakeComment[] = [], updateError?: { status: number }) {
   const listComments = vi.fn();
-  const paginate = vi.fn(async () => comments);
+  const paginate = vi.fn(async () =>
+    comments.map(({ login, ...c }) => ({
+      ...c,
+      created_at: `2026-11-12T00:00:${String(c.id).padStart(2, '0')}Z`,
+      user: { login: login ?? ACTIONS_BOT_LOGIN },
+    })),
+  );
+  // GITHUB_TOKEN is an installation token: GET /user answers 403.
+  const getAuthenticated = vi.fn(async (): Promise<{ data: { login: string } }> => {
+    throw { status: 403, message: 'Resource not accessible by integration' };
+  });
   const updateComment = vi.fn(async (args: { comment_id: number; body: string }) => {
     if (updateError) throw updateError;
     return {
@@ -39,9 +51,9 @@ function fakeOctokit(comments: FakeComment[] = [], updateError?: { status: numbe
   }));
   const octokit = {
     paginate,
-    rest: { issues: { listComments, updateComment, createComment } },
+    rest: { issues: { listComments, updateComment, createComment }, users: { getAuthenticated } },
   } as unknown as Octokit;
-  return { octokit, paginate, listComments, updateComment, createComment };
+  return { octokit, paginate, listComments, updateComment, createComment, getAuthenticated };
 }
 
 describe('delivery state (DLV-02)', () => {
@@ -94,13 +106,13 @@ describe('delivery state (DLV-02)', () => {
 });
 
 describe('createPrCommentStore', () => {
-  it('DLV-01 finds the marker comment across paginated results, whoever wrote it, and reads its state', async () => {
+  it('DLV-01 finds its own marker comment among the PR comments and reads its state', async () => {
     const comments: FakeComment[] = [
       { id: 1, body: 'LGTM' },
       { id: 2, body: null },
       { id: 3, body: `I quoted ${REPORT_MARKER} in the middle` },
       { id: 4, body: `\n${REPORT_MARKER}\n## report\n\n${serializeState(FULL_STATE)}` },
-      { id: 5, body: `${REPORT_MARKER}\nlater duplicate` },
+      { id: 5, body: `${REPORT_MARKER}\nforged by someone else`, login: 'mallory' },
     ];
     const { octokit, paginate, listComments } = fakeOctokit(comments);
     const loaded = await createPrCommentStore(octokit).load(fakePr());
