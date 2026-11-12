@@ -55,7 +55,7 @@ describe('system prompt (SPEC §8)', () => {
 
   it('SPEC §8 separates missing from contradicts: absent is missing, present but different is contradicts', () => {
     expect(SYSTEM_PROMPT).toContain(
-      '- missing: the check, limit or behavior the requirement asks for is not in the change at all.',
+      '- missing: the check, limit or behavior the requirement asks for is not in the change.',
     );
     expect(SYSTEM_PROMPT).toMatch(
       /- contradicts: the change implements the same thing with a different value or rule .* a 14-day return window where the requirement says 30 days./,
@@ -72,7 +72,7 @@ describe('system prompt (SPEC §8)', () => {
     );
     expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
     // Wording changes ship under a new version so result files can be told apart.
-    expect(PROMPT_VERSION).toBe('2026-11-12.4');
+    expect(PROMPT_VERSION).toBe('2026-11-12.5');
   });
 
   it.each([
@@ -235,7 +235,7 @@ describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
   });
 
   it('RUBRIC Traceability: asks for the PRD label first, and numbers tickets TC-01, TC-02', () => {
-    expect(SYSTEM_PROMPT).toContain('starting with the label the PRD uses (for example "AC2")');
+    expect(SYSTEM_PROMPT).toContain('each by the label the PRD uses (for example "AC2")');
     expect(SYSTEM_PROMPT).toContain('number them TC-01, TC-02, and so on.');
     expect(SYSTEM_PROMPT).not.toContain('S-01');
   });
@@ -244,7 +244,7 @@ describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
 describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
   it('RUBRIC Concision: the system prompt says why the list is short and points at the task for the limits', () => {
     expect(SYSTEM_PROMPT).toContain(
-      'stay within the limits the task gives for scenarios and for P0 scenarios, and write fewer when the change is small.',
+      'stay within the limits the task gives for scenarios and for P0 scenarios. Get there by merging scenarios, not by dropping what matters:',
     );
     expect(SYSTEM_PROMPT).toContain('the scenario that matters gets lost');
     expect(SYSTEM_PROMPT).toContain(
@@ -306,5 +306,71 @@ describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
     expect(tailOf(8)).toContain('at most 8 scenarios, at most 5 of them P0.');
     expect(tailOf(3)).toContain('Return at most 3 scenarios.');
     expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
+  });
+});
+
+describe('coverage without padding (M3.5 round 2, prompt 2026-11-12.5)', () => {
+  it('RUBRIC Coverage: every gap gets a scenario and no kind of risk vanishes when the list is shortened', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'Every finding that is missing or contradicts gets at least one scenario that fails for as long as the gap is there.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'Every kind of risk the change touches is covered at least once: state transitions, failure paths, boundaries, concurrency.',
+    );
+    expect(SYSTEM_PROMPT).toContain('a kind the change touches must not vanish from the list');
+    // Round 1: "write fewer when the change is small" produced a two-ticket report that skipped three risks.
+    expect(SYSTEM_PROMPT).not.toContain('write fewer when the change is small');
+    expect(SYSTEM_PROMPT).toContain(
+      'The limits are a ceiling, not a target. Write fewer scenarios only when fewer already cover every gap and every kind of risk above.',
+    );
+    // The concision rules of round 1 stay.
+    expect(SYSTEM_PROMPT).toContain('One scenario per risk.');
+    expect(SYSTEM_PROMPT).toContain('name it in one line in `risks` so it is not lost');
+  });
+
+  it('SPEC §8 one finding per requirement, also for requirements labelled inline or made of several parts', () => {
+    expect(SYSTEM_PROMPT).toContain('Write exactly one finding per requirement in the PRD documents.');
+    expect(SYSTEM_PROMPT).toContain('as a list ("AC2: ...") or inline in running text ("... (AC2)")');
+    expect(SYSTEM_PROMPT).toContain('each label is one requirement however many sentences it has');
+    expect(SYSTEM_PROMPT).toContain(
+      'Judge a requirement that has several parts as a whole, in a single finding:',
+    );
+    expect(SYSTEM_PROMPT).toContain('- covered: the change implements it, every part of it.');
+  });
+
+  it('SPEC §8 a partly implemented requirement is missing when the rest is absent, contradicts when it does something ruled out', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'When what the change does is right as far as it goes and the rest is simply not there, the requirement is missing, and the evidence names the part that is absent.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'When what the change does is something the requirement rules out, or uses a different value, it contradicts.',
+    );
+    // The rule that was already there is unchanged.
+    expect(SYSTEM_PROMPT).toContain('absent is missing, present but different is contradicts');
+  });
+
+  it('RUBRIC Traceability: a requirement is cited only when the scenario checks it, and the rationale names the code', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'Cite a requirement only when the scenario checks what that requirement says.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'cite the file and leave the requirements empty rather than naming the nearest one',
+    );
+    expect(SYSTEM_PROMPT).not.toContain('preferably both');
+    expect(SYSTEM_PROMPT).toContain(
+      '`relatedFiles`: the changed files that hold the code this scenario exercises.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'naming the function, method or constant it exercises (for example `InvoiceMailer.send`)',
+    );
+  });
+
+  it('the examples in the prompt do not come from an eval case', async () => {
+    // An example lifted from a case would hand the model that case's answer (it happened once, in .2).
+    const { CASES } = await import('../../evals/authoring/index');
+    const material = JSON.stringify(CASES).toLowerCase();
+    for (const word of ['profanity', 'comment form', 'invoicemailer', 'return window', '14-day']) {
+      expect(material, word).not.toContain(word);
+    }
   });
 });
