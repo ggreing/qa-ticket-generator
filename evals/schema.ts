@@ -3,6 +3,7 @@
  * `pr.json`, `files.json`, `prd/*.json`, `expected.json`. All data is synthetic.
  * Owner: qa-work-session-c(fable).
  */
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -125,6 +126,15 @@ export interface EvalCase {
 }
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
+
+/**
+ * Fingerprint of everything the model is shown for a case (PR, files, PRD), not of the expected
+ * answers. A saved run whose hash differs from the current case was produced for other inputs.
+ */
+export function inputHashOf(evalCase: EvalCase): string {
+  const visible = JSON.stringify([evalCase.pr, evalCase.files, evalCase.prdDocuments]);
+  return createHash('sha256').update(visible).digest('hex').slice(0, 16);
+}
 
 /** Loads and validates one case directory. Throws a ZodError naming the bad field. */
 export function loadCase(casesRoot: string, id: string): EvalCase {

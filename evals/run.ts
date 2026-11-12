@@ -36,7 +36,8 @@ import {
   withJudgeVerdicts,
 } from './grade';
 import { JUDGE_MODEL, type JudgeClientLike, judgeScenarios } from './judge';
-import { type EvalCase, loadCases } from './schema';
+import { type RegradedVariant, regradeResults } from './regrade';
+import { type EvalCase, inputHashOf, loadCases } from './schema';
 
 /** The Action's own limits (src/core/limits.ts), so the eval runs and estimates exactly like production. */
 export const PRODUCTION = {
@@ -62,6 +63,10 @@ export interface RunOptions {
   judge: boolean;
   yes: boolean;
   help: boolean;
+  /** Path of a saved results file to re-grade offline, or null for a normal run. */
+  regrade: string | null;
+  /** With `regrade`: cases whose inputs were edited after the saved run (for files without hashes). */
+  edited: string[];
 }
 
 export interface ProviderRequest {
@@ -81,11 +86,14 @@ export interface RunDeps {
   createProvider: (request: ProviderRequest) => LlmProvider;
   createJudgeClient: (apiKey: string) => JudgeClientLike;
   writeFile: (path: string, text: string) => void;
+  readFile: (path: string) => string;
 }
 
 export interface RunRecord {
   caseId: string;
   rep: number;
+  /** Hash of what the model was shown (PR, files, PRD). Lets a re-grade detect edited cases. */
+  inputHash?: string;
   grade: CaseGrade;
   report: QaReport;
   raw: QaReport;
@@ -133,6 +141,7 @@ export interface RunOutcome {
   estimateUsd: number;
   resultsPath?: string;
   variants?: VariantResult[];
+  regraded?: RegradedVariant[];
 }
 
 export const USAGE = `Usage: node evals/cli.mjs run [options]
@@ -144,6 +153,8 @@ export const USAGE = `Usage: node evals/cli.mjs run [options]
   --concurrency <n>     cases in flight at once (default: 3)
   --judge               also grade scenario coverage with ${JUDGE_MODEL}
   --yes                 actually call the API; without it only the plan and estimated cost are printed
+  --regrade <file>      re-grade a saved results file with the current cases and rules (no API call)
+  --edited <id,id>      with --regrade: cases whose PR, files or PRD changed since that run (left out)
   --help                show this text
 
 Needs ANTHROPIC_API_KEY when run with --yes.`;
@@ -159,6 +170,8 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     judge: false,
     yes: false,
     help: false,
+    regrade: null,
+    edited: [],
   };
   const list = (value: string): string[] =>
     value
@@ -182,6 +195,8 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     else if (flag === '--help' || flag === '-h') options.help = true;
     else if (flag === '--model') options.model = value();
     else if (flag === '--cases') options.caseIds = list(value());
+    else if (flag === '--regrade') options.regrade = value();
+    else if (flag === '--edited') options.edited = list(value());
     else if (flag === '--reps') options.reps = count(flag, value());
     else if (flag === '--concurrency') options.concurrency = count(flag, value());
     else if (flag === '--effort') {
@@ -287,6 +302,8 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
     print((err as Error).message);
     return { exitCode: 2, executed: false, estimateUsd: 0 };
   }
+
+  if (options.regrade !== null) return regradeResults(options.regrade, cases, deps, options.edited);
 
   // ── preprocess (no network) ─────────────────────────────────────────────────
   let engine: PreprocessEngine;
@@ -428,6 +445,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
         runs.push({
           caseId: evalCase.id,
           rep,
+          inputHash: inputHashOf(evalCase),
           grade,
           report: result.report,
           raw: rec.lastReport() ?? result.report,

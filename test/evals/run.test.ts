@@ -63,6 +63,11 @@ function harness(overrides: Partial<RunDeps> = {}, respond?: (c: EvalCase) => Qa
     writeFile: (path, text) => {
       files[path.replace(/\\/g, '/')] = text;
     },
+    readFile: (path) => {
+      const text = files[path.replace(/\\/g, '/')];
+      if (text === undefined) throw new Error(`ENOENT: ${path}`);
+      return text;
+    },
     ...overrides,
   };
   return { deps, lines, files, createProvider, createJudgeClient, out: () => lines.join('\n') };
