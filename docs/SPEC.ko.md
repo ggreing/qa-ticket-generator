@@ -315,7 +315,7 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 [--dry-run] [--format md|
 | PRD-07 | MUST: AC 추출 규칙: "Acceptance Criteria", "인수 조건", "AC" 헤딩 아래의 리스트, 또는 체크박스 리스트. 없으면 빈 배열로 두고 LLM이 본문에서 해석한다                               |
 | PRD-08 | MUST: 문서별 실패(401/404/타임아웃 15초)는 **경고로 남기고 계속 진행**한다. 전부 실패하고 `require-prd`가 true면 실패 처리한다                                                     |
 | PRD-09 | MUST: 인증 정보가 없는 Provider의 참조는 "미설정 소스" 경고와 함께 건너뛴다                                                                                                        |
-| PRD-10 | MUST: 다른 private 레포의 Issue는 기본 `GITHUB_TOKEN`으로 읽을 수 없다. 이 경우 403/404를 "권한 부족 — PAT 또는 GitHub App 토큰 필요" 경고로 바꾸고, README에 설정 방법을 안내한다 |
+| PRD-10 | MUST: 다른 private 레포의 Issue는 기본 `GITHUB_TOKEN`으로 읽을 수 없다. 이 경우 403/404를 "권한 부족 — PAT 또는 GitHub App 토큰 필요" 경고로 바꾸고, README에 설정 방법을 안내한다. Jira 401/403과 Notion 404(통합에 페이지 미공유)도 같은 `prd_permission` 경고로 분류한다 |
 
 ### 5.4 전처리 (`src/preprocess`) — Rust 전환점
 
