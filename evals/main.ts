@@ -7,6 +7,7 @@ import { createJudgeClient } from './judge';
 import { createRubricClient } from './rubric';
 import { runEvals } from './run';
 import { writeCases } from './tools/build-cases';
+import { main as snapshotReal } from './tools/snapshot-real';
 
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -15,8 +16,17 @@ async function main(argv: string[]): Promise<number> {
     console.log(`Wrote ${written.length} case(s): ${written.join(', ')}`);
     return 0;
   }
+  if (command === 'snapshot-real') {
+    // Fetches the real-PR snapshots listed in evals/real-sources.json (GET only, needs GITHUB_TOKEN).
+    return snapshotReal(rest, {
+      env: process.env,
+      print: (line) => console.log(line),
+      root: resolve('evals/real'),
+      sourcesPath: resolve('evals/real-sources.json'),
+    });
+  }
   if (command !== 'run') {
-    console.log('Usage: node evals/cli.mjs run [options]   |   node evals/cli.mjs build-cases');
+    console.log('Usage: node evals/cli.mjs run [options]   |   build-cases   |   snapshot-real [--ids a,b]');
     return command === undefined || command === '--help' ? 0 : 2;
   }
   const outcome = await runEvals(rest, {
