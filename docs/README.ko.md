@@ -5,11 +5,6 @@
 <!-- Badges (CI, release, license) are added when the repository is published. -->
 
 > 🚧 **개발 중입니다(pre-v0.1). 아직 사용할 수 없습니다.** input과 출력 형식은 바뀔 수 있습니다.
->
-> 이 문서는 v0.1에서 목표로 하는 동작을 설명합니다. 지금까지 구현된 것: 트리거 게이트, PRD 수집
-> (GitHub Issues, Jira Cloud, Notion), 비용 가드가 적용된 리포트 생성, PR 코멘트·Slack·Job Summary 발행, CLI.
-> 아직 진행 중인 것: diff 전처리(노이즈 필터, 함수 단위 컨텍스트, 비밀값 마스킹, 토큰 패킹). 이 기능에 의존하는
-> 항목에는 _(진행 중)_ 표시를 붙였습니다.
 
 PR의 코드 변경을 연결된 요구사항 문서(GitHub Issues, Jira Cloud, Notion)와 Claude로 교차 검증하고,
 BDD(Given / When / Then) QA 시나리오와 PRD 정합성 리포트를 PR과 Slack에 발행하는 GitHub Action입니다.
@@ -19,10 +14,11 @@ BDD(Given / When / Then) QA 시나리오와 PRD 정합성 리포트를 PR과 Sla
 ![아키텍처: GitHub 이벤트 → 트리거 게이트 → 컨텍스트·PRD 수집 → 전처리 → Claude → PR 코멘트, Slack, Job Summary](diagrams/architecture.png)
 
 1. **트리거.** PR에 `needs-ai-qa` 라벨을 붙이면 실행됩니다. 라벨이 붙어 있는 동안 새 push가 오면 다시 실행합니다
-   (설정 가능). 노이즈 파일(lock 파일, 빌드 산출물, 스냅샷 등)만 바뀐 push는 건너뜁니다 _(진행 중)_.
+   (설정 가능). 노이즈 파일(lock 파일, 빌드 산출물, 스냅샷 등)만 바뀐 push는 건너뜁니다.
 2. **수집과 준비.** diff와 연결된 PRD를 GitHub, Jira, Notion API로 읽습니다. 코드를 checkout하지 않습니다.
-   노이즈 파일을 빼고, 변경을 감싸는 함수나 클래스까지 컨텍스트를 넓히고, 비밀값을 마스킹한 뒤, 중요한 파일부터
-   토큰 예산에 맞춰 담습니다 _(진행 중)_.
+   노이즈 파일을 빼고, 변경을 감싸는 함수나 클래스까지 컨텍스트를 넓히고(tree-sitter로 TypeScript/TSX, JavaScript,
+   Python, Java, Go 지원), 비밀값을 마스킹한 뒤, 중요한 파일부터 토큰 예산에 맞춰 담습니다. 큰 PR은 여러 부분으로 나눠
+   검토한 뒤 결과를 합칩니다.
 3. **생성과 발행.** Claude가 코드와 인수 조건(AC)을 비교해 정상 경로·경계·부정 시나리오와 누락되거나 충돌하는
    요구사항을 돌려줍니다. 리포트는 실행할 때마다 갱신되는 PR 코멘트 1개로 게시되고, 설정하면 Slack에도 보내며,
    Job Summary에는 항상 기록합니다.
@@ -177,17 +173,18 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
 
 - 실행마다 추정 비용 상한 `max-cost-usd`(기본 **$2.00**)가 있습니다. Claude를 호출하기 전에 비용을 추정하고,
   상한을 넘으면 우선순위가 낮은 파일부터 제외합니다. 제외한 파일은 리포트에 표시합니다.
-- `token-budget`은 LLM 호출 1회의 입력을 제한합니다(기본 150,000 토큰). 이보다 큰 PR은 나눠서 처리합니다.
+- `token-budget`은 LLM 호출 1회의 입력을 제한합니다(기본 150,000 토큰). 이보다 큰 PR은 나눠서 처리합니다. 연결된
+  PRD는 이 예산의 최대 30%까지 사용합니다.
 - 일반적인 PR을 Claude Opus 5.5, `effort: high`로 분석하면 1회에 대략 $0.15~$0.40로 **추정**합니다.
   실측값이 아니라 설계상 추정치이며, 실행별 추정 비용은 리포트 하단에 표시됩니다.
-- 노이즈 파일만 바뀐 push는 Claude를 호출하지 않습니다 _(진행 중)_.
+- 노이즈 파일만 바뀐 push는 Claude를 호출하지 않습니다.
 
 ## 보안과 데이터 흐름
 
 - **checkout 없음.** PR 코드를 checkout하거나 실행하지 않고, 모든 데이터를 API로 읽습니다.
 - **fork PR은 기본으로 건너뜁니다.** 문서화된 `pull_request_target` 옵트인은 관리자가 라벨을 붙였을 때만 실행됩니다.
-- **비밀값을 마스킹합니다.** 모델에 보내기 전에 diff, 파일 원문, PRD에서 비밀값을 가리고, 마스킹 건수를 리포트에
-  표시합니다 _(진행 중)_. 토큰은 로그에서 가려지고, 로그에는 크기와 개수만 남습니다.
+- **비밀값을 마스킹합니다.** 모델에 보내기 전에 diff, 파일 원문, PRD, PR 제목과 본문에서 비밀값을 가리고,
+  마스킹 건수를 리포트에 표시합니다. 토큰은 로그에서 가려지고, 로그에는 크기와 개수만 남습니다.
 - **코드와 PRD는 Anthropic API로만 전송합니다.** 텔레메트리는 없습니다.
 - **설정은 base 브랜치에서 읽고**, 모델 출력은 데이터로만 다룹니다. HTML을 이스케이프하고, Slack 멘션을 무력화하고,
   링크는 PR, PRD 원본, 레포로 제한합니다.

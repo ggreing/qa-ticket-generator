@@ -5,11 +5,6 @@
 <!-- Badges (CI, release, license) are added when the repository is published. -->
 
 > 🚧 **Under active development (pre-v0.1). Not ready for use yet.** Inputs and output may still change.
->
-> This README describes the behavior planned for v0.1. Implemented so far: the trigger gate, PRD collection
-> (GitHub Issues, Jira Cloud, Notion), report generation with the cost guard, PR comment / Slack / job-summary
-> delivery and the CLI. Still in progress: diff preprocessing (noise filter, function-level context, secret
-> redaction, token packing) — features that depend on it are marked _(in progress)_.
 
 A GitHub Action that cross-checks a pull request's code changes against its linked product requirements
 (GitHub Issues, Jira Cloud, Notion) with Claude, then publishes BDD (Given / When / Then) QA scenarios and a
@@ -20,11 +15,11 @@ PRD-alignment report to the PR and Slack.
 ![Architecture: GitHub event → trigger gate → context and PRD collection → preprocessing → Claude → PR comment, Slack and job summary](docs/diagrams/architecture.png)
 
 1. **Trigger.** Adding the `needs-ai-qa` label to a PR starts a run; new pushes re-run it while the label stays
-   (configurable). Pushes that only touch noise files (lockfiles, build output, snapshots …) are skipped
-   _(in progress)_.
+   (configurable). Pushes that only touch noise files (lockfiles, build output, snapshots …) are skipped.
 2. **Collect and prepare.** The action reads the diff and the linked PRDs through the GitHub, Jira and Notion
-   APIs — it never checks out your code. It drops noise files, expands changes to the enclosing
-   function or class, redacts secrets and packs the most relevant files into the token budget _(in progress)_.
+   APIs — it never checks out your code. It drops noise files, expands changes to the enclosing function or
+   class (TypeScript/TSX, JavaScript, Python, Java and Go, via tree-sitter), redacts secrets and packs the most
+   relevant files into the token budget, splitting large PRs into parts that are reviewed and then merged.
 3. **Generate and publish.** Claude compares the code with the acceptance criteria and returns happy-path,
    edge-case and negative scenarios plus missing or contradicting requirements. The report is posted as
    one PR comment that is updated on every run, optionally sent to Slack, and always written to the job summary.
@@ -181,19 +176,20 @@ Optional settings use the same names as the action inputs, as upper-case environ
 - Every run has an estimated cost ceiling, `max-cost-usd` (default **$2.00**). The action estimates the cost
   before calling Claude and drops the lowest-priority files when the estimate is over the ceiling; the
   report lists what was dropped.
-- `token-budget` caps the input of a single LLM call (default 150,000 tokens); larger PRs are split.
+- `token-budget` caps the input of a single LLM call (default 150,000 tokens); larger PRs are split. Linked
+  PRDs use at most 30% of that budget.
 - For a typical PR with Claude Opus 5.5 at `effort: high`, a run is **estimated** at roughly $0.15–$0.40.
   This is a design estimate, not a measurement; the report footer shows the estimate for each run.
-- Pushes that only change noise files do not call Claude at all _(in progress)_.
+- Pushes that only change noise files do not call Claude at all.
 
 ## Security and data flow
 
 - **No checkout.** The action never checks out or executes pull-request code; it reads everything through APIs.
 - **Fork PRs are skipped by default.** The documented `pull_request_target` opt-in runs only when a maintainer
   adds the label.
-- **Secrets are redacted** from diffs, file contents and PRDs before anything reaches the model, and the number
-  of redactions is shown in the report _(in progress)_. Tokens are masked in logs; logs contain sizes and
-  counts only.
+- **Secrets are redacted** from diffs, file contents, PRDs and the PR title and body before anything reaches the
+  model, and the number of redactions is shown in the report. Tokens are masked in logs; logs contain sizes
+  and counts only.
 - **Code and PRD content go only to the Anthropic API.** No telemetry.
 - **Config from the base branch** and model output treated as data: HTML is escaped, Slack mentions are
   neutralized and links are restricted to the PR, the PRD sources and the repository.
