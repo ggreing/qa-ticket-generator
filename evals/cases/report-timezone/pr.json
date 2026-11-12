@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 507,
+  "title": "Daily sales report",
+  "body": "Notion spec: https://www.notion.so/acme/Daily-sales-report-3f2a9c1b7d8e4f60a1b2c3d4e5f60718\n\nBuilds the per-store daily report that the dashboard and the morning e-mail use.",
+  "author": "hana",
+  "htmlUrl": "https://github.com/acme/shop/pull/507",
+  "baseRef": "main",
+  "baseSha": "e0dceb06c69d5fb20f58bc6e05025cce91690750",
+  "headRef": "feat/daily-sales-report",
+  "headSha": "e8219190fd9c16ac51d511676ce44f261f57d056",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

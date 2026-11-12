@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 842,
+  "title": "Cursor pagination for product search",
+  "body": "Ticket: https://acme.atlassian.net/browse/SRCH-57\n\nReplaces offset paging with a keyset cursor. One extra row is fetched to know whether\nanother page exists.",
+  "author": "wei",
+  "htmlUrl": "https://github.com/acme/shop/pull/842",
+  "baseRef": "main",
+  "baseSha": "813415aa565dc53ca78b6407bdde0ef3edf0e6bc",
+  "headRef": "feat/search-cursor-pagination",
+  "headSha": "2472ed294f91585656ece10c1818984e185a7efc",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

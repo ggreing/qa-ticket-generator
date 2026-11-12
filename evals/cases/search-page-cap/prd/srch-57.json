@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "SRCH-57",
+    "url": "https://acme.atlassian.net/browse/SRCH-57",
+    "raw": "SRCH-57"
+  },
+  "title": "Stable pagination for product search",
+  "bodyMarkdown": "Offset paging skips or repeats products when the catalogue changes between requests.\n\n## Acceptance Criteria\n- AC1: When the limit parameter is absent, a page has 20 results.\n- AC2: The limit is capped at 100. A larger value is reduced to 100.\n- AC3: Results are ordered by created_at descending, then id descending, so paging is stable.\n- AC4: next_cursor is an empty string on the last page.",
+  "acceptanceCriteria": [
+    "AC1: When the limit parameter is absent, a page has 20 results.",
+    "AC2: The limit is capped at 100. A larger value is reduced to 100.",
+    "AC3: Results are ordered by created_at descending, then id descending, so paging is stable.",
+    "AC4: next_cursor is an empty string on the last page."
+  ],
+  "url": "https://acme.atlassian.net/browse/SRCH-57",
+  "meta": {}
+}

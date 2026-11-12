@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 1004,
+  "title": "Profile editing: display name, bio and e-mail",
+  "body": "Ticket: https://acme.atlassian.net/browse/ACCT-77\n\nAdds ProfileService.update() with validation for the three editable fields.",
+  "author": "lena",
+  "htmlUrl": "https://github.com/acme/shop/pull/1004",
+  "baseRef": "main",
+  "baseSha": "a26ae810c9c43a5fae3fb85ab03bfeb46da485ee",
+  "headRef": "feat/profile-edit",
+  "headSha": "b382cef5f11f44ae4229ffa960477ec30cf6db7d",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 611,
+  "title": "Split users.full_name into first and last name",
+  "body": "Ticket: https://acme.atlassian.net/browse/CRM-310\n\nAdds first_name / last_name and backfills them. The repository writes all three columns\nso older readers of full_name keep working during the rollout.",
+  "author": "tomas",
+  "htmlUrl": "https://github.com/acme/shop/pull/611",
+  "baseRef": "main",
+  "baseSha": "ccdb17200595fbe1c95c0c8ab9cb636fde9d5857",
+  "headRef": "chore/split-user-name",
+  "headSha": "e8afc8bf529a2695cca5680ab19094f5b88d6097",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

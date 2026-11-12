@@ -1,0 +1,65 @@
+{
+  "expectedAlignment": "partial",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Coupon redeemable once per user",
+      "labels": ["AC1"],
+      "keywords": ["once per user"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Discount capped at maxDiscount",
+      "labels": ["AC2"],
+      "keywords": ["maxDiscount"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Expired coupons are rejected",
+      "labels": ["AC3"],
+      "keywords": ["expiresAt", "COUPON_EXPIRED"],
+      "accept": ["missing"]
+    },
+    {
+      "id": "AC4",
+      "requirement": "Not combinable with a promotion",
+      "labels": ["AC4"],
+      "keywords": ["combined", "promotion"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "expired",
+      "risk": "Applying a coupon whose expiresAt is in the past",
+      "keywords": [["expir"]]
+    },
+    {
+      "id": "reuse",
+      "risk": "The same user applies the same coupon a second time",
+      "keywords": [["already", "second time", "twice", "again", "reuse", "re-use", "once"]]
+    },
+    {
+      "id": "cap",
+      "risk": "The percentage discount would exceed maxDiscount and is capped",
+      "keywords": [["maxdiscount", "max discount", "cap", "maximum discount"]]
+    },
+    {
+      "id": "promotion",
+      "risk": "Applying a coupon to a cart that already has a promotion",
+      "keywords": [["promotion"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "Gift cards, loyalty points and fixed-amount coupons appear in neither the PRD scope nor the code",
+      "patterns": ["gift card", "loyalty point"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["payments", "typescript", "missing"],
+  "notes": "AC3 (expiry check) is not implemented: Coupon.expiresAt exists but is never read."
+}

@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "CRM-310",
+    "url": "https://acme.atlassian.net/browse/CRM-310",
+    "raw": "CRM-310"
+  },
+  "title": "Store first and last name separately",
+  "bodyMarkdown": "The CRM sync needs first and last name as separate fields.\n\n## Acceptance Criteria\n- AC1: The users table gets first_name and last_name columns, and existing rows are backfilled from full_name.\n- AC2: full_name stays in the table and keeps being written for one more release.\n- AC3: The migration ships with a down script that restores the previous schema.\n\n## Notes\nBackfill rule: everything before the first space is the first name, the rest is the last\nname. A name without a space becomes the first name and the last name stays empty.",
+  "acceptanceCriteria": [
+    "AC1: The users table gets first_name and last_name columns, and existing rows are backfilled from full_name.",
+    "AC2: full_name stays in the table and keeps being written for one more release.",
+    "AC3: The migration ships with a down script that restores the previous schema."
+  ],
+  "url": "https://acme.atlassian.net/browse/CRM-310",
+  "meta": {}
+}

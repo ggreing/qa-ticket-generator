@@ -1,0 +1,20 @@
+[
+  {
+    "path": "auth/throttle.py",
+    "status": "added",
+    "additions": 30,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,30 @@\n+MAX_FAILED_ATTEMPTS = 5\n+WINDOW_SECONDS = 10 * 60\n+LOCKOUT_SECONDS = 15 * 60\n+\n+\n+class LoginThrottle:\n+    \"\"\"Counts failed logins per username in a key-value store with expiring keys.\"\"\"\n+\n+    def __init__(self, store):\n+        self._store = store\n+\n+    def is_locked(self, username: str) -> bool:\n+        return self._store.exists(self._lock_key(username))\n+\n+    def record_failure(self, username: str) -> None:\n+        count = self._store.incr(self._count_key(username), ttl=WINDOW_SECONDS)\n+        if count >= MAX_FAILED_ATTEMPTS:\n+            self._store.set(self._lock_key(username), \"1\", ttl=LOCKOUT_SECONDS)\n+            self._store.delete(self._count_key(username))\n+\n+    def record_success(self, username: str) -> None:\n+        self._store.delete(self._count_key(username))\n+\n+    @staticmethod\n+    def _count_key(username: str) -> str:\n+        return \"login:failures:\" + username.strip().lower()\n+\n+    @staticmethod\n+    def _lock_key(username: str) -> str:\n+        return \"login:locked:\" + username.strip().lower()",
+    "patchMissing": false,
+    "headContent": "MAX_FAILED_ATTEMPTS = 5\nWINDOW_SECONDS = 10 * 60\nLOCKOUT_SECONDS = 15 * 60\n\n\nclass LoginThrottle:\n    \"\"\"Counts failed logins per username in a key-value store with expiring keys.\"\"\"\n\n    def __init__(self, store):\n        self._store = store\n\n    def is_locked(self, username: str) -> bool:\n        return self._store.exists(self._lock_key(username))\n\n    def record_failure(self, username: str) -> None:\n        count = self._store.incr(self._count_key(username), ttl=WINDOW_SECONDS)\n        if count >= MAX_FAILED_ATTEMPTS:\n            self._store.set(self._lock_key(username), \"1\", ttl=LOCKOUT_SECONDS)\n            self._store.delete(self._count_key(username))\n\n    def record_success(self, username: str) -> None:\n        self._store.delete(self._count_key(username))\n\n    @staticmethod\n    def _count_key(username: str) -> str:\n        return \"login:failures:\" + username.strip().lower()\n\n    @staticmethod\n    def _lock_key(username: str) -> str:\n        return \"login:locked:\" + username.strip().lower()\n"
+  },
+  {
+    "path": "auth/login.py",
+    "status": "modified",
+    "additions": 8,
+    "deletions": 2,
+    "patch": "@@ -1,9 +1,15 @@\n from auth.passwords import verify_password\n-from auth.errors import InvalidCredentials\n+from auth.errors import AccountLocked, InvalidCredentials\n \n \n-def login(username: str, password: str, users, sessions):\n+def login(username: str, password: str, users, sessions, throttle):\n+    if throttle.is_locked(username):\n+        raise AccountLocked()\n+\n     user = users.find_by_username(username)\n     if user is None or not verify_password(password, user.password_hash):\n+        throttle.record_failure(username)\n         raise InvalidCredentials()\n+\n+    throttle.record_success(username)\n     return sessions.create(user.id)",
+    "patchMissing": false,
+    "headContent": "from auth.passwords import verify_password\nfrom auth.errors import AccountLocked, InvalidCredentials\n\n\ndef login(username: str, password: str, users, sessions, throttle):\n    if throttle.is_locked(username):\n        raise AccountLocked()\n\n    user = users.find_by_username(username)\n    if user is None or not verify_password(password, user.password_hash):\n        throttle.record_failure(username)\n        raise InvalidCredentials()\n\n    throttle.record_success(username)\n    return sessions.create(user.id)\n"
+  }
+]

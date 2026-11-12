@@ -1,0 +1,20 @@
+[
+  {
+    "path": "app/admin/export.py",
+    "status": "modified",
+    "additions": 6,
+    "deletions": 2,
+    "patch": "@@ -1,13 +1,17 @@\n from app.admin.csv import to_csv\n-from app.errors import Unauthorized\n+from app.errors import Forbidden, Unauthorized\n \n EXPORT_FIELDS = (\"id\", \"email\", \"full_name\", \"created_at\")\n+EXPORT_ROLES = {\"admin\", \"manager\"}\n \n \n-def export_users(request, db):\n+def export_users(request, db, audit):\n     actor = request.user\n     if not actor.is_authenticated:\n         raise Unauthorized()\n+    if actor.role not in EXPORT_ROLES:\n+        raise Forbidden(\"export requires an elevated role\")\n \n     rows = db.fetch_users(fields=EXPORT_FIELDS)\n+    audit.record(action=\"user_export\", actor_id=actor.id, row_count=len(rows))\n     return to_csv(rows)",
+    "patchMissing": false,
+    "headContent": "from app.admin.csv import to_csv\nfrom app.errors import Forbidden, Unauthorized\n\nEXPORT_FIELDS = (\"id\", \"email\", \"full_name\", \"created_at\")\nEXPORT_ROLES = {\"admin\", \"manager\"}\n\n\ndef export_users(request, db, audit):\n    actor = request.user\n    if not actor.is_authenticated:\n        raise Unauthorized()\n    if actor.role not in EXPORT_ROLES:\n        raise Forbidden(\"export requires an elevated role\")\n\n    rows = db.fetch_users(fields=EXPORT_FIELDS)\n    audit.record(action=\"user_export\", actor_id=actor.id, row_count=len(rows))\n    return to_csv(rows)\n"
+  },
+  {
+    "path": "app/admin/routes.py",
+    "status": "modified",
+    "additions": 2,
+    "deletions": 1,
+    "patch": "@@ -1,6 +1,7 @@\n from app.admin.export import export_users\n+from app.audit import audit_log\n from app.db import db\n \n \n def register(router):\n-    router.get(\"/admin/users/export\", lambda request: export_users(request, db))\n+    router.get(\"/admin/users/export\", lambda request: export_users(request, db, audit_log))",
+    "patchMissing": false,
+    "headContent": "from app.admin.export import export_users\nfrom app.audit import audit_log\nfrom app.db import db\n\n\ndef register(router):\n    router.get(\"/admin/users/export\", lambda request: export_users(request, db, audit_log))\n"
+  }
+]

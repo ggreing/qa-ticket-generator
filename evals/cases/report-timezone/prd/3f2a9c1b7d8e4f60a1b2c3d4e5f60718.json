@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "notion",
+    "id": "3f2a9c1b7d8e4f60a1b2c3d4e5f60718",
+    "url": "https://www.notion.so/acme/Daily-sales-report-3f2a9c1b7d8e4f60a1b2c3d4e5f60718",
+    "raw": "3f2a9c1b7d8e4f60a1b2c3d4e5f60718"
+  },
+  "title": "Daily sales report",
+  "bodyMarkdown": "# Daily sales report\n\nStore managers open the dashboard in the morning and want yesterday's numbers. We have\nstores in Seoul, Berlin and Los Angeles.\n\n## Acceptance Criteria\n- AC1: The report covers one calendar day in the store's own time zone (store.timezone), from 00:00 to 24:00 local time.\n- AC2: Orders with status paid or refunded are included. Cancelled orders are not.\n- AC3: The total is formatted with the store's locale (store.locale) and currency.",
+  "acceptanceCriteria": [
+    "AC1: The report covers one calendar day in the store's own time zone (store.timezone), from 00:00 to 24:00 local time.",
+    "AC2: Orders with status paid or refunded are included. Cancelled orders are not.",
+    "AC3: The total is formatted with the store's locale (store.locale) and currency."
+  ],
+  "url": "https://www.notion.so/acme/Daily-sales-report-3f2a9c1b7d8e4f60a1b2c3d4e5f60718",
+  "meta": {}
+}

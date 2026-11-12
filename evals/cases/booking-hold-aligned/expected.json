@@ -1,0 +1,60 @@
+{
+  "expectedAlignment": "aligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "No double hold of a seat",
+      "labels": ["AC1"],
+      "keywords": ["same seat", "ErrSeatTaken"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Holds expire after 10 minutes",
+      "labels": ["AC2"],
+      "keywords": ["10 minutes", "expires"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "At most 4 seats per booking",
+      "labels": ["AC3"],
+      "keywords": ["at most 4", "4 seats"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "double-hold",
+      "risk": "Two customers try to hold the same seat; exactly one succeeds and the other gets ErrSeatTaken",
+      "keywords": [["same seat", "errseattaken", "already held"]]
+    },
+    {
+      "id": "expiry",
+      "risk": "A hold stops blocking the seat once 10 minutes have passed",
+      "keywords": [["expir"], ["10 min", "ten min", "10-min", "ttl", "11 min", "after"]]
+    },
+    {
+      "id": "too-many-seats",
+      "risk": "A request for 5 seats is rejected",
+      "keywords": [
+        ["5 seats", "five seats", "more than 4", "more than four", "fifth seat", "errinvalidseatcount"]
+      ]
+    },
+    {
+      "id": "partial-failure",
+      "risk": "One of several requested seats is taken: no seat of that request stays held (transaction rolls back)",
+      "keywords": [["roll", "none of", "no seats", "atomic", "partial", "all or nothing", "all-or-nothing"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-payment",
+      "description": "Payment capture and refunds are not part of this change",
+      "patterns": ["refund", "payment is captured", "charge the card"],
+      "fields": ["findings"]
+    }
+  ],
+  "tags": ["concurrency", "go", "aligned"],
+  "notes": "Everything is implemented. A report that marks a requirement missing or contradicted is wrong here."
+}

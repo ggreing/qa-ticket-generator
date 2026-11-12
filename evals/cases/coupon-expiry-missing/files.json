@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src/checkout/coupon.ts",
+    "status": "added",
+    "additions": 27,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,27 @@\n+export interface Coupon {\n+  id: string;\n+  code: string;\n+  /** Whole percent, 1-100. */\n+  percent: number;\n+  /** Largest discount this coupon may give, in minor units. */\n+  maxDiscount: number;\n+  expiresAt: Date;\n+}\n+\n+export interface Cart {\n+  id: string;\n+  subtotal: number;\n+  total: number;\n+  discount: number;\n+  promotionId?: string;\n+  couponId?: string;\n+}\n+\n+export interface CouponRepository {\n+  findByCode(code: string): Promise<Coupon | null>;\n+  /**\n+   * Records the redemption. Returns false when this user already redeemed the coupon;\n+   * backed by a unique index on (coupon_id, user_id), so it is safe under concurrency.\n+   */\n+  redeemOnce(couponId: string, userId: string): Promise<boolean>;\n+}",
+    "patchMissing": false,
+    "headContent": "export interface Coupon {\n  id: string;\n  code: string;\n  /** Whole percent, 1-100. */\n  percent: number;\n  /** Largest discount this coupon may give, in minor units. */\n  maxDiscount: number;\n  expiresAt: Date;\n}\n\nexport interface Cart {\n  id: string;\n  subtotal: number;\n  total: number;\n  discount: number;\n  promotionId?: string;\n  couponId?: string;\n}\n\nexport interface CouponRepository {\n  findByCode(code: string): Promise<Coupon | null>;\n  /**\n   * Records the redemption. Returns false when this user already redeemed the coupon;\n   * backed by a unique index on (coupon_id, user_id), so it is safe under concurrency.\n   */\n  redeemOnce(couponId: string, userId: string): Promise<boolean>;\n}\n"
+  },
+  {
+    "path": "src/checkout/coupon-service.ts",
+    "status": "modified",
+    "additions": 12,
+    "deletions": 3,
+    "patch": "@@ -1,4 +1,4 @@\n-import type { Cart, CouponRepository } from './coupon';\n+import type { Cart, Coupon, CouponRepository } from './coupon';\n \n export class CouponError extends Error {\n   constructor(readonly code: string) {\n@@ -9,10 +9,19 @@\n export class CouponService {\n   constructor(private readonly repo: CouponRepository) {}\n \n-  async apply(cart: Cart, code: string): Promise<Cart> {\n+  async apply(cart: Cart, code: string, userId: string): Promise<Cart> {\n     const coupon = await this.repo.findByCode(code.trim().toUpperCase());\n     if (!coupon) throw new CouponError('COUPON_NOT_FOUND');\n-    const discount = Math.floor((cart.subtotal * coupon.percent) / 100);\n+    if (cart.promotionId) throw new CouponError('COUPON_NOT_COMBINABLE');\n+\n+    const discount = this.discountFor(cart.subtotal, coupon);\n+    const redeemed = await this.repo.redeemOnce(coupon.id, userId);\n+    if (!redeemed) throw new CouponError('COUPON_ALREADY_USED');\n     return { ...cart, couponId: coupon.id, discount, total: cart.subtotal - discount };\n   }\n+\n+  private discountFor(subtotal: number, coupon: Coupon): number {\n+    const raw = Math.floor((subtotal * coupon.percent) / 100);\n+    return Math.min(raw, coupon.maxDiscount);\n+  }\n }",
+    "patchMissing": false,
+    "headContent": "import type { Cart, Coupon, CouponRepository } from './coupon';\n\nexport class CouponError extends Error {\n  constructor(readonly code: string) {\n    super(code);\n  }\n}\n\nexport class CouponService {\n  constructor(private readonly repo: CouponRepository) {}\n\n  async apply(cart: Cart, code: string, userId: string): Promise<Cart> {\n    const coupon = await this.repo.findByCode(code.trim().toUpperCase());\n    if (!coupon) throw new CouponError('COUPON_NOT_FOUND');\n    if (cart.promotionId) throw new CouponError('COUPON_NOT_COMBINABLE');\n\n    const discount = this.discountFor(cart.subtotal, coupon);\n    const redeemed = await this.repo.redeemOnce(coupon.id, userId);\n    if (!redeemed) throw new CouponError('COUPON_ALREADY_USED');\n    return { ...cart, couponId: coupon.id, discount, total: cart.subtotal - discount };\n  }\n\n  private discountFor(subtotal: number, coupon: Coupon): number {\n    const raw = Math.floor((subtotal * coupon.percent) / 100);\n    return Math.min(raw, coupon.maxDiscount);\n  }\n}\n"
+  },
+  {
+    "path": "package-lock.json",
+    "status": "modified",
+    "additions": 0,
+    "deletions": 0,
+    "patchMissing": true
+  }
+]

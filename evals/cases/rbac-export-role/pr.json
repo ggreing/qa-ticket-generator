@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 215,
+  "title": "Restrict the user export endpoint",
+  "body": "Closes #212\n\nThe export endpoint only checked that the caller was signed in. This adds a role check\nand writes an audit entry for every export.",
+  "author": "jun",
+  "htmlUrl": "https://github.com/acme/shop/pull/215",
+  "baseRef": "main",
+  "baseSha": "3461a1f118e861badfc82d13d44f375655ab9630",
+  "headRef": "fix/user-export-permissions",
+  "headSha": "c4e5b6524c7b7d7d6b2a2c9259ad489e50800a62",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

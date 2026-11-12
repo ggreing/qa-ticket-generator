@@ -1,0 +1,18 @@
+{
+  "ref": {
+    "source": "jira",
+    "id": "SHOP-101",
+    "url": "https://acme.atlassian.net/browse/SHOP-101",
+    "raw": "SHOP-101"
+  },
+  "title": "Coupons at checkout",
+  "bodyMarkdown": "## Background\nMarketing wants to send percentage coupons by e-mail. A customer types the code on the\ncheckout page and sees the discounted total before paying.\n\n## Acceptance Criteria\n- AC1: A coupon can be redeemed only once per user.\n- AC2: A percentage coupon never discounts more than its maxDiscount amount.\n- AC3: A coupon whose expiresAt is in the past is rejected with the error COUPON_EXPIRED.\n- AC4: A coupon cannot be combined with an active promotion on the cart.\n\n## Out of scope\nFixed-amount coupons and coupons for shipping costs.",
+  "acceptanceCriteria": [
+    "AC1: A coupon can be redeemed only once per user.",
+    "AC2: A percentage coupon never discounts more than its maxDiscount amount.",
+    "AC3: A coupon whose expiresAt is in the past is rejected with the error COUPON_EXPIRED.",
+    "AC4: A coupon cannot be combined with an active promotion on the cart."
+  ],
+  "url": "https://acme.atlassian.net/browse/SHOP-101",
+  "meta": {}
+}

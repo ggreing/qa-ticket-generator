@@ -1,0 +1,58 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Only admin may export",
+      "labels": ["AC1"],
+      "keywords": ["role admin", "only users with"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "Audit log entry per export",
+      "labels": ["AC2"],
+      "keywords": ["audit log"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "At most 5 exports per hour",
+      "labels": ["AC3"],
+      "keywords": ["per hour", "429"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "manager-denied",
+      "risk": "A manager (non-admin role) must be refused with 403, but the code lets managers export",
+      "keywords": [["manager"]]
+    },
+    {
+      "id": "other-roles-denied",
+      "risk": "Support or viewer roles are refused with 403",
+      "keywords": [["support", "viewer", "non-admin"]]
+    },
+    {
+      "id": "audit",
+      "risk": "A successful export writes an audit entry with actor id and row count",
+      "keywords": [["audit"]]
+    },
+    {
+      "id": "rate-limit",
+      "risk": "The sixth export within an hour is rejected with 429",
+      "keywords": [["429", "rate limit", "rate-limit", "sixth", "6th"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-auth",
+      "description": "Two-factor authentication and IP allow-lists are in neither the issue nor the code",
+      "patterns": ["two-factor", "2fa", "ip allow"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["auth", "python", "contradicts", "missing"],
+  "notes": "AC1 is contradicted (managers may export) and AC3 (rate limit) is missing."
+}

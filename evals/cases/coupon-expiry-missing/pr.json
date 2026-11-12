@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 101,
+  "title": "Apply coupons at checkout",
+  "body": "Implements https://acme.atlassian.net/browse/SHOP-101\n\nAdds CouponService.apply() and wires it into the checkout cart. Redemption is recorded\nthrough the repository so a coupon cannot be reused.",
+  "author": "mina",
+  "htmlUrl": "https://github.com/acme/shop/pull/101",
+  "baseRef": "main",
+  "baseSha": "c5dd56472bc9576f97db46537cdae142da41e013",
+  "headRef": "feat/checkout-coupons",
+  "headSha": "6f04581abaf19e4f103ec9cd49414635a9f60f0d",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}
