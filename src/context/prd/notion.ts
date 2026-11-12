@@ -50,20 +50,28 @@ function toFetchError(err: unknown, id: string): unknown {
   }
   if (isHTTPResponseError(err)) {
     const status = err.status;
-    if (status === 401)
-      return new PrdFetchError('auth', 'Notion rejected the integration token (HTTP 401).', { status });
+    // PRD-10 — 401/403/404 are all fixed in the user's Notion integration settings.
+    if (status === 401) {
+      return new PrdFetchError(
+        'permission',
+        'Notion rejected the integration token (HTTP 401); create a new internal integration secret and update notion-token.',
+        { status },
+      );
+    }
+    if (status === 403) {
+      return new PrdFetchError(
+        'permission',
+        `The Notion integration may not read page ${id} (HTTP 403); enable the "Read content" capability for the integration.`,
+        { status },
+      );
+    }
     if (status === 404) {
-      // PRD-10 — Notion answers 404 for pages the integration was not invited to.
+      // Notion answers 404 for pages the integration was not invited to.
       return new PrdFetchError(
         'permission',
         `Notion page ${id} is not shared with the integration (HTTP 404); add the integration under the page's "Connections".`,
         { status },
       );
-    }
-    if (status === 403) {
-      return new PrdFetchError('http', `The Notion integration may not read page ${id} (HTTP 403).`, {
-        status,
-      });
     }
     return new PrdFetchError('http', `Notion request for page ${id} failed (HTTP ${status}).`, { status });
   }

@@ -222,15 +222,15 @@ describe('createNotionProvider', () => {
     expect(doc.title).toBe('T');
   });
 
-  it('PRD-08/PRD-10 maps 404 (not shared) to permission and 401/403/400 to safe errors', async () => {
+  it('PRD-08/PRD-10 maps 401/403/404 to permission with a fix, and 400 to a safe error', async () => {
     const data = fixture<NotionFixture>('notion/page-coupon.json');
-    const cases: [number, string, PrdFetchError['kind']][] = [
-      [401, 'unauthorized', 'auth'],
-      [403, 'restricted_resource', 'http'],
-      [404, 'object_not_found', 'permission'],
-      [400, 'validation_error', 'http'],
+    const cases: [number, string, PrdFetchError['kind'], string][] = [
+      [401, 'unauthorized', 'permission', 'update notion-token'],
+      [403, 'restricted_resource', 'permission', 'Read content'],
+      [404, 'object_not_found', 'permission', 'Connections'],
+      [400, 'validation_error', 'http', 'failed'],
     ];
-    for (const [status, code, kind] of cases) {
+    for (const [status, code, kind, hint] of cases) {
       const api = notionApi(data, () =>
         json({ object: 'error', status, code, message: 'SECRET BODY' }, status),
       );
@@ -240,7 +240,9 @@ describe('createNotionProvider', () => {
       expect(err, String(status)).toBeInstanceOf(PrdFetchError);
       expect(err.kind).toBe(kind);
       expect(err.message).toContain(`HTTP ${status}`);
+      expect(err.message).toContain(hint);
       expect(err.message).not.toContain('SECRET');
+      expect(err.message).not.toContain('secret_notion_token');
     }
   });
 
