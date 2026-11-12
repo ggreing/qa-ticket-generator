@@ -49,7 +49,10 @@ Offset paging skips or repeats products when the catalogue changes between reque
      "strconv"
  )
 
-+const defaultLimit = 20
++const (
++    defaultLimit = 20
++    maxLimit     = 500
++)
 +
  type response struct {
 -    Items []Product \`json:"items"\`
@@ -70,6 +73,9 @@ Offset paging skips or repeats products when the catalogue changes between reque
 +            return
 +        }
 +        limit = parsed
++        if limit > maxLimit {
++            limit = maxLimit
++        }
 +    }
 +
 +    cursor, err := decodeCursor(r.URL.Query().Get("cursor"))
@@ -136,7 +142,7 @@ func (s *Store) SearchAfter(ctx context.Context, query string, after Cursor, lim
     },
   ],
   expected: {
-    expectedAlignment: 'partial',
+    expectedAlignment: 'misaligned',
     mustFindings: [
       {
         id: 'AC1',
@@ -150,7 +156,7 @@ func (s *Store) SearchAfter(ctx context.Context, query string, after Cursor, lim
         requirement: 'Limit capped at 100',
         labels: ['AC2'],
         keywords: ['capped at 100', 'reduced to 100'],
-        accept: ['missing'],
+        accept: ['contradicts'],
       },
       {
         id: 'AC3',
@@ -170,13 +176,16 @@ func (s *Store) SearchAfter(ctx context.Context, query string, after Cursor, lim
     mustScenarios: [
       {
         id: 'over-cap',
-        risk: 'A limit above 100 (e.g. 1000) must be reduced to 100; the code returns as many rows as asked',
+        risk: 'A limit above 100 (e.g. 150) must be reduced to 100; the code caps at 500 instead, so 150 rows come back',
         keywords: [
           [
             '101',
             '1000',
             '500',
             '200',
+            '150',
+            '250',
+            '300',
             '10000',
             'above 100',
             'over 100',
@@ -220,7 +229,7 @@ func (s *Store) SearchAfter(ctx context.Context, query string, after Cursor, lim
         fields: ['scenarios', 'findings'],
       },
     ],
-    tags: ['pagination', 'go', 'missing'],
-    notes: 'AC2 is missing: the limit is validated as positive but never capped at 100.',
+    tags: ['pagination', 'go', 'contradicts'],
+    notes: 'AC2 is contradicted: the limit is capped at 500, not at 100.',
   },
 };

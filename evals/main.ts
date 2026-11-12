@@ -1,5 +1,5 @@
 /** Entry point bundled and started by evals/cli.mjs. Run from the repository root. */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { createAnthropicProvider } from '../src/llm/anthropic';
 import { createPreprocessEngine } from '../src/preprocess';
@@ -35,6 +35,7 @@ async function main(argv: string[]): Promise<number> {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, text);
     },
+    readFile: (path) => readFileSync(path, 'utf8'),
   });
   return outcome.exitCode;
 }
