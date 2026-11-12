@@ -27,6 +27,8 @@ import type {
   PreprocessOutput,
   PromptContext,
   PullRequestInfo,
+  RedactionCount,
+  RedactText,
   RunMeta,
   TriggerEvent,
   Warning,
@@ -46,6 +48,7 @@ export interface PipelineDeps {
   ) => Promise<PrdCollection>;
   preprocessEngine: PreprocessEngine;
   isNoisePath: IsNoisePath;
+  redactText: RedactText;
   llm: LlmProvider;
   orchestrate: (
     pre: PreprocessOutput,
@@ -150,7 +153,12 @@ export async function runPipeline(
     );
     meta.mode = pre.mode;
     meta.skipped = pre.skipped;
-    meta.redactions = pre.redactions;
+    if (pre.warnings) warnings.push(...pre.warnings);
+
+    // PRE-05 also covers the PR title/body, which reach the prompt outside PreprocessInput.
+    const title = deps.redactText(pr.title);
+    const body = deps.redactText(pr.body);
+    meta.redactions = mergeRedactions(pre.redactions, title.redactions, body.redactions);
 
     if (pre.chunks.length === 0) {
       final = { ...base, status: 'skipped', report: null, skipReason: 'no_files' };
@@ -158,8 +166,8 @@ export async function runPipeline(
       const context: PromptContext = {
         pr: {
           number: pr.number,
-          title: pr.title,
-          body: pr.body,
+          title: title.text,
+          body: body.text,
           htmlUrl: pr.htmlUrl,
           author: pr.author,
           baseRef: pr.baseRef,
@@ -209,6 +217,12 @@ export async function runPipeline(
   await deliverAll(deps, cfg, final, state, commentId);
 
   return { final, failed: shouldFail(cfg, final) };
+}
+
+function mergeRedactions(...lists: RedactionCount[][]): RedactionCount[] {
+  const totals = new Map<string, number>();
+  for (const { type, count } of lists.flat()) totals.set(type, (totals.get(type) ?? 0) + count);
+  return [...totals].map(([type, count]) => ({ type, count })).filter((r) => r.count > 0);
 }
 
 function shouldFail(cfg: QtgConfig, final: FinalReport): boolean {

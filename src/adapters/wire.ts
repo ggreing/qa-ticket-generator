@@ -22,6 +22,7 @@ import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
 import { createAnthropicProvider } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
+import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
 import { decideTrigger } from '../trigger/gate';
 import { prNumberOf } from './event';
 
@@ -122,6 +123,7 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
       collectPrdDocuments,
       preprocessEngine,
       isNoisePath,
+      redactText,
       llm,
       orchestrate,
       renderPrComment,
@@ -135,6 +137,13 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
     req.signal,
   );
   return { kind: 'ran', outcome, config: cfg };
+}
+
+/** PRE-05 for the PR title/body, using the engine's own marker pipeline (spoof-proof counts). */
+export function redactText(text: string): { text: string; redactions: { type: string; count: number }[] } {
+  const counts = new Map<string, number>();
+  const out = finalizeRedactions(redactRaw(text), counts);
+  return { text: out, redactions: [...counts].map(([type, count]) => ({ type, count })) };
 }
 
 /** Collects the secrets present in the inputs so adapters can mask them in logs. */

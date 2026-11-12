@@ -80,6 +80,10 @@ function makeDeps(overrides: Partial<PipelineDeps> = {}) {
       warnings: [],
     })),
     preprocessEngine: { run: vi.fn(() => preOut) },
+    redactText: vi.fn((text: string) => ({
+      text: text.replace('ghp_SECRET', '[REDACTED:github_token]'),
+      redactions: text.includes('ghp_SECRET') ? [{ type: 'github_token', count: 1 }] : [],
+    })),
     isNoisePath: vi.fn((p: string) => p.endsWith('.lock') || p.endsWith('lock.json')),
     llm: { id: 'fake', generateReport: vi.fn(), mergeReports: vi.fn(), estimateCostUsd: () => 0 },
     orchestrate: vi.fn(async () => ({
@@ -193,6 +197,24 @@ describe('runPipeline', () => {
       signal,
     );
     expect(strict.failed).toBe(true);
+  });
+
+  it('PRE-05: redacts the PR title/body before the prompt and merges warnings and counts', async () => {
+    const { deps } = makeDeps({
+      preprocessEngine: {
+        run: vi.fn(() => ({
+          ...preOut,
+          redactions: [{ type: 'github_token', count: 2 }],
+          warnings: [{ code: 'ast_failed' as const, message: '1 file fell back to line context' }],
+        })),
+      },
+    });
+    const pr = fakePr({ body: 'token ghp_SECRET here' });
+    const { final } = await runPipeline(deps, cfg(), pr, labeled, signal);
+    const context = vi.mocked(deps.orchestrate).mock.calls[0]?.[2];
+    expect(context?.pr.body).toBe('token [REDACTED:github_token] here');
+    expect(final.meta.redactions).toEqual([{ type: 'github_token', count: 3 }]);
+    expect(final.meta.warnings.map((w) => w.code)).toContain('ast_failed');
   });
 
   it('reports billed usage from a failed LLM run', async () => {

@@ -268,7 +268,12 @@ export interface PreprocessOutput {
   skipped: SkippedFile[];
   redactions: RedactionCount[];
   estimatedTokens: number;
+  /** User-visible, content-free problems (e.g. `ast_failed`: grammar load or parse failures, counts only). */
+  warnings?: Warning[];
 }
+
+/** PRE-05 applied to free text outside PreprocessInput (PR title/body). Pure. */
+export type RedactText = (text: string) => { text: string; redactions: RedactionCount[] };
 
 /**
  * PRE-01 — the preprocessing engine. `run` is synchronous, deterministic and I/O-free.
