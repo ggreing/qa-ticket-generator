@@ -23,7 +23,7 @@ prevents double booking, so no application-level lock is needed.
       acceptanceCriteria: [
         'AC1: Two customers can never hold the same seat for the same show. The second request fails with ErrSeatTaken.',
         'AC2: A hold expires 10 minutes after it is created, and an expired hold no longer blocks the seat.',
-        'AC3: One booking can hold at most 4 seats.',
+        'AC3: A single hold request can contain at most 4 seats. A request for more is rejected.',
       ],
       body: `
 When a customer picks seats we keep them aside until payment finishes.
@@ -31,7 +31,9 @@ When a customer picks seats we keep them aside until payment finishes.
 ## Acceptance Criteria
 - AC1: Two customers can never hold the same seat for the same show. The second request fails with ErrSeatTaken.
 - AC2: A hold expires 10 minutes after it is created, and an expired hold no longer blocks the seat.
-- AC3: One booking can hold at most 4 seats.
+- AC3: A single hold request can contain at most 4 seats. A request for more is rejected.
+
+A limit on how many seats one customer may hold in total across requests is out of scope here.
 `,
     },
   ],
@@ -136,7 +138,7 @@ CREATE UNIQUE INDEX seat_holds_show_seat ON seat_holds (show_id, seat_id);
       },
       {
         id: 'AC3',
-        requirement: 'At most 4 seats per booking',
+        requirement: 'At most 4 seats per hold request',
         labels: ['AC3'],
         keywords: ['at most 4', '4 seats'],
         accept: ['covered'],

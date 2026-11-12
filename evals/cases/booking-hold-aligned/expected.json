@@ -17,7 +17,7 @@
     },
     {
       "id": "AC3",
-      "requirement": "At most 4 seats per booking",
+      "requirement": "At most 4 seats per hold request",
       "labels": ["AC3"],
       "keywords": ["at most 4", "4 seats"],
       "accept": ["covered"]

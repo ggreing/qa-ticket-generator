@@ -6,11 +6,11 @@
     "raw": "BOOK-88"
   },
   "title": "Hold seats while the customer pays",
-  "bodyMarkdown": "When a customer picks seats we keep them aside until payment finishes.\n\n## Acceptance Criteria\n- AC1: Two customers can never hold the same seat for the same show. The second request fails with ErrSeatTaken.\n- AC2: A hold expires 10 minutes after it is created, and an expired hold no longer blocks the seat.\n- AC3: One booking can hold at most 4 seats.",
+  "bodyMarkdown": "When a customer picks seats we keep them aside until payment finishes.\n\n## Acceptance Criteria\n- AC1: Two customers can never hold the same seat for the same show. The second request fails with ErrSeatTaken.\n- AC2: A hold expires 10 minutes after it is created, and an expired hold no longer blocks the seat.\n- AC3: A single hold request can contain at most 4 seats. A request for more is rejected.\n\nA limit on how many seats one customer may hold in total across requests is out of scope here.",
   "acceptanceCriteria": [
     "AC1: Two customers can never hold the same seat for the same show. The second request fails with ErrSeatTaken.",
     "AC2: A hold expires 10 minutes after it is created, and an expired hold no longer blocks the seat.",
-    "AC3: One booking can hold at most 4 seats."
+    "AC3: A single hold request can contain at most 4 seats. A request for more is rejected."
   ],
   "url": "https://acme.atlassian.net/browse/BOOK-88",
   "meta": {}
