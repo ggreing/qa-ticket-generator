@@ -71,7 +71,8 @@ export const PATTERN_RULES: readonly PatternRule[] = [
 
 // ─────────────────────────── assignment rules ───────────────────────────
 
-const KEY = String.raw`(?:"([A-Za-z_][\w.-]*)"|'([A-Za-z_][\w.-]*)'|([A-Za-z_][\w.-]*))`;
+// The lookbehind keeps the scan from starting inside an identifier (linear instead of quadratic).
+const KEY = String.raw`(?<![\w.-])(?:"([A-Za-z_][\w.-]*)"|'([A-Za-z_][\w.-]*)'|([A-Za-z_][\w.-]*))`;
 // `key: Type = value` (annotated), `:=`, `=>`, `=`, `:` — but not `==`, `=>` arrows of other kinds, `=~`.
 const OP = String.raw`[ \t]*(:[ \t]*[A-Za-z_][\w.\[\]|<>, ]{0,40}?[ \t]*=(?![=>~])|:=|=>|=(?![=>~])|:)[ \t]*`;
 const VALUE = String.raw`(?:"((?:\\.|[^"\\\n])*)"|'((?:\\.|[^'\\\n])*)'|\x60([^\x60\\\n$]*)\x60|([^\s'"\x60,;(){}\[\]<>]+))`;
@@ -176,10 +177,67 @@ function assignmentType(groups: (string | undefined)[]): string | null {
 }
 
 /**
+ * Line pre-filter for the assignment rules (they never span lines). A line is scanned only when
+ * it contains a secret-key word (case-insensitive `pass|pwd|token|key|secret`) or a run of
+ * ≥ {@link HIGH_ENTROPY_MIN_LENGTH} token characters; no other line can produce a redaction.
+ */
+const KEYWORD_HINT = /pass|pwd|token|key|secret/gi;
+const LONG_RUN_HINT = /(?<![A-Za-z0-9+/=_.~-])[A-Za-z0-9+/=_.~-]{20}/g;
+
+function candidateLines(text: string): { start: number; end: number }[] {
+  const starts = [0];
+  for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) starts.push(i + 1);
+  const lineOf = (offset: number): number => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if ((starts[mid] as number) <= offset) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
+  const lines = new Set<number>();
+  for (const re of [KEYWORD_HINT, LONG_RUN_HINT]) {
+    re.lastIndex = 0;
+    for (let m = re.exec(text); m; m = re.exec(text)) {
+      const line = lineOf(m.index);
+      lines.add(line);
+      // Skip to the next line: one hit is enough.
+      re.lastIndex = Math.max(
+        re.lastIndex,
+        line + 1 < starts.length ? (starts[line + 1] as number) : text.length,
+      );
+    }
+  }
+  return [...lines]
+    .sort((a, b) => a - b)
+    .map((l) => ({
+      start: starts[l] as number,
+      end: l + 1 < starts.length ? (starts[l + 1] as number) - 1 : text.length,
+    }));
+}
+
+/** Applies the assignment rules only to candidate lines (same result as scanning everything). */
+function redactAssignments(text: string): string {
+  if (!text.includes('=') && !text.includes(':')) return text;
+  let out = '';
+  let last = 0;
+  for (const { start, end } of candidateLines(text)) {
+    const line = text.slice(start, end);
+    const red = redactAssignmentLine(line);
+    if (red === line) continue;
+    out += text.slice(last, start) + red;
+    last = end;
+  }
+  return last === 0 ? text : out + text.slice(last);
+}
+
+/**
  * Scans `key op value` assignments. A kept match is re-scanned from the end of its key, because
  * what followed may hold the real assignment (`ticket: password = "x"`, `a: token: "x"`).
  */
-function redactAssignments(text: string): string {
+function redactAssignmentLine(text: string): string {
   if (!text.includes('=') && !text.includes(':')) return text;
   const re = new RegExp(ASSIGNMENT_RE.source, 'g');
   let out = '';

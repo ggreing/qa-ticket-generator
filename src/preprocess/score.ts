@@ -47,18 +47,26 @@ const WORD_RE = /[\p{L}\p{N}]+/gu;
  * (ASCII < 3 chars, other scripts < 2 chars), digits-only tokens removed.
  */
 export function tokenize(text: string, out: Set<string> = new Set()): Set<string> {
+  const seen = new Set<string>();
   for (const m of text.matchAll(WORD_RE)) {
     const word = m[0];
-    const parts = word
-      .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')
-      .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
-      .split(' ');
+    if (seen.has(word)) continue; // code repeats identifiers a lot; split each one once
+    seen.add(word);
+    const parts = /[A-Z]/.test(word) || !/^[\x20-\x7e]*$/.test(word) ? splitCase(word) : [word];
     for (const part of parts) {
       const t = normalizeToken(part);
       if (t) out.add(t);
     }
   }
   return out;
+}
+
+/** camelCase / PascalCase / acronym boundaries: `XMLHttpRequest` → XML, Http, Request. */
+function splitCase(word: string): string[] {
+  return word
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')
+    .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .split(' ');
 }
 
 function normalizeToken(raw: string): string | null {

@@ -15,7 +15,7 @@ import type {
   SkippedFile,
 } from '../core/contracts';
 import { expandContexts } from './ast/expand';
-import { astLanguageForPath } from './ast/languages';
+import { type AstLanguage, astLanguageForPath } from './ast/languages';
 import type { AstRuntime } from './ast/runtime';
 import { parsePatch, sideLines } from './diff';
 import { manifestKind, summarizeManifest } from './manifest';
@@ -91,26 +91,37 @@ function splitLines(text: string): string[] {
   return lines;
 }
 
+/**
+ * Max head-content characters parsed with tree-sitter per run. Files are parsed in score order
+ * until the cap is reached; the rest use the ±20 line fallback. Size-based (not time-based) so
+ * the result stays deterministic while run() time stays bounded on huge PRs.
+ */
+export const MAX_AST_PARSE_CHARS = 2_000_000;
+
 /** PRE-06 — symbol contexts from the head contents (modified / renamed files only). */
 function contextsFor(
   file: ChangedFile,
   hunks: readonly Hunk[],
-  input: PreprocessInput,
+  language: AstLanguage | null,
   ast: AstRuntime,
 ): CodeContext[] {
-  if (file.headContent === undefined || file.headContent === '') return [];
-  // Added files are fully visible in their diff; removed files have no head contents.
-  if (file.status === 'added' || file.status === 'removed') return [];
-  const language = astLanguageForPath(file.path, input.options.astLanguages);
+  const content = file.headContent as string;
   const parser = language ? (ast.parsers.get(language) ?? null) : null;
-  const redactedLines = splitLines(redactText(file.headContent));
   return expandContexts({
-    rawContent: file.headContent,
-    redactedLines,
+    rawContent: content,
+    // Redact lazily: only when a context survives pruning.
+    redactedLines: () => splitLines(redactText(content)),
     hunks,
     language: parser ? language : null,
     parser,
   }).contexts;
+}
+
+/** Files that can get contexts: head contents present, modified/renamed, not a manifest. */
+function wantsContexts(file: ChangedFile, hunks: readonly Hunk[]): boolean {
+  if (file.headContent === undefined || file.headContent === '' || hunks.length === 0) return false;
+  // Added files are fully visible in their diff; removed files have no head contents.
+  return file.status !== 'added' && file.status !== 'removed';
 }
 
 function redactPrd(doc: PrdDocument): PrdDocument {
@@ -164,8 +175,17 @@ function finalizeFile(f: PackedFile, counts: Map<string, number>): PackedFile {
   return out;
 }
 
+/** Internal limits; exposed for tests only. */
+export interface EngineLimits {
+  maxAstParseChars: number;
+}
+
 /** Runs the whole pipeline. Pure: same input → same output, no I/O. */
-export function runPreprocess(input: PreprocessInput, ast: AstRuntime): PreprocessOutput {
+export function runPreprocess(
+  input: PreprocessInput,
+  ast: AstRuntime,
+  limits: EngineLimits = { maxAstParseChars: MAX_AST_PARSE_CHARS },
+): PreprocessOutput {
   const { options } = input;
   const skipped: SkippedFile[] = [];
 
@@ -176,7 +196,13 @@ export function runPreprocess(input: PreprocessInput, ast: AstRuntime): Preproce
   const docs = redactedDocs.map((d, i) => truncatePrdDocument(d, allowances[i] as number));
   const prdTokens = docs.reduce((s, d) => s + prdDocumentTokens(d), 0);
 
-  const packed: PackedFile[] = [];
+  interface Kept {
+    file: ChangedFile;
+    hunks: Hunk[];
+    base: UnsizedFile;
+    language: AstLanguage | null;
+  }
+  const kept: Kept[] = [];
   for (const file of input.files) {
     const c = classify(file, input);
     if ('skip' in c) {
@@ -196,12 +222,25 @@ export function runPreprocess(input: PreprocessInput, ast: AstRuntime): Preproce
         options.scoring,
       ).score,
       hunks: kind ? [] : hunks,
-      contexts: kind ? [] : contextsFor(file, hunks, input, ast),
+      contexts: [],
     };
     if (kind) base.summary = summarizeManifest(kind, file.path, hunks);
     else if (hunks.length === 0) base.summary = noDiffSummary(file);
-    packed.push(sized(base));
+    const language = astLanguageForPath(file.path, options.astLanguages);
+    kept.push({ file, hunks: kind ? [] : hunks, base, language });
   }
+
+  // PRE-06 — contexts, parsing the highest-scored files first within MAX_AST_PARSE_CHARS.
+  let parseBudget = limits.maxAstParseChars;
+  const byScore = [...kept].sort((a, b) => b.base.score - a.base.score || cmp(a.base.path, b.base.path));
+  for (const k of byScore) {
+    if (!wantsContexts(k.file, k.hunks)) continue;
+    const size = (k.file.headContent as string).length;
+    const parse = k.language !== null && ast.parsers.has(k.language) && size <= parseBudget;
+    if (parse) parseBudget -= size;
+    k.base.contexts = contextsFor(k.file, k.hunks, parse ? k.language : null, ast);
+  }
+  const packed: PackedFile[] = kept.map((k) => sized(k.base));
 
   const budget = codeBudget(options.tokenBudget, options.reservedTokens, prdTokens);
   const result = pack(packed, budget);

@@ -23,8 +23,11 @@ export const MAX_SIGNATURE_LINES = 10;
 export interface ExpandInput {
   /** Raw head contents (parsed for structure only; never emitted). */
   rawContent: string;
-  /** Redacted (marked) head contents with the same line structure as `rawContent`. */
-  redactedLines: readonly string[];
+  /**
+   * Redacted (marked) head contents with the same line structure as `rawContent`. A function is
+   * called lazily, only when at least one context survives pruning (redaction is the costly part).
+   */
+  redactedLines: readonly string[] | (() => readonly string[]);
   hunks: readonly Hunk[];
   language: AstLanguage | null;
   parser: Parser | null;
@@ -48,8 +51,15 @@ interface SymbolHit {
   changed: Set<number>;
 }
 
-interface Ctx extends CodeContext {
+/** A context before rendering: line ranges only, text comes from the redacted lines at the end. */
+interface Ctx {
+  kind: CodeContext['kind'];
+  name?: string;
+  startLine: number;
+  endLine: number;
+  /** Whole range included (false = signature + windows with omission markers). */
   full: boolean;
+  segments: Range[];
 }
 
 /** Contiguous runs of changed new-side line numbers, per hunk. */
@@ -132,7 +142,7 @@ export function omittedMarker(n: number): string {
   return `... (${n} lines omitted) ...`;
 }
 
-function symbolContext(hit: SymbolHit, lines: readonly string[]): Ctx {
+function symbolContext(hit: SymbolHit): Ctx {
   const { start, end } = hit;
   const base = {
     kind: 'symbol' as const,
@@ -140,27 +150,39 @@ function symbolContext(hit: SymbolHit, lines: readonly string[]): Ctx {
     startLine: start,
     endLine: end,
   };
-  if (end - start + 1 <= MAX_SYMBOL_LINES) {
-    return { ...base, text: slice(lines, { start, end }), full: true };
-  }
+  if (end - start + 1 <= MAX_SYMBOL_LINES) return { ...base, full: true, segments: [{ start, end }] };
   const body = hit.match.inner.childForFieldName('body');
   const bodyRow = body ? body.startPosition.row + 1 : start;
   const sigEnd = Math.min(Math.max(start, bodyRow), start + MAX_SIGNATURE_LINES - 1, end);
-  const ranges = mergeRanges([{ start, end: sigEnd }, ...windowsAround(hit.changed, start, end)]);
+  return {
+    ...base,
+    full: false,
+    segments: mergeRanges([{ start, end: sigEnd }, ...windowsAround(hit.changed, start, end)]),
+  };
+}
+
+function render(c: Ctx, lines: readonly string[]): CodeContext {
   const parts: string[] = [];
-  let prev = start - 1;
-  for (const r of ranges) {
+  let prev = c.startLine - 1;
+  for (const r of c.segments) {
     if (r.start > prev + 1) parts.push(omittedMarker(r.start - prev - 1));
     parts.push(slice(lines, r));
     prev = r.end;
   }
-  if (prev < end) parts.push(omittedMarker(end - prev));
-  return { ...base, text: parts.join('\n'), full: false };
+  if (prev < c.endLine) parts.push(omittedMarker(c.endLine - prev));
+  return {
+    kind: c.kind,
+    ...(c.name !== undefined ? { name: c.name } : {}),
+    startLine: c.startLine,
+    endLine: c.endLine,
+    text: parts.join('\n'),
+  };
 }
 
 /** Builds the code contexts for one file. Never throws. */
 export function expandContexts(input: ExpandInput): ExpandResult {
-  const lines = input.redactedLines;
+  // Raw lines drive structure (columns for node lookup); emitted text comes from redacted lines.
+  const lines = input.rawContent.split('\n').map((l) => (l.endsWith('\r') ? l.slice(0, -1) : l));
   const lineCount = lines.length;
   if (lineCount === 0) return { contexts: [], astFailed: false };
   const blocks = changedBlocks(input.hunks, lineCount);
@@ -217,11 +239,14 @@ export function expandContexts(input: ExpandInput): ExpandResult {
   }
 
   const contexts: Ctx[] = [];
-  for (const hit of symbols.values()) contexts.push(symbolContext(hit, lines));
+  for (const hit of symbols.values()) contexts.push(symbolContext(hit));
   for (const w of windowsAround(loose, 1, lineCount)) {
-    contexts.push({ kind: 'lines', startLine: w.start, endLine: w.end, text: slice(lines, w), full: true });
+    contexts.push({ kind: 'lines', startLine: w.start, endLine: w.end, full: true, segments: [w] });
   }
-  return { contexts: prune(contexts, input.hunks), astFailed };
+  const kept = prune(contexts, input.hunks);
+  if (kept.length === 0) return { contexts: [], astFailed };
+  const redacted = typeof input.redactedLines === 'function' ? input.redactedLines() : input.redactedLines;
+  return { contexts: kept.map((c) => render(c, redacted)), astFailed };
 }
 
 function rangeLines(r: Range): number[] {
@@ -231,7 +256,7 @@ function rangeLines(r: Range): number[] {
 }
 
 /** Drops contexts already shown by a hunk or contained in another full context; sorts the rest. */
-function prune(contexts: Ctx[], hunks: readonly Hunk[]): CodeContext[] {
+function prune(contexts: Ctx[], hunks: readonly Hunk[]): Ctx[] {
   const hunkRanges = hunks
     .filter((h) => h.newLines > 0)
     .map((h) => ({ start: h.newStart, end: h.newStart + h.newLines - 1 }));
@@ -248,5 +273,5 @@ function prune(contexts: Ctx[], hunks: readonly Hunk[]): CodeContext[] {
     );
   });
   kept.sort((a, b) => a.startLine - b.startLine || b.endLine - a.endLine || (a.kind < b.kind ? -1 : 1));
-  return kept.map(({ full: _full, ...c }) => c);
+  return kept;
 }
