@@ -123,6 +123,33 @@ difference. When a criterion or the average is off by more than 0.5, refine the 
 rubric before trusting the judge's scores. For alignment correctness the judge's own opinion is
 compared, not the ground-truth value that replaces it in the score.
 
+## When the rubric changes: re-judge
+
+Scores from different rubric versions cannot be compared, so after a rubric change the last kept
+round is scored again with the new rubric before the next round is run. Nothing is generated:
+only the judge is called on the stored reports, which costs a fraction of a run.
+
+```bash
+# Plan and judge cost only. No API call.
+node evals/cli.mjs run --rejudge evals/rounds/1/raw/results.json --round 1
+
+# Execute (needs ANTHROPIC_API_KEY).
+node evals/cli.mjs run --rejudge evals/rounds/1/raw/results.json --round 1 --yes
+#   --judge-model <id>   judge model (default claude-sonnet-5-5)
+```
+
+- The source file is never changed. The new scores go to
+  `evals/rounds/<n>/raw/results.rubric-v<version>.json`, with a `summary.rubric-v<version>.md`
+  beside the round's summary and a second row for the round in `ROUNDS.md`, marked "re-scored".
+  Without `--round` they go to `evals/results/<timestamp>-rejudged.json` and no round is touched.
+- The re-scored record keeps the round's change text and decision.
+- A round is only ever compared with a kept round judged with the same rubric version. When the
+  only kept round has older scores, the runner gives no recommendation and prints the
+  `--rejudge` command to run.
+- A run is left out, and named in the plan, when its case was edited after the run, the case is
+  not on this machine, or the run did not store the rendered comment. No old score is carried
+  into the new file.
+
 ## Offline re-grade
 
 ```bash
@@ -141,7 +168,7 @@ carried over; only alignment correctness is recomputed from the new grade.
 | Column   | Meaning                                                                                       |
 | -------- | --------------------------------------------------------------------------------------------- |
 | Scenario | mean of actionability, traceability, risk relevance and priority over all tickets of a report |
-| Report   | mean of alignment correctness, concision and honesty                                          |
+| Report   | mean of alignment correctness, concision, honesty and coverage                                |
 | Overall  | 0.5 × Scenario + 0.5 × Report, per report, averaged over the variant                          |
 
 - The judge sees the PRD, the patches (long ones cut), the rendered comment and the report's data.
@@ -149,6 +176,11 @@ carried over; only alignment correctness is recomputed from the new grade.
 - Where a case has ground truth, **alignment correctness comes from the grader**, not from the
   judge: 2 when the overall status and every finding are right, 1 with exactly one wrong status,
   0 otherwise. The judge's own score is kept in the results for calibration.
+- **Coverage** (rubric v2) asks whether every important risk of the change has a ticket. The
+  judge lists the risks itself from the PRD and the diff, then matches each to a ticket; the list
+  is stored with the score (`coverageRisks`) so a person can check what it thought was left out.
+  It does not see the must-cover risks in `expected.json`. Without this criterion a report with
+  two flawless tickets scored full marks while skipping three required risks (round 1).
 - A score outside 0–2, a truncated reply or a failed call leaves the report without rubric scores
   (the run and its deterministic grade stay). It is not retried.
 
@@ -191,7 +223,8 @@ only mentions the topic.
 - Cost in the table comes from the tokens the API reported and the price table in
   `src/llm/pricing.ts`. The pre-run estimate assumes 12,000 output tokens per call, like the
   Action's cost guard, and is usually above the real cost. The judge estimate is a rough size
-  (the case plus about 9,000 input and 5,000 output tokens per report).
+  (the case plus about 9,000 input tokens, and about 220 output tokens per ticket; rounds 0 and 1
+  measured 170–215).
 
 ## First measured run (2026-11-12)
 

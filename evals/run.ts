@@ -40,11 +40,15 @@ import {
 } from './grade';
 import { JUDGE_MODEL, type JudgeClientLike, judgeScenarios } from './judge';
 import { type RegradedVariant, regradeResults } from './regrade';
+import { rejudgeResults } from './rejudge';
 import { buildReviewPack, calibrate } from './review';
 import { decideRound, recordRound } from './rounds';
 import {
   DEFAULT_RUBRIC_MODEL,
+  JUDGE_OUTPUT_BASE_TOKENS,
+  JUDGE_OUTPUT_TOKENS_PER_TICKET,
   judgeWithRubric,
+  RUBRIC_VERSION,
   type RubricClientLike,
   type RubricScore,
   type RubricSummary,
@@ -67,7 +71,6 @@ const COVERAGE_JUDGE_ESTIMATE: LlmUsage = {
 };
 /** The rubric judge reads the case again plus the rendered report, and writes a reason per score. */
 const RUBRIC_JUDGE_EXTRA_INPUT = 9_000;
-const RUBRIC_JUDGE_OUTPUT = 5_000;
 const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 export interface RunOptions {
@@ -87,6 +90,8 @@ export interface RunOptions {
   help: boolean;
   /** Path of a saved results file to re-grade offline, or null for a normal run. */
   regrade: string | null;
+  /** Path of a saved results file whose reports are scored again with the current rubric. */
+  rejudge: string | null;
   /** With `regrade`: cases whose inputs were edited after the saved run (for files without hashes). */
   edited: string[];
   /** Improvement round this run belongs to; writes evals/rounds/<n>/ and updates ROUNDS.md. */
@@ -184,6 +189,11 @@ export interface SavedResults {
   split: string;
   judgeModel: string | null;
   estimateUsd: number;
+  /** Rubric the scores were judged with. Absent when no judge ran, and in files written under rubric v1. */
+  rubricVersion?: number;
+  /** Set by --rejudge: the results file whose reports were scored again, and when. */
+  rejudgedFrom?: string;
+  rejudgedAt?: string;
   variants: VariantResult[];
 }
 
@@ -216,6 +226,9 @@ Run (prints the plan and the estimated cost; calls the API only with --yes):
   --yes                 actually call the API
 
 Offline (no API call, no key):
+  --rejudge <file>      score the reports of a saved results file again with the current rubric;
+                        calls only the judge, prints its cost first and needs --yes like a run.
+                        With --round <n> the new scores are recorded for that round.
   --regrade <file>      re-grade a saved results file with the current cases and rules
   --edited <id,id>      with --regrade: cases whose PR, files or PRD changed since that run
   --review-pack <file>  write a blind rating pack for people from a results file
@@ -244,6 +257,7 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     yes: false,
     help: false,
     regrade: null,
+    rejudge: null,
     edited: [],
     round: null,
     change: '',
@@ -279,6 +293,7 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     else if (flag === '--judge-model') options.judgeModel = value();
     else if (flag === '--cases') options.caseIds = list(value());
     else if (flag === '--regrade') options.regrade = value();
+    else if (flag === '--rejudge') options.rejudge = value();
     else if (flag === '--edited') options.edited = list(value());
     else if (flag === '--review-pack') options.reviewPack = value();
     else if (flag === '--out') options.out = value();
@@ -308,7 +323,12 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     } else throw new Error(`Unknown option ${flag}.`);
   }
   if (options.decision && options.round === null) throw new Error('--decision needs --round <n>.');
-  if (options.round !== null && !options.decision && options.change.trim() === '') {
+  if (
+    options.round !== null &&
+    !options.decision &&
+    options.rejudge === null &&
+    options.change.trim() === ''
+  ) {
     throw new Error('--round needs --change "<what changed in this round>".');
   }
   return options;
@@ -406,6 +426,8 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
 
   // ── offline modes ───────────────────────────────────────────────────────────
   if (options.regrade !== null) return regradeResults(options.regrade, all, deps, options.edited);
+  // Calls the judge (and only the judge), behind the same --yes gate as a run.
+  if (options.rejudge !== null) return rejudgeResults(options.rejudge, all, options, deps);
   if (options.reviewPack !== null) return buildReviewPack(options.reviewPack, all, options, deps);
   if (options.calibrate !== null) return calibrate(options.calibrate[0], options.calibrate[1], deps);
   if (options.decision !== null && options.round !== null)
@@ -466,7 +488,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
       ? estimateCostUsd(options.judgeModel, {
           ...ZERO,
           inputTokens: pre.estimatedTokens + RUBRIC_JUDGE_EXTRA_INPUT,
-          outputTokens: RUBRIC_JUDGE_OUTPUT,
+          outputTokens: JUDGE_OUTPUT_BASE_TOKENS + JUDGE_OUTPUT_TOKENS_PER_TICKET * cfg.maxScenarios,
         })
       : 0;
     const coverageUsd =
@@ -694,6 +716,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
     promptVersion: PROMPT_VERSION,
     split: options.caseIds.length > 0 ? 'selected' : options.split,
     judgeModel: options.judge ? options.judgeModel : null,
+    ...(options.judge ? { rubricVersion: RUBRIC_VERSION } : {}),
     estimateUsd,
     variants: results,
   };

@@ -73,6 +73,7 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
         injectionFlagged: variant?.summary.injectionFlagged,
         scenarioRecall: 1,
         avgTickets: (variant?.runs ?? []).reduce((n, r) => n + r.report.scenarios.length, 0) / DEV.length,
+        criteria: variant?.rubric?.criteria,
         costUsd: variant?.costUsd,
         judgeCostUsd: variant?.judgeCostUsd,
       },
@@ -81,18 +82,18 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
 
     const rounds = h.files['evals/ROUNDS.md'] as string;
     expect(rounds).toContain(
-      '| Round | Date | Prompt | Change | Split | Variant | Overall | Scenario | Report |',
+      '| Round | Date | Prompt | Change | Split | Rubric | Variant | Overall | Scenario | Report |',
     );
     // The pipe in the change text is escaped so it cannot break the table.
     expect(rounds).toMatch(
-      /\n\| 1 \| 2026-11-12 \| \S+ \| baseline \\\| ticket format \| dev \| claude-opus-5-5 · high \| \d\.\d\d \| 1\.50 \| \d\.\d\d \| 100% \| 100% \| 100% \| \d\/\d \| \$\d+\.\d\d \| pending \|\n$/,
+      /\n\| 1 \| 2026-11-12 \| \S+ \| baseline \\\| ticket format \| dev \| v2 \| claude-opus-5-5 · high \| \d\.\d\d \| 1\.50 \| \d\.\d\d \| 100% \| 100% \| 100% \| \d\/\d \| \$\d+\.\d\d \| pending \|\n$/,
     );
     const total = (variant?.costUsd ?? 0) + (variant?.judgeCostUsd ?? 0);
     expect(rounds).toContain(`| $${total.toFixed(2)} | pending |`);
 
     const summary = h.files['evals/rounds/1/summary.md'] as string;
     expect(summary).toMatch(
-      /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Rubric judge: claude-sonnet-5-5\n- Decision: pending\n/,
+      /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Rubric judge: claude-sonnet-5-5, rubric v2\n- Decision: pending\n/,
     );
     expect(summary).toContain('| Variant | Runs | Errors | Overall |');
     // A blank line before the heading, or Markdown reads it as part of the table above.
@@ -100,7 +101,7 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
     expect(summary).toContain('| Actionability | 1.00 |');
     expect(summary).toContain('| Alignment correctness |');
     expect(summary).toContain(
-      '| coupon-expiry-missing | synthetic | 1.58 | 1.50 | 1.67 | pass | partial | — |',
+      '| coupon-expiry-missing | synthetic | 1.50 | 1.50 | 1.50 | pass | partial | — |',
     );
     expect(summary).toContain('| real-demo-1 | real | 1.25 | 1.50 | 1.00 | — | partial | — |');
     // The committed files hold scores only: no report text, no PRD text, no key.
@@ -133,7 +134,9 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
     );
     expect(summary).toContain('Not graded:\n- search-page-cap: internal');
     expect(summary).not.toContain('| Criterion |');
-    expect(h.files['evals/ROUNDS.md']).toMatch(/\| 3 \| .* \| selected \| .* \| — \| — \| — \| 0% \| 0% \|/);
+    expect(h.files['evals/ROUNDS.md']).toMatch(
+      /\| 3 \| .* \| selected \| — \| claude-opus-5-5 · high \| — \| — \| — \| 0% \| 0% \|/,
+    );
   });
 
   it('M3.5 rounds accumulate in order, a re-run replaces its own row, and --decision records keep or revert', async () => {
@@ -247,7 +250,7 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
       'evals/rounds/0/summary.md',
       'evals/rounds/index.json',
     ]);
-    expect(h.files['evals/ROUNDS.md']).toMatch(/\n\| 0 \| 2026-11-12 \| \S+ \| baseline \| dev \|/);
+    expect(h.files['evals/ROUNDS.md']).toMatch(/\n\| 0 \| 2026-11-12 \| \S+ \| baseline \| dev \| v2 \|/);
     const advice =
       'No recommendation for round 0: Round 0 is the baseline. Mark it with --round 0 --decision keep so later rounds are compared with it.';
     expect(h.lines.at(-1)).toBe(advice);
@@ -494,6 +497,7 @@ describe('review pack (M3.5)', () => {
       'alignmentCorrectness',
       'concision',
       'honesty',
+      'coverage',
     ]);
     expect(pack.rubric.actionability).toMatchObject({ name: 'Actionability', level: 'scenario' });
     expect(pack.rubric.honesty.level).toBe('report');
@@ -521,7 +525,12 @@ describe('review pack (M3.5)', () => {
           priority: null,
         });
       }
-      expect(sample.ratings.report).toEqual({ alignmentCorrectness: null, concision: null, honesty: null });
+      expect(sample.ratings.report).toEqual({
+        alignmentCorrectness: null,
+        concision: null,
+        honesty: null,
+        coverage: null,
+      });
       expect(sample.ratings.notes).toBe('');
     }
     const coupon =
@@ -628,6 +637,7 @@ describe('judge calibration (M3.5, RUBRIC.md "Judge calibration")', () => {
       alignmentCorrectness: 0,
       concision: 1,
       honesty: 2,
+      coverage: 1,
     };
     const { h, path, pack, saved } = await ratedPack((c) => agree[c] ?? null);
     const o = offline(h);
@@ -659,6 +669,7 @@ describe('judge calibration (M3.5, RUBRIC.md "Judge calibration")', () => {
       alignmentCorrectness: 0,
       concision: 2,
       honesty: 2,
+      coverage: 1,
     };
     const { h, path, pack, saved } = await ratedPack((c) => strict[c] ?? null);
     const o = offline(h);
@@ -666,7 +677,7 @@ describe('judge calibration (M3.5, RUBRIC.md "Judge calibration")', () => {
 
     expect(o.out()).toMatch(/\| Actionability \| \d+ \| 0\.00 \| 1\.00 \| \+1\.00 \| 1\.00 \|/);
     expect(o.out()).toContain('| Concision | 4 | 2.00 | 1.00 | -1.00 | 1.00 |');
-    expect(o.out()).toContain('Mean absolute difference across criteria: 0.29 (limit 0.5).');
+    expect(o.out()).toContain('Mean absolute difference across criteria: 0.25 (limit 0.5).');
     expect(o.lines.at(-1)).toBe(
       'The judge disagrees with the ratings on: Actionability, Concision. Refine the judge prompt or the rubric before trusting its scores.',
     );

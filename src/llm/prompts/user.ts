@@ -101,13 +101,26 @@ export function buildSkippedSection(skipped: SkippedFile[]): string {
   return `<skipped_files>\n${listed.join('\n')}\n</skipped_files>`;
 }
 
+/** P0 scenarios allowed in one report, whatever `max-scenarios` is set to. */
+export const MAX_P0_SCENARIOS = 5;
+
+/**
+ * The limits as one sentence: "Return at most 8 scenarios, at most 5 of them P0." The P0 part is
+ * left out when the total is already at or below it.
+ */
+export function buildScenarioLimit(maxScenarios: number): string {
+  const p0 = Math.min(MAX_P0_SCENARIOS, maxScenarios);
+  if (p0 < maxScenarios) return `Return at most ${maxScenarios} scenarios, at most ${p0} of them P0.`;
+  return `Return at most ${maxScenarios} ${maxScenarios === 1 ? 'scenario' : 'scenarios'}.`;
+}
+
 /** Closing instruction. Kept last because it carries the only per-call values. */
 export function buildTaskInstruction(phase: GenerateRequest['phase'], maxScenarios: number): string {
   const scope =
     phase === 'single'
       ? 'Review the pull request above.'
       : `Review this part of the pull request. The PR is too large for one pass, so it was split: you are seeing one part, the other parts are reviewed separately, and a final step merges the results. Judge only the files shown here. When a requirement's implementation is not in this part, mark the finding "unclear" and note that it may live in another part, because "missing" would be wrong if another part implements it.`;
-  return `<task>\n${scope} Return at most ${maxScenarios} scenarios.\n</task>`;
+  return `<task>\n${scope} ${buildScenarioLimit(maxScenarios)}\n</task>`;
 }
 
 /** Everything after the shared prefix for a generate call. */

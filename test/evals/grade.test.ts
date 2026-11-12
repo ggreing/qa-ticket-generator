@@ -242,6 +242,7 @@ describe('judge verdicts, summary and table', () => {
         summary: summarize(judged, 0, [judged, judged.slice(0, 5)]),
         rubric: {
           judged: 12,
+          rubricVersion: 2,
           overall: 1.456,
           scenarioScore: 1.25,
           reportScore: 1.662,
@@ -253,6 +254,7 @@ describe('judge verdicts, summary and table', () => {
             alignmentCorrectness: 2,
             concision: 1,
             honesty: 2,
+            coverage: 1,
           },
         },
         costUsd: 2.3456,

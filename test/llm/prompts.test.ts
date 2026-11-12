@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULTS } from '../../src/core/config';
 import type { Language } from '../../src/core/contracts';
 import { buildReduceTail } from '../../src/llm/prompts/reduce';
 import { languageInstruction, PROMPT_VERSION, SYSTEM_PROMPT } from '../../src/llm/prompts/system';
@@ -8,9 +9,11 @@ import {
   buildGenerateTail,
   buildMetadataSection,
   buildPrdSection,
+  buildScenarioLimit,
   buildSkippedSection,
   buildTaskInstruction,
   guardData,
+  MAX_P0_SCENARIOS,
 } from '../../src/llm/prompts/user';
 import { fakeReport } from '../helpers/fakes';
 import { chunk, prdDoc, promptContext } from './support';
@@ -44,14 +47,15 @@ describe('system prompt (SPEC §8)', () => {
   });
 
   it('LLM-06 keeps the system prompt free of per-call values', () => {
-    // The configurable limit lives in the task instruction; the fixed "at most 8" guidance is not per call.
-    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
+    // The scenario and P0 limits come from max-scenarios, so they live in the task instruction.
+    expect(SYSTEM_PROMPT).not.toMatch(/\b\d+ (?:P0 )?scenarios/);
+    expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
     expect(PROMPT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
   });
 
   it('SPEC §8 separates missing from contradicts: absent is missing, present but different is contradicts', () => {
     expect(SYSTEM_PROMPT).toContain(
-      '- missing: the check, limit or behavior the requirement asks for is not in the change at all.',
+      '- missing: the check, limit or behavior the requirement asks for is not in the change.',
     );
     expect(SYSTEM_PROMPT).toMatch(
       /- contradicts: the change implements the same thing with a different value or rule .* a 14-day return window where the requirement says 30 days./,
@@ -68,7 +72,7 @@ describe('system prompt (SPEC §8)', () => {
     );
     expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
     // Wording changes ship under a new version so result files can be told apart.
-    expect(PROMPT_VERSION).toBe('2026-11-12.4');
+    expect(PROMPT_VERSION).toBe('2026-11-12.5');
   });
 
   it.each([
@@ -184,7 +188,7 @@ describe('user message (SPEC §8)', () => {
     const map = buildGenerateTail({ ...base, phase: 'map' });
     expect(map).toMatch(/one part/);
     expect(map).toMatch(/mark the finding "unclear"/);
-    expect(map).toContain('Return at most 7 scenarios.');
+    expect(map).toContain('Return at most 7 scenarios, at most 5 of them P0.');
     const single = buildGenerateTail({ ...base, phase: 'single' });
     expect(single).toContain('Review the pull request above.');
     expect(single).not.toMatch(/one part/);
@@ -216,7 +220,9 @@ describe('reduce prompt (SPEC §8, LLM-07)', () => {
     expect(tail).toMatch(/2 reviewers/);
     expect(tail).toMatch(/merge duplicates/i);
     expect(tail).toMatch(/re-rank priorities/);
-    expect(tail).toContain('Return at most 12 scenarios');
+    expect(tail).toContain(
+      'Return at most 12 scenarios, at most 5 of them P0. Keep the ones that matter most',
+    );
   });
 });
 
@@ -229,21 +235,40 @@ describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
   });
 
   it('RUBRIC Traceability: asks for the PRD label first, and numbers tickets TC-01, TC-02', () => {
-    expect(SYSTEM_PROMPT).toContain('starting with the label the PRD uses (for example "AC2")');
+    expect(SYSTEM_PROMPT).toContain('each by the label the PRD uses (for example "AC2")');
     expect(SYSTEM_PROMPT).toContain('number them TC-01, TC-02, and so on.');
     expect(SYSTEM_PROMPT).not.toContain('S-01');
   });
 });
 
 describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
-  it('RUBRIC Concision: caps the list at 8 scenarios and 5 P0, and says why', () => {
-    expect(SYSTEM_PROMPT).toContain('write at most 8 scenarios, at most 5 of them P0');
-    expect(SYSTEM_PROMPT).toContain('fewer when the task sets a lower limit or the change is small');
+  it('RUBRIC Concision: the system prompt says why the list is short and points at the task for the limits', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'stay within the limits the task gives for scenarios and for P0 scenarios. Get there by merging scenarios, not by dropping what matters:',
+    );
     expect(SYSTEM_PROMPT).toContain('the scenario that matters gets lost');
-    expect(SYSTEM_PROMPT).toContain('keep the 5 with the worst consequences as P0 and rank the others P1');
-    // The user's max-scenarios still reaches the model as the task limit; the lower of the two applies.
-    expect(buildTaskInstruction('single', 5)).toContain('Return at most 5 scenarios.');
-    expect(buildTaskInstruction('single', 20)).toContain('Return at most 20 scenarios.');
+    expect(SYSTEM_PROMPT).toContain(
+      'When more scenarios seem to be P0 than the task allows, keep the ones with the worst consequences as P0 and rank the others P1.',
+    );
+  });
+
+  it('RUBRIC Concision: the limits follow max-scenarios, with at most 5 P0 (default 8 → "8 scenarios, 5 P0")', () => {
+    expect(MAX_P0_SCENARIOS).toBe(5);
+    // The default configuration gives the same numbers round 1 was run with.
+    expect(DEFAULTS.maxScenarios).toBe(8);
+    expect(buildScenarioLimit(DEFAULTS.maxScenarios)).toBe(
+      'Return at most 8 scenarios, at most 5 of them P0.',
+    );
+    expect(buildScenarioLimit(20)).toBe('Return at most 20 scenarios, at most 5 of them P0.');
+    expect(buildScenarioLimit(6)).toBe('Return at most 6 scenarios, at most 5 of them P0.');
+    // At or below 5 the total already bounds P0, so the second number would only be noise.
+    expect(buildScenarioLimit(5)).toBe('Return at most 5 scenarios.');
+    expect(buildScenarioLimit(1)).toBe('Return at most 1 scenario.');
+    for (const phase of ['single', 'map'] as const) {
+      expect(buildTaskInstruction(phase, 8)).toMatch(
+        / Return at most 8 scenarios, at most 5 of them P0\.\n<\/task>$/,
+      );
+    }
   });
 
   it('RUBRIC Concision: one scenario per risk, nothing already guaranteed, and omitted risks kept in one line', () => {
@@ -270,7 +295,82 @@ describe('concise reports (M3.5 round 1, prompt 2026-11-12.4)', () => {
   });
 
   it('keeps per-call values out of the cached system prompt', () => {
-    // The cap is fixed text. The configurable limit stays in the task instruction at the end of the user message.
-    expect(SYSTEM_PROMPT).not.toMatch(/Return at most \d+ scenarios/);
+    // A different max-scenarios must not change the cached prefix: the numbers are only in the tail.
+    const tailOf = (maxScenarios: number): string =>
+      buildGenerateTail({
+        phase: 'single',
+        chunk: chunk('c1', ['src/a.ts']),
+        skipped: [],
+        context: promptContext({ maxScenarios }),
+      });
+    expect(tailOf(8)).toContain('at most 8 scenarios, at most 5 of them P0.');
+    expect(tailOf(3)).toContain('Return at most 3 scenarios.');
+    expect(SYSTEM_PROMPT).not.toMatch(/at most \d/);
+  });
+});
+
+describe('coverage without padding (M3.5 round 2, prompt 2026-11-12.5)', () => {
+  it('RUBRIC Coverage: every gap gets a scenario and no kind of risk vanishes when the list is shortened', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'Every finding that is missing or contradicts gets at least one scenario that fails for as long as the gap is there.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'Every kind of risk the change touches is covered at least once: state transitions, failure paths, boundaries, concurrency.',
+    );
+    expect(SYSTEM_PROMPT).toContain('a kind the change touches must not vanish from the list');
+    // Round 1: "write fewer when the change is small" produced a two-ticket report that skipped three risks.
+    expect(SYSTEM_PROMPT).not.toContain('write fewer when the change is small');
+    expect(SYSTEM_PROMPT).toContain(
+      'The limits are a ceiling, not a target. Write fewer scenarios only when fewer already cover every gap and every kind of risk above.',
+    );
+    // The concision rules of round 1 stay.
+    expect(SYSTEM_PROMPT).toContain('One scenario per risk.');
+    expect(SYSTEM_PROMPT).toContain('name it in one line in `risks` so it is not lost');
+  });
+
+  it('SPEC §8 one finding per requirement, also for requirements labelled inline or made of several parts', () => {
+    expect(SYSTEM_PROMPT).toContain('Write exactly one finding per requirement in the PRD documents.');
+    expect(SYSTEM_PROMPT).toContain('as a list ("AC2: ...") or inline in running text ("... (AC2)")');
+    expect(SYSTEM_PROMPT).toContain('each label is one requirement however many sentences it has');
+    expect(SYSTEM_PROMPT).toContain(
+      'Judge a requirement that has several parts as a whole, in a single finding:',
+    );
+    expect(SYSTEM_PROMPT).toContain('- covered: the change implements it, every part of it.');
+  });
+
+  it('SPEC §8 a partly implemented requirement is missing when the rest is absent, contradicts when it does something ruled out', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'When what the change does is right as far as it goes and the rest is simply not there, the requirement is missing, and the evidence names the part that is absent.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'When what the change does is something the requirement rules out, or uses a different value, it contradicts.',
+    );
+    // The rule that was already there is unchanged.
+    expect(SYSTEM_PROMPT).toContain('absent is missing, present but different is contradicts');
+  });
+
+  it('RUBRIC Traceability: a requirement is cited only when the scenario checks it, and the rationale names the code', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      'Cite a requirement only when the scenario checks what that requirement says.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'cite the file and leave the requirements empty rather than naming the nearest one',
+    );
+    expect(SYSTEM_PROMPT).not.toContain('preferably both');
+    expect(SYSTEM_PROMPT).toContain(
+      '`relatedFiles`: the changed files that hold the code this scenario exercises.',
+    );
+    expect(SYSTEM_PROMPT).toContain(
+      'naming the function, method or constant it exercises (for example `InvoiceMailer.send`)',
+    );
+  });
+
+  it('the examples in the prompt do not come from an eval case', async () => {
+    // An example lifted from a case would hand the model that case's answer (it happened once, in .2).
+    const { CASES } = await import('../../evals/authoring/index');
+    const material = JSON.stringify(CASES).toLowerCase();
+    for (const word of ['profanity', 'comment form', 'invoicemailer', 'return window', '14-day']) {
+      expect(material, word).not.toContain(word);
+    }
   });
 });

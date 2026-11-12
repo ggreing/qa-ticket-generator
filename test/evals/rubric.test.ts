@@ -9,7 +9,9 @@ import {
   REPORT_CRITERIA,
   RUBRIC,
   RUBRIC_SYSTEM,
+  RUBRIC_VERSION,
   type RubricClientLike,
+  rubricVersionOf,
   SCENARIO_CRITERIA,
   scoreRubric,
   summarizeRubric,
@@ -25,9 +27,13 @@ const gradeOf = (r: QaReport) => gradeCase(coupon, { report: r, raw: r });
 const ids = report.scenarios.map((s) => s.id);
 
 type Output = Parameters<typeof scoreRubric>[0];
-/** Judge output giving every scenario `scenario` on all four criteria and the report `reportScore` on all three. */
+/** Judge output giving every scenario `scenario` on all four criteria and the report `reportScore` on all four. */
 function output(scenario = 2, reportScore = 2, scenarioIds: string[] = ids): Output {
   return {
+    importantRisks: [
+      { risk: 'expired coupon accepted', ticket: ' TC-01 ' },
+      { risk: 'double redemption', ticket: '' },
+    ],
     scenarios: scenarioIds.map((id) => ({
       id,
       actionability: scenario,
@@ -46,6 +52,8 @@ function output(scenario = 2, reportScore = 2, scenarioIds: string[] = ids): Out
       concisionWhy: 'co',
       honesty: reportScore,
       honestyWhy: 'ho',
+      coverage: reportScore,
+      coverageWhy: 'cv',
     },
   };
 }
@@ -55,9 +63,10 @@ const replying = (message: Awaited<ReturnType<RubricClientLike['messages']['pars
 });
 
 describe('rubric definition (docs/quality/RUBRIC.md)', () => {
-  it('M3.5 has the 4 scenario and 3 report criteria, with anchors word for word from RUBRIC.md', () => {
+  it('M3.5 rubric v2 has 4 scenario and 4 report criteria, with anchors word for word from RUBRIC.md', () => {
+    expect(RUBRIC_VERSION).toBe(2);
     expect(SCENARIO_CRITERIA).toEqual(['actionability', 'traceability', 'riskRelevance', 'priority']);
-    expect(REPORT_CRITERIA).toEqual(['alignmentCorrectness', 'concision', 'honesty']);
+    expect(REPORT_CRITERIA).toEqual(['alignmentCorrectness', 'concision', 'honesty', 'coverage']);
     const rows = readFileSync('docs/quality/RUBRIC.md', 'utf8')
       .split('\n')
       .map((line) => line.match(/^\| \*\*(.+?)\*\*\s*\| (.+?)\s*\| (.+?)\s*\| (.+?)\s*\|$/))
@@ -67,7 +76,7 @@ describe('rubric definition (docs/quality/RUBRIC.md)', () => {
       RUBRIC[c].name,
       [...RUBRIC[c].anchors],
     ]);
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
     expect(ours).toEqual(rows);
   });
 
@@ -97,14 +106,25 @@ describe('scoreRubric (RUBRIC.md "Scoring")', () => {
       actionability: 0,
       why: { actionability: 'a', priority: 'p' },
     });
-    expect(score.report.why).toEqual({ alignmentCorrectness: 'al', concision: 'co', honesty: 'ho' });
+    expect(score.report.why).toEqual({
+      alignmentCorrectness: 'al',
+      concision: 'co',
+      honesty: 'ho',
+      coverage: 'cv',
+    });
+    expect(score.rubricVersion).toBe(2);
+    // The judge's list of risks is kept so a person can see what it thought was left out.
+    expect(score.coverageRisks).toEqual([
+      { risk: 'expired coupon accepted', ticket: 'TC-01' },
+      { risk: 'double redemption', ticket: '' },
+    ]);
   });
 
   it('M3.5 with ground truth, alignment correctness comes from the grade and the judge opinion is kept aside', () => {
     const right = scoreRubric(output(2, 0), report, gradeOf(report));
     expect(right).toMatchObject({ alignmentSource: 'grade', judgedAlignmentCorrectness: 0 });
     expect(right.report).toMatchObject({ alignmentCorrectness: 2, concision: 0, honesty: 0 });
-    expect(right.reportScore).toBeCloseTo(2 / 3, 9);
+    expect(right.reportScore).toBeCloseTo(2 / 4, 9);
 
     // A judge that is generous about a wrong report cannot lift the score.
     const wrong = structuredClone(report);
@@ -168,7 +188,7 @@ describe('scoreRubric (RUBRIC.md "Scoring")', () => {
       scenarioScore: 1,
     });
     expect(regraded.report).toMatchObject({ alignmentCorrectness: 2, concision: 0, honesty: 0 });
-    expect(regraded.overall).toBeCloseTo(0.5 * 1 + 0.5 * (2 / 3), 9);
+    expect(regraded.overall).toBeCloseTo(0.5 * 1 + 0.5 * (2 / 4), 9);
 
     expect(summarizeRubric([])).toBeNull();
     const summary = summarizeRubric([judged, scoreRubric(output(2, 2), report, null)]);
@@ -181,7 +201,67 @@ describe('scoreRubric (RUBRIC.md "Scoring")', () => {
       alignmentCorrectness: 1,
       concision: 1,
       honesty: 1,
+      coverage: 1,
     });
+    expect(summary?.rubricVersion).toBe(2);
+  });
+});
+
+describe('rubric v2: coverage, and scores stored under v1', () => {
+  it('M3.5 round 1 finding: a two-ticket report that skips risks no longer averages to full marks', () => {
+    // Every ticket perfect, report perfect on the three old criteria, but two risks have no ticket.
+    const thin = output(2, 2, ids.slice(0, 2));
+    thin.report.coverage = 0;
+    const score = scoreRubric(thin, { ...report, scenarios: report.scenarios.slice(0, 2) }, null);
+    expect(score.scenarioScore).toBe(2);
+    expect(score.reportScore).toBe(1.5); // (2 + 2 + 2 + 0) / 4, was 2.00 under rubric v1
+    expect(score.overall).toBe(1.75);
+    expect(score.report.coverage).toBe(0);
+  });
+
+  it('M3.5 the judge is told to list the risks itself, without the expected answers', () => {
+    expect(RUBRIC_SYSTEM).toContain('Score every scenario on four criteria and the report on four.');
+    expect(RUBRIC_SYSTEM).toContain('(`coverage`): 0 = Leaves out an important risk of this change');
+    expect(RUBRIC_SYSTEM).toContain(
+      'work out the important risks of this change yourself before you look at what the tickets cover',
+    );
+    // A short report that covers the risks must not be marked down for being short.
+    expect(RUBRIC_SYSTEM).toContain('so a short report can score 2');
+    expect(RUBRIC_SYSTEM).toContain('No risk left out is 2, one is 1, two or more is 0.');
+    expect(RUBRIC_SYSTEM).toContain('A risk that is only mentioned in the risks section');
+    // Round 1: no-PRD cases and code-only risks could not reach 2 on traceability, and citing the
+    // nearest AC was the only way to "have a source". Leaving the requirement out is now correct.
+    expect(RUBRIC_SYSTEM).toContain('citing no requirement is then correct and can score 2');
+    expect(RUBRIC_SYSTEM).toContain('citing a loosely related requirement is the fault');
+    // Nothing from expected.json reaches the judge: it has to find the risks in the PRD and the diff.
+    const input = buildRubricInput(coupon, report, '');
+    expect(input).not.toContain('mustScenarios');
+  });
+
+  it('M3.5 rejects an out-of-range coverage score like any other', () => {
+    const bad = output();
+    bad.report.coverage = 3;
+    expect(() => scoreRubric(bad, report, null)).toThrow('score out of range for report.coverage');
+  });
+
+  it('M3.5 a score stored under rubric v1 has no coverage: it keeps its three-criteria mean and is not mixed in', () => {
+    const { rubricVersion: _v, coverageRisks: _r, ...rest } = scoreRubric(output(2, 2), report, null);
+    const { coverage: _c, ...oldReport } = rest.report;
+    const v1 = { ...rest, report: oldReport, reportScore: 2, overall: 2 };
+    expect(rubricVersionOf(v1)).toBe(1);
+    // Re-grading a v1 score must not turn the missing criterion into NaN or a zero.
+    const regraded = withGrade(v1, gradeOf(report));
+    expect(regraded.reportScore).toBe(2);
+    expect(regraded.report.coverage).toBeUndefined();
+
+    const summary = summarizeRubric([v1]);
+    expect(summary).toMatchObject({ rubricVersion: 1, reportScore: 2 });
+    expect(summary?.criteria.coverage).toBeNull();
+    expect(summary?.criteria.honesty).toBe(2);
+    // v1 and v2 scores in one summary: the version is unknown, so nothing downstream compares it.
+    const mixed = summarizeRubric([v1, scoreRubric(output(2, 0), report, null)]);
+    expect(mixed?.rubricVersion).toBeNull();
+    expect(mixed?.criteria.coverage).toBe(0); // the mean of the scores that have it
   });
 });
 
@@ -212,7 +292,7 @@ describe('judgeWithRubric', () => {
     });
     expect(result.costUsd).toBeCloseTo((9_000 * 2 + 2_000 * 10) / 1e6, 12);
     expect(result.score).toMatchObject({ scenarioScore: 1.5, alignmentSource: 'judge' });
-    expect(result.score?.reportScore).toBeCloseTo(4 / 3, 9);
+    expect(result.score?.reportScore).toBeCloseTo(5 / 4, 9);
     expect(result.error).toBeUndefined();
   });
 

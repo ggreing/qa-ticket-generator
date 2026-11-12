@@ -156,15 +156,19 @@ export const RUBRIC_USAGE = { input_tokens: 9_000, output_tokens: 2_000 };
 
 /**
  * Rubric judge double: scores every scenario 1/2/1/2 (scenario score 1.5) and the report
- * `alignment`/1/2. With ground truth the grade replaces `alignment`.
+ * `alignment`/1/2/`coverage`. With ground truth the grade replaces `alignment`.
  */
-export function fakeRubricClient(alignment = 0, seen: RubricBody[] = []): RubricClientLike {
+export function fakeRubricClient(alignment = 0, seen: RubricBody[] = [], coverage = 1): RubricClientLike {
   return {
     messages: {
       parse: async (body) => {
         seen.push(body);
         return {
           parsed_output: {
+            importantRisks: [
+              { risk: 'expired coupon accepted', ticket: scenarioIdsIn(body)[0] ?? '' },
+              { risk: 'double redemption', ticket: '' },
+            ],
             scenarios: scenarioIdsIn(body).map((id) => ({
               id,
               actionability: 1,
@@ -183,6 +187,8 @@ export function fakeRubricClient(alignment = 0, seen: RubricBody[] = []): Rubric
               concisionWhy: 'some repetition',
               honesty: 2,
               honestyWhy: 'assumptions are labelled',
+              coverage,
+              coverageWhy: 'no ticket for double redemption',
             },
           },
           stop_reason: 'end_turn',

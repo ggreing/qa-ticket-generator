@@ -113,7 +113,7 @@ function toSample(run: RunRecord, evalCase: EvalCase): ReviewSample {
         priority: s.priority,
         scores: { actionability: null, traceability: null, riskRelevance: null, priority: null },
       })),
-      report: { alignmentCorrectness: null, concision: null, honesty: null },
+      report: { alignmentCorrectness: null, concision: null, honesty: null, coverage: null },
       notes: '',
     },
   };
@@ -180,7 +180,8 @@ export function compareRatings(pack: ReviewPack, saved: SavedResults): Calibrati
   const variant = saved.variants.find((v) => v.label === pack.variant) ?? saved.variants[0];
   const pairs = new Map<Criterion, [number, number][]>();
   const add = (criterion: Criterion, human: Slot, judge: number | undefined): void => {
-    if (human === null || judge === undefined) return;
+    // `== null` also skips a slot that an older pack does not have, or a criterion the judge did not score.
+    if (human == null || judge == null) return;
     pairs.set(criterion, [...(pairs.get(criterion) ?? []), [human, judge]]);
   };
   for (const sample of pack.samples) {
@@ -198,6 +199,7 @@ export function compareRatings(pack: ReviewPack, saved: SavedResults): Calibrati
     );
     add('concision', sample.ratings.report.concision, run.rubric.report.concision);
     add('honesty', sample.ratings.report.honesty, run.rubric.report.honesty);
+    add('coverage', sample.ratings.report.coverage, run.rubric.report.coverage);
   }
   return [...SCENARIO_CRITERIA, ...REPORT_CRITERIA].map((criterion) => {
     const list = pairs.get(criterion) ?? [];
