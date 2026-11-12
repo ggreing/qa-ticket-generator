@@ -245,6 +245,15 @@ describe('prdFileName / writeSnapshot', () => {
   });
 });
 
+describe('module side effects', () => {
+  it('M3.5 never starts on its own: evals/main.ts bundles it, so a self-run hook would fetch on every eval command', () => {
+    const src = readFileSync(resolve('evals/tools/snapshot-real.ts'), 'utf8');
+    expect(src).not.toMatch(/process\.argv/);
+    expect(src).not.toMatch(/import\.meta\.url/);
+    expect(src).not.toMatch(/^main\(/m);
+  });
+});
+
 describe('readOnlyFetch', () => {
   it('M3.5 lets only GitHub REST GET requests through, and counts them', async () => {
     const inner = fakeFetch(() => json({ ok: true }));

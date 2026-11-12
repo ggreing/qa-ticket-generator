@@ -11,13 +11,13 @@
  *
  * Only GitHub REST GET requests are made; anything else is refused before it leaves the process.
  *
- *   npx esbuild evals/tools/snapshot-real.ts --bundle --platform=node --format=esm \
- *     --packages=external --outfile=evals/.build/snapshot-real.mjs
- *   GITHUB_TOKEN="$(gh auth token)" node evals/.build/snapshot-real.mjs [--ids real-zod-6662,...]
+ *   GITHUB_TOKEN="$(gh auth token)" node evals/cli.mjs snapshot-real [--ids real-zod-6662,...]
+ *
+ * This module has no top-level side effects: it only runs when evals/main.ts calls `main`, so
+ * bundling it never starts GitHub requests for other commands.
  */
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 import { getOctokit } from '@actions/github';
 import { z } from 'zod';
 import { createGitHubReader } from '../../src/context/github';
@@ -215,22 +215,4 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
   }
   deps.print(`GitHub API calls (GET): ${guard.calls()}`);
   return failed > 0 ? 1 : 0;
-}
-
-// Runs when bundled and executed directly (see the header), not when imported by tests.
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main(process.argv.slice(2), {
-    env: process.env,
-    print: (line) => console.log(line),
-    root: resolve('evals/real'),
-    sourcesPath: resolve('evals/real-sources.json'),
-  }).then(
-    (code) => {
-      process.exitCode = code;
-    },
-    (err: unknown) => {
-      console.error(err instanceof Error ? err.message : err);
-      process.exitCode = 1;
-    },
-  );
 }
