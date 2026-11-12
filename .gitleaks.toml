@@ -1,0 +1,8 @@
+# gitleaks config: default rules plus an allowlist for synthetic, non-working secrets
+# that exist only to test redaction (SPEC PRE-05). Keep this list as narrow as possible.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic secrets used by the redaction tests"
+paths = ['''(^|/)fixtures/preprocess/''', '''(^|/)test/preprocess/''']
