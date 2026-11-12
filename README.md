@@ -193,7 +193,7 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 | `require-prd`       |          | `false`                           | Fail the check when no linked ticket can be read.                             |
 | `token-budget`      |          | `150000`                          | Input tokens per model call. Bigger PRs are split into several calls.         |
 | `max-cost-usd`      |          | `2.00`                            | Cost ceiling per run. Less important files are dropped to stay under it.      |
-| `max-scenarios`     |          | `20`                              | Maximum number of test cases in the comment.                                  |
+| `max-scenarios`     |          | `8`                               | Maximum number of test cases in the comment.                                  |
 | `comment-author`    |          | —                                 | Only needed with a custom GitHub App token, e.g. `my-app[bot]`.               |
 | `pr-comment`        |          | `true`                            | Post (and keep updating) the PR comment.                                      |
 | `slack-bot-token`   |          | —                                 | Slack bot token (`xoxb-`). Gives you update-in-place and threads.             |

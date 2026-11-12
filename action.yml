@@ -48,7 +48,7 @@ inputs:
   max-scenarios:
     description: Maximum number of scenarios in the report.
     required: false
-    default: "20"
+    default: "8"
   comment-author:
     description: Login that writes the report comment, needed only for custom GitHub App tokens (e.g. my-app[bot]). Detected automatically for GITHUB_TOKEN and PATs.
     required: false

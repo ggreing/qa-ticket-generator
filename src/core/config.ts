@@ -15,7 +15,7 @@ export const DEFAULTS = {
   triggerLabel: 'needs-ai-qa',
   tokenBudget: 150_000,
   maxCostUsd: 2.0,
-  maxScenarios: 20,
+  maxScenarios: 8,
   maxPrdDocuments: 5,
   configPath: '.github/qa-ticket-generator.yml',
   astLanguages: ['typescript', 'tsx', 'javascript', 'python', 'java', 'go'],

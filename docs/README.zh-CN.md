@@ -181,7 +181,7 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 | `require-prd`       |      | `false`                           | 读不到关联需求单时让检查失败。                                 |
 | `token-budget`      |      | `150000`                          | 单次模型调用的输入 token。大的 PR 会拆成多次调用。             |
 | `max-cost-usd`      |      | `2.00`                            | 每次运行的费用上限。超出时先去掉不太重要的文件。               |
-| `max-scenarios`     |      | `20`                              | 评论里测试用例的最大数量。                                     |
+| `max-scenarios`     |      | `8`                               | 评论里测试用例的最大数量。                                     |
 | `comment-author`    |      | —                                 | 只有用自定义 GitHub App token 时才需要,例如 `my-app[bot]`。    |
 | `pr-comment`        |      | `true`                            | 发布 PR 评论并持续更新。                                       |
 | `slack-bot-token`   |      | —                                 | Slack bot token(`xoxb-`),可以原地更新消息和使用回复串。        |

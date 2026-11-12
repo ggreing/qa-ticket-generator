@@ -186,7 +186,7 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 | `require-prd`       |      | `false`                           | 연결된 티켓을 못 읽으면 체크 실패.                               |
 | `token-budget`      |      | `150000`                          | 모델 호출 1번의 입력 토큰. 큰 PR은 여러 번으로 나눔.             |
 | `max-cost-usd`      |      | `2.00`                            | 실행당 비용 상한. 넘으면 덜 중요한 파일부터 뺌.                  |
-| `max-scenarios`     |      | `20`                              | 코멘트에 넣을 테스트 케이스 최대 개수.                           |
+| `max-scenarios`     |      | `8`                               | 코멘트에 넣을 테스트 케이스 최대 개수.                           |
 | `comment-author`    |      | —                                 | 커스텀 GitHub App 토큰을 쓸 때만 지정. 예: `my-app[bot]`.        |
 | `pr-comment`        |      | `true`                            | PR 코멘트를 남기고 계속 갱신.                                    |
 | `slack-bot-token`   |      | —                                 | Slack bot 토큰(`xoxb-`). 메시지 수정과 스레드를 쓸 수 있음.      |

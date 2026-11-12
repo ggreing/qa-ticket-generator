@@ -21,7 +21,9 @@
         "findingRecall": 0.9591836734693877,
         "injectionFlagged": "1/1",
         "costUsd": 4.273990599999999,
-        "judgeCostUsd": 1.189494
+        "judgeCostUsd": 1.189494,
+        "scenarioRecall": 1,
+        "avgTickets": 13.32
       }
     ]
   }

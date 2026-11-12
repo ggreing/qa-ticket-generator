@@ -163,7 +163,7 @@ jobs:
 | `require-prd`                                     |      | `false`                           | PRD 링크가 없으면 실패                                                                                                    |
 | `token-budget`                                    |      | `150000`                          | **LLM 호출 1회**당 입력 토큰 예산(추정). 넘으면 Map-Reduce로 분할                                                         |
 | `max-cost-usd`                                    |      | `2.00`                            | **실행 1번**의 추정 비용 상한(USD). 호출 전에 추정해 넘으면 점수가 낮은 청크부터 제외                                     |
-| `max-scenarios`                                   |      | `20`                              | 최대 시나리오 수                                                                                                          |
+| `max-scenarios`                                   |      | `8`                               | 최대 시나리오 수                                                                                                          |
 | `pr-comment`                                      |      | `true`                            | PR 코멘트 발행 여부                                                                                                       |
 | `comment-author`                                  |      | —                                 | 리포트 코멘트 작성자 login. 커스텀 GitHub App 토큰일 때만 지정(예: `my-app[bot]`). GITHUB_TOKEN과 PAT는 자동 감지(DLV-01) |
 | `slack-bot-token`                                 |      | —                                 | Slack Bot Token(`xoxb-`). 있으면 Bot 모드                                                                                 |

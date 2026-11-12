@@ -37,7 +37,7 @@ describe('resolveConfig', () => {
       requirePrd: false,
       tokenBudget: 150_000,
       maxCostUsd: 2,
-      maxScenarios: 20,
+      maxScenarios: 8,
       prComment: true,
       commentAuthor: null,
       slack: { mode: 'off' },
