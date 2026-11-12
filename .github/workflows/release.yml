@@ -1,0 +1,174 @@
+# Release pipeline (see docs/RELEASE.md).
+#
+# A maintainer pushes a tag vX.Y.Z that points at a *release commit*: one commit on top of a
+# main commit that only adds the built dist/ (main itself never contains dist/, SPEC OI-3).
+# This workflow verifies that commit, publishes to npm with provenance (OIDC trusted
+# publishing), creates the GitHub Release and moves the major tag (v0) to it.
+#
+# Action pins: every `uses:` must be a full commit SHA with the version in a comment.
+# Lines marked TODO(pin) still need their SHA filled in before the first release.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release commit
+    if: github.repository == 'ggreing/qa-ticket-generator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      major: ${{ steps.meta.outputs.major }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      commit: ${{ steps.meta.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin): full commit SHA of actions/checkout v5.x
+        with:
+          fetch-depth: 0 # main history is needed for the ancestry check
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5 # TODO(pin): full commit SHA of actions/setup-node v5.x
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Read tag
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+)\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            major="v${BASH_REMATCH[1]}"
+          else
+            echo "::error::Tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH[-prerelease]."
+            exit 1
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          prerelease=false
+          if [[ "$version" == *-* ]]; then prerelease=true; fi
+          {
+            echo "version=$version"
+            echo "major=$major"
+            echo "prerelease=$prerelease"
+            echo "commit=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Tag matches package.json version
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          actual="$(node -p 'require("./package.json").version')"
+          if [[ "$actual" != "$VERSION" ]]; then
+            echo "::error::package.json version is $actual but the tag is v$VERSION."
+            exit 1
+          fi
+
+      - name: Release commit only adds dist/ on top of a main commit
+        run: |
+          if [[ "$(git rev-list --parents -n 1 HEAD | wc -w)" -ne 2 ]]; then
+            echo "::error::The release commit must have exactly one parent."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor HEAD^ origin/main; then
+            echo "::error::The parent of the release commit is not on main."
+            exit 1
+          fi
+          outside="$(git diff --name-only HEAD^ HEAD | grep -v '^dist/' || true)"
+          if [[ -n "$outside" ]]; then
+            echo "::error::The release commit changes files outside dist/:"
+            echo "$outside"
+            exit 1
+          fi
+          test -f dist/action.js && test -f dist/cli.js
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
+      - name: Committed dist/ matches a clean build
+        id: dist
+        run: |
+          if ! git diff --exit-code --stat -- dist/ || [[ -n "$(git status --porcelain --ignored -- dist/)" ]]; then
+            echo "::error::dist/ in the release commit differs from a clean build. See docs/RELEASE.md (Troubleshooting)."
+            git status --porcelain --ignored -- dist/
+            exit 1
+          fi
+
+      - name: Upload the CI build for comparison
+        if: failure() && steps.dist.outcome == 'failure'
+        uses: actions/upload-artifact@v4 # TODO(pin): full commit SHA of actions/upload-artifact v4.x
+        with:
+          name: dist-from-ci
+          path: dist/
+          retention-days: 7
+
+  npm:
+    name: Publish to npm
+    needs: verify
+    if: github.repository == 'ggreing/qa-ticket-generator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing (OIDC) and provenance
+    steps:
+      - uses: actions/checkout@v5 # TODO(pin): full commit SHA of actions/checkout v5.x
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5 # TODO(pin): full commit SHA of actions/setup-node v5.x
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm CLI >= 11.5.1.
+      - run: npm install --global npm@^11.5.1
+
+      - name: npm publish
+        env:
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          dist_tag=latest
+          if [[ "$PRERELEASE" == "true" ]]; then dist_tag=next; fi
+          npm publish --provenance --access public --tag "$dist_tag"
+
+  github-release:
+    name: GitHub Release and major tag
+    needs: [verify, npm]
+    if: github.repository == 'ggreing/qa-ticket-generator'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the release and move the major tag
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      COMMIT: ${{ needs.verify.outputs.commit }}
+      MAJOR: ${{ needs.verify.outputs.major }}
+      PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+    steps:
+      - name: Create GitHub Release
+        run: |
+          flags=(--verify-tag --generate-notes --title "$GITHUB_REF_NAME")
+          if [[ "$PRERELEASE" == "true" ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" "${flags[@]}"
+
+      - name: Move the major tag
+        if: needs.verify.outputs.prerelease != 'true'
+        run: |
+          if gh api "repos/$GH_REPO/git/ref/tags/$MAJOR" > /dev/null 2>&1; then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$MAJOR" -f sha="$COMMIT" -F force=true
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$MAJOR" -f sha="$COMMIT"
+          fi
+          echo "$MAJOR now points at $COMMIT"
