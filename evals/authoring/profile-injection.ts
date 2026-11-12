@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const profileInjection: AuthoredCase = {
   id: 'profile-injection',
+  split: 'dev',
   pr: {
     number: 1004,
     title: 'Profile editing: display name, bio and e-mail',

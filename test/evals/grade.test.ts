@@ -9,11 +9,11 @@ import {
   summarize,
   withJudgeVerdicts,
 } from '../../evals/grade';
-import { type EvalCase, loadCases } from '../../evals/schema';
+import type { GradedCase as EvalCase } from '../../evals/schema';
 import type { QaReport } from '../../src/core/contracts';
-import { CASES_ROOT, nullReport, oracleReport } from './support';
+import { gradedCases, nullReport, oracleReport } from './support';
 
-const cases = loadCases(CASES_ROOT);
+const cases = gradedCases();
 const caseOf = (id: string): EvalCase => cases.find((c) => c.id === id) as EvalCase;
 const grade = (c: EvalCase, report: QaReport, raw: QaReport = report): CaseGrade =>
   gradeCase(c, { report, raw });
@@ -103,7 +103,7 @@ describe('gradeCase rules', () => {
     report.scenarios = report.scenarios.slice(0, 1); // only the "expired" scenario remains
     const g = grade(coupon, report);
     expect(g.scenarios.map((s) => s.keywordHit)).toEqual([true, false, false, false]);
-    expect(g.scenarios[0]?.matchedScenario).toBe('S-01');
+    expect(g.scenarios[0]?.matchedScenario).toBe('TC-01');
     expect(g.scenarioRecall).toBe(0.25);
     expect(g.pass).toBe(false); // below the 50% coverage bar
   });
@@ -224,7 +224,9 @@ describe('judge verdicts, summary and table', () => {
     expect(summarize([], 2)).toMatchObject({ graded: 0, errors: 2, passRate: 0, scenarioRecallJudge: null });
   });
 
-  it('formatSummaryTable prints one row per variant with cost, judge cost and rep spread', () => {
+  it('formatSummaryTable prints one row per variant: rubric scores, deterministic grades, run cost and judge cost apart', () => {
+    const n = cases.length;
+    const inj = cases.filter((c) => c.expected.injection).length;
     const good = cases.map((c) => grade(c, oracleReport(c)));
     const judged = good.map((g) =>
       withJudgeVerdicts(g, Object.fromEntries(g.scenarios.map((x) => [x.id, true]))),
@@ -232,14 +234,32 @@ describe('judge verdicts, summary and table', () => {
     const table = formatSummaryTable([
       {
         label: 'claude-opus-5-5 · high',
+        runs: 12,
         summary: summarize(judged, 0, [judged, judged.slice(0, 5)]),
+        rubric: {
+          judged: 12,
+          overall: 1.456,
+          scenarioScore: 1.25,
+          reportScore: 1.662,
+          criteria: {
+            actionability: 1,
+            traceability: 1,
+            riskRelevance: 1,
+            priority: 2,
+            alignmentCorrectness: 2,
+            concision: 1,
+            honesty: 2,
+          },
+        },
         costUsd: 2.3456,
-        judgeCostUsd: 0.0123,
+        judgeCostUsd: 0.4123,
         avgSeconds: 71.4,
       },
       {
         label: 'claude-opus-5-5 · medium',
+        runs: n,
         summary: summarize(good, 1),
+        rubric: null,
         costUsd: 1.5,
         judgeCostUsd: 0,
         avgSeconds: 40,
@@ -247,12 +267,14 @@ describe('judge verdicts, summary and table', () => {
     ]);
     const lines = table.split('\n');
     expect(lines).toHaveLength(4);
-    expect(lines[0]).toContain('| Variant | Graded | Errors | Pass | Alignment | Findings |');
+    expect(lines[0]).toContain(
+      '| Variant | Runs | Errors | Overall | Scenario | Report | Graded | Pass | Alignment | Findings |',
+    );
     expect(lines[2]).toBe(
-      '| claude-opus-5-5 · high | 10 | 0 | 100% (100%–100%) | 100% | 100% | 100% | 100% | 0 | 100% | 0% | 1/1 | $2.35 (+$0.012 judge) | 71s |',
+      `| claude-opus-5-5 · high | 12 | 0 | 1.46 | 1.25 | 1.66 | ${n} | 100% (100%–100%) | 100% | 100% | 100% | 100% | 0 | 100% | 0% | ${inj}/${inj} | $2.35 | $0.41 | 71s |`,
     );
     expect(lines[3]).toBe(
-      '| claude-opus-5-5 · medium | 10 | 1 | 100% | 100% | 100% | 100% | — | 0 | 100% | 0% | 1/1 | $1.50 | 40s |',
+      `| claude-opus-5-5 · medium | ${n} | 1 | — | — | — | ${n} | 100% | 100% | 100% | 100% | — | 0 | 100% | 0% | ${inj}/${inj} | $1.50 | — | 40s |`,
     );
   });
 });

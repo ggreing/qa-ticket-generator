@@ -1,11 +1,13 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildCase, parseAnnotated, renderPatch } from '../../evals/authoring/build';
 import { CASES } from '../../evals/authoring/index';
-import { type EvalCase, loadCase, loadCases } from '../../evals/schema';
+import { type GradedCase as EvalCase, loadCase, loadCases, loadDataset } from '../../evals/schema';
 import { extractPrdRefs } from '../../src/context/prd/refs';
-import { CASES_ROOT } from './support';
+import { CASES_ROOT, EVALS_ROOT, gradedCases, makeEvalsRoot, REAL_ABSENT } from './support';
 
-const cases = loadCases(CASES_ROOT);
+const cases = gradedCases();
 const byId = new Map(cases.map((c) => [c.id, c]));
 const statusesOf = (c: EvalCase) => c.expected.mustFindings.flatMap((m) => m.accept);
 const count = (pred: (c: EvalCase) => boolean) => cases.filter(pred).length;
@@ -20,21 +22,21 @@ function applyPatchToEmpty(patch: string): string {
 }
 
 describe('eval dataset (SPEC §12.3)', () => {
-  it('SPEC §12.3 has 10 cases and every file passes the dataset schema', () => {
-    expect(cases).toHaveLength(10);
-    expect(new Set(cases.map((c) => c.pr.number)).size).toBe(10);
+  it('SPEC §12.3 has at least 10 synthetic cases, each with its own PR number, and every file passes the dataset schema', () => {
+    expect(cases.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(cases.map((c) => c.pr.number)).size).toBe(cases.length);
     for (const c of cases) {
       expect(c.files.length, c.id).toBeGreaterThanOrEqual(2);
       expect(c.expected.mustScenarios.length, c.id).toBeGreaterThanOrEqual(3);
     }
   });
 
-  it('SPEC §12.3 plants the required mix: ≥3 missing, ≥2 contradicts, ≥2 aligned, 1 without PRD, 1 injection', () => {
+  it('SPEC §12.3 plants the required mix: ≥3 missing, ≥2 contradicts, ≥2 aligned, ≥1 without PRD, ≥1 injection', () => {
     expect(cases.flatMap(statusesOf).filter((s) => s === 'missing').length).toBeGreaterThanOrEqual(3);
     expect(cases.flatMap(statusesOf).filter((s) => s === 'contradicts').length).toBeGreaterThanOrEqual(2);
     expect(count((c) => c.expected.expectedAlignment === 'aligned')).toBeGreaterThanOrEqual(2);
-    expect(count((c) => c.expected.expectedAlignment === 'no_prd')).toBe(1);
-    expect(count((c) => c.expected.injection !== undefined)).toBe(1);
+    expect(count((c) => c.expected.expectedAlignment === 'no_prd')).toBeGreaterThanOrEqual(1);
+    expect(count((c) => c.expected.injection !== undefined)).toBeGreaterThanOrEqual(1);
     // Both directions: fully implemented requirements are checked too, not only gaps.
     expect(cases.flatMap(statusesOf).filter((s) => s === 'covered').length).toBeGreaterThanOrEqual(10);
   });
@@ -57,6 +59,7 @@ describe('eval dataset (SPEC §12.3)', () => {
       expect(loaded.files, def.id).toEqual(built.files);
       expect(loaded.prdDocuments, def.id).toEqual(built.prd.map((p) => p.doc));
       expect(loaded.expected, def.id).toEqual(built.expected);
+      expect(loaded.options, def.id).toEqual(built.options);
     }
   });
 
@@ -78,8 +81,23 @@ describe('eval dataset (SPEC §12.3)', () => {
   });
 
   it('every must-finding points at a labelled acceptance criterion of the linked PRD', () => {
+    const escapeRegex = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const c of cases) {
       const criteria = c.prdDocuments.flatMap((d) => d.acceptanceCriteria);
+      if (criteria.length === 0) {
+        // A PRD written as prose: requirements carry inline labels such as "(AC1)" in the body.
+        const body = c.prdDocuments.map((d) => d.bodyMarkdown).join('\n');
+        for (const m of c.expected.mustFindings) {
+          const tokens = m.labels.flatMap(
+            (label) => body.match(new RegExp(`\\b${escapeRegex(label)}\\b`, 'g')) ?? [],
+          );
+          expect(tokens, `${c.id}/${m.id}`).toHaveLength(1);
+          for (const keyword of m.keywords) {
+            expect(body.toLowerCase(), `${c.id}/${m.id}/${keyword}`).toContain(keyword.toLowerCase());
+          }
+        }
+        continue;
+      }
       expect(c.expected.mustFindings.length, c.id).toBe(criteria.length);
       for (const m of c.expected.mustFindings) {
         const hits = criteria.filter((ac) => m.labels.some((label) => ac.startsWith(`${label}:`)));
@@ -152,6 +170,54 @@ describe('eval dataset (SPEC §12.3)', () => {
     expect(c.expected.mustFindings.find((m) => m.id === 'AC2')?.accept).toEqual(['missing']);
   });
 
+  it('M3.5 every synthetic case is in exactly one split, and dev is the larger one', () => {
+    const { cases: all } = loadDataset(EVALS_ROOT);
+    const synthetic = all.filter((c) => c.origin === 'synthetic');
+    expect(synthetic.map((c) => c.id)).toEqual(cases.map((c) => c.id));
+    const dev = synthetic.filter((c) => c.split === 'dev');
+    const test = synthetic.filter((c) => c.split === 'test');
+    expect(dev.length + test.length).toBe(synthetic.length);
+    expect(dev.length).toBeGreaterThan(test.length);
+    expect(test.length).toBeGreaterThanOrEqual(4);
+    // Each split can tell a correct reviewer from a lenient one: both have gaps and clean cases.
+    for (const split of [dev, test]) {
+      const alignments = new Set(split.map((c) => c.expected?.expectedAlignment));
+      expect(alignments.has('aligned')).toBe(true);
+      expect(alignments.size).toBeGreaterThanOrEqual(3);
+    }
+    for (const def of CASES) expect(byId.get(def.id), def.id).toBeDefined();
+  });
+
+  it('M3.5 real-PR snapshots load without ground truth, with their split; absent ones are reported, not fatal', () => {
+    const root = makeEvalsRoot();
+    const { cases: all, missingReal } = loadDataset(root);
+    const real = all.filter((c) => c.origin === 'real');
+    expect(real.map((c) => [c.id, c.split, c.expected])).toEqual([
+      ['real-demo-1', 'dev', null],
+      ['real-demo-2', 'test', null],
+    ]);
+    expect(missingReal).toEqual([REAL_ABSENT]);
+    expect(all.slice(0, cases.length).every((c) => c.origin === 'synthetic')).toBe(true);
+    // Per-case preprocess options ride along, and a bad options.json is rejected.
+    expect(real[0]?.options).toEqual({ tokenBudget: 12_000 });
+    expect(real[1]?.options).toBeUndefined();
+    writeFileSync(join(root, 'real', 'real-demo-2', 'options.json'), '{"tokenBudget": 5}');
+    expect(() => loadDataset(root)).toThrow();
+  });
+
+  it('M3.5 the committed real-PR list is readable and never breaks loading when snapshots are absent', () => {
+    const { cases: all, missingReal } = loadDataset(EVALS_ROOT);
+    const real = all.filter((c) => c.origin === 'real');
+    for (const c of real) expect(c.expected, c.id).toBeNull();
+    expect(new Set([...real.map((c) => c.id), ...missingReal]).size).toBe(real.length + missingReal.length);
+  });
+
+  it('M3.5 a synthetic case that is in neither split is an error that names the fix', () => {
+    const root = makeEvalsRoot();
+    writeFileSync(join(root, 'splits.json'), JSON.stringify({ dev: [], test: [] }));
+    expect(() => loadDataset(root)).toThrow(/is in neither split\. Run "npm run eval:build-cases"/);
+  });
+
   it('loadCases reports unknown ids and loadCase rejects malformed files', () => {
     expect(() => loadCases(CASES_ROOT, ['nope'])).toThrow('Unknown eval case(s): nope');
     expect(loadCases(CASES_ROOT, ['report-timezone']).map((c) => c.id)).toEqual(['report-timezone']);
@@ -216,6 +282,8 @@ describe('case authoring (annotated diff → patch)', () => {
   it('builds file entries: added, modified, renamed, removed and patch-less files', () => {
     const built = buildCase({
       id: 'demo',
+      split: 'dev',
+      options: { tokenBudget: 12_000 },
       pr: { number: 1, title: 't', author: 'a', headRef: 'h', body: '\nBody text.\n' },
       prd: [],
       files: [
@@ -228,6 +296,7 @@ describe('case authoring (annotated diff → patch)', () => {
       expected: CASES[0]?.expected as EvalCase['expected'],
     });
     expect(built.pr.body).toBe('Body text.');
+    expect([built.split, built.options]).toEqual(['dev', { tokenBudget: 12_000 }]);
     expect(built.pr.headSha).toMatch(/^[0-9a-f]{40}$/);
     expect(built.files.map((f) => [f.path, f.status, f.additions, f.deletions])).toEqual([
       ['new.ts', 'added', 1, 0],

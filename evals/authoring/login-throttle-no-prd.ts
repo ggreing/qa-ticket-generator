@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const loginThrottleNoPrd: AuthoredCase = {
   id: 'login-throttle-no-prd',
+  split: 'dev',
   pr: {
     number: 918,
     title: 'Throttle repeated failed logins',

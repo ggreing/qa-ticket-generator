@@ -1,9 +1,10 @@
 /**
- * Eval runner (SPEC §12.3): case → preprocess → orchestrate (real provider) → grade.
+ * Eval runner (SPEC §12.3, M3.5): case → preprocess → orchestrate (real provider) → grade → judge.
  *
- * It calls the same `orchestrate`, prompts and normalization the Action uses, with the Action's
- * default configuration, so a score here describes what ships. Nothing is sent to the API until
- * the estimated cost has been printed and `--yes` was given.
+ * It calls the same `orchestrate`, prompts, normalization and renderer the Action uses, with the
+ * Action's default configuration, so a score here describes what ships. Nothing is sent to the
+ * API until the estimated cost (run and judge shown separately) has been printed and `--yes`
+ * was given. Offline modes (`--regrade`, `--review-pack`, `--calibrate`, `--decision`) never call it.
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
@@ -11,6 +12,7 @@ import { parseRepoConfig, resolveConfig } from '../src/core/config';
 import type {
   CreatePreprocessEngine,
   Effort,
+  FinalReport,
   GenerateRequest,
   LlmProvider,
   LlmResult,
@@ -23,6 +25,7 @@ import type {
 } from '../src/core/contracts';
 import { QtgError } from '../src/core/errors';
 import { EXPECTED_OUTPUT_TOKENS, MAP_CONCURRENCY, MAX_OUTPUT_TOKENS } from '../src/core/limits';
+import { renderPrComment } from '../src/delivery/render/markdown';
 import { orchestrate, planRun } from '../src/llm/orchestrate';
 import { estimateCostUsd } from '../src/llm/pricing';
 import { PROMPT_VERSION } from '../src/llm/prompts/system';
@@ -37,7 +40,17 @@ import {
 } from './grade';
 import { JUDGE_MODEL, type JudgeClientLike, judgeScenarios } from './judge';
 import { type RegradedVariant, regradeResults } from './regrade';
-import { type EvalCase, inputHashOf, loadCases } from './schema';
+import { buildReviewPack, calibrate } from './review';
+import { decideRound, recordRound } from './rounds';
+import {
+  DEFAULT_RUBRIC_MODEL,
+  judgeWithRubric,
+  type RubricClientLike,
+  type RubricScore,
+  type RubricSummary,
+  summarizeRubric,
+} from './rubric';
+import { type EvalCase, type GradedCase, inputHashOf, loadDataset } from './schema';
 
 /** The Action's own limits (src/core/limits.ts), so the eval runs and estimates exactly like production. */
 export const PRODUCTION = {
@@ -46,27 +59,45 @@ export const PRODUCTION = {
   maxOutputTokens: MAX_OUTPUT_TOKENS,
 } as const;
 /** Rough size of one judge call, for the pre-run estimate only. */
-const JUDGE_ESTIMATE: LlmUsage = {
+const COVERAGE_JUDGE_ESTIMATE: LlmUsage = {
   inputTokens: 5_000,
   outputTokens: 1_500,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 };
+/** The rubric judge reads the case again plus the rendered report, and writes a reason per score. */
+const RUBRIC_JUDGE_EXTRA_INPUT = 9_000;
+const RUBRIC_JUDGE_OUTPUT = 5_000;
 const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 export interface RunOptions {
   model: string;
   efforts: Effort[];
   caseIds: string[];
+  /** Which part of the data to run. `test` is meant to be touched once, at the end. */
+  split: 'dev' | 'test' | 'all';
   reps: number;
   concurrency: number;
+  /** Score every report with the rubric judge. */
   judge: boolean;
+  judgeModel: string;
+  /** Also ask the keyword-coverage judge (cases with ground truth only). */
+  coverageJudge: boolean;
   yes: boolean;
   help: boolean;
   /** Path of a saved results file to re-grade offline, or null for a normal run. */
   regrade: string | null;
   /** With `regrade`: cases whose inputs were edited after the saved run (for files without hashes). */
   edited: string[];
+  /** Improvement round this run belongs to; writes evals/rounds/<n>/ and updates ROUNDS.md. */
+  round: number | null;
+  change: string;
+  decision: 'keep' | 'revert' | null;
+  reviewPack: string | null;
+  sample: number;
+  out: string | null;
+  /** [ratings.json, results.json] */
+  calibrate: [string, string] | null;
 }
 
 export interface ProviderRequest {
@@ -77,7 +108,8 @@ export interface ProviderRequest {
 }
 
 export interface RunDeps {
-  casesRoot: string;
+  /** The `evals/` directory: cases/, real/, splits.json, real-sources.json, rounds/, ROUNDS.md. */
+  evalsRoot: string;
   resultsRoot: string;
   env: Record<string, string | undefined>;
   print: (line: string) => void;
@@ -85,6 +117,7 @@ export interface RunDeps {
   createEngine: CreatePreprocessEngine;
   createProvider: (request: ProviderRequest) => LlmProvider;
   createJudgeClient: (apiKey: string) => JudgeClientLike;
+  createRubricClient: (apiKey: string) => RubricClientLike;
   writeFile: (path: string, text: string) => void;
   readFile: (path: string) => string;
 }
@@ -92,17 +125,25 @@ export interface RunDeps {
 export interface RunRecord {
   caseId: string;
   rep: number;
+  origin?: 'synthetic' | 'real';
   /** Hash of what the model was shown (PR, files, PRD). Lets a re-grade detect edited cases. */
   inputHash?: string;
-  grade: CaseGrade;
+  /** Deterministic grade; null for cases without ground truth. */
+  grade: CaseGrade | null;
+  /** Rubric judge scores, when the judge ran and answered. */
+  rubric?: RubricScore;
   report: QaReport;
   raw: QaReport;
+  /** The PR comment as the Action would post it for this report. */
+  comment?: string;
+  mode?: PreprocessOutput['mode'];
   calls: CallRecord[];
   usage: LlmUsage;
   costUsd: number;
   seconds: number;
   warnings: string[];
   judge?: { usage: LlmUsage; costUsd: number; error?: string };
+  rubricJudge?: { model: string; usage: LlmUsage; costUsd: number; error?: string };
 }
 
 /** A run that produced nothing to grade. Kept apart from grades so plumbing is never scored as a model failure. */
@@ -131,14 +172,27 @@ export interface VariantResult {
   runs: RunRecord[];
   errors: RunError[];
   summary: Summary;
+  rubric: RubricSummary | null;
   costUsd: number;
   judgeCostUsd: number;
+}
+
+/** What `evals/results/<timestamp>.json` holds. */
+export interface SavedResults {
+  startedAt: string;
+  promptVersion: string;
+  split: string;
+  judgeModel: string | null;
+  estimateUsd: number;
+  variants: VariantResult[];
 }
 
 export interface RunOutcome {
   exitCode: number;
   executed: boolean;
+  /** Run and judge estimate together. */
   estimateUsd: number;
+  estimate?: { runUsd: number; judgeUsd: number };
   resultsPath?: string;
   variants?: VariantResult[];
   regraded?: RegradedVariant[];
@@ -146,15 +200,30 @@ export interface RunOutcome {
 
 export const USAGE = `Usage: node evals/cli.mjs run [options]
 
+Run (prints the plan and the estimated cost; calls the API only with --yes):
   --model <id>          model to evaluate (default: the Action's default model)
   --effort <a,b>        effort level(s); several values run one variant each, e.g. high,medium
-  --cases <id,id>       run only these cases (default: all)
+  --split <name>        dev (default), test or all; test is meant for the final run only
+  --cases <id,id>       run only these cases, whatever their split
   --reps <n>            repetitions per case and variant (default: 1)
   --concurrency <n>     cases in flight at once (default: 3)
-  --judge               also grade scenario coverage with ${JUDGE_MODEL}
-  --yes                 actually call the API; without it only the plan and estimated cost are printed
-  --regrade <file>      re-grade a saved results file with the current cases and rules (no API call)
-  --edited <id,id>      with --regrade: cases whose PR, files or PRD changed since that run (left out)
+  --judge               score every report with the rubric judge (docs/quality/RUBRIC.md)
+  --judge-model <id>    rubric judge model (default: ${DEFAULT_RUBRIC_MODEL})
+  --coverage-judge      also judge must-cover scenarios with ${JUDGE_MODEL} (cases with ground truth)
+  --round <n>           record this run as improvement round n (evals/rounds/<n>/, evals/ROUNDS.md)
+  --change "<text>"     what changed in this round (required with --round)
+  --yes                 actually call the API
+
+Offline (no API call, no key):
+  --regrade <file>      re-grade a saved results file with the current cases and rules
+  --edited <id,id>      with --regrade: cases whose PR, files or PRD changed since that run
+  --review-pack <file>  write a blind rating pack for people from a results file
+  --sample <n>          with --review-pack: how many reports to include (default: 5)
+  --out <path>          with --review-pack: where to write the pack
+  --calibrate <ratings.json> <results.json>
+                        compare people's ratings with the rubric judge, per criterion
+  --round <n> --decision keep|revert
+                        record the decision for a round
   --help                show this text
 
 Needs ANTHROPIC_API_KEY when run with --yes.`;
@@ -165,22 +234,33 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     model: defaults.model,
     efforts: [defaults.effort],
     caseIds: [],
+    split: 'dev',
     reps: 1,
     concurrency: 3,
     judge: false,
+    judgeModel: DEFAULT_RUBRIC_MODEL,
+    coverageJudge: false,
     yes: false,
     help: false,
     regrade: null,
     edited: [],
+    round: null,
+    change: '',
+    decision: null,
+    reviewPack: null,
+    sample: 5,
+    out: null,
+    calibrate: null,
   };
   const list = (value: string): string[] =>
     value
       .split(',')
       .map((v) => v.trim())
       .filter(Boolean);
-  const count = (flag: string, value: string): number => {
+  const count = (flag: string, value: string, max = 20): number => {
     const n = Number(value);
-    if (!Number.isInteger(n) || n < 1 || n > 20) throw new Error(`${flag} must be an integer from 1 to 20.`);
+    if (!Number.isInteger(n) || n < 1 || n > max)
+      throw new Error(`${flag} must be an integer from 1 to ${max}.`);
     return n;
   };
   for (let i = 0; i < argv.length; i++) {
@@ -192,14 +272,31 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     };
     if (flag === '--yes') options.yes = true;
     else if (flag === '--judge') options.judge = true;
+    else if (flag === '--coverage-judge') options.coverageJudge = true;
     else if (flag === '--help' || flag === '-h') options.help = true;
     else if (flag === '--model') options.model = value();
+    else if (flag === '--judge-model') options.judgeModel = value();
     else if (flag === '--cases') options.caseIds = list(value());
     else if (flag === '--regrade') options.regrade = value();
     else if (flag === '--edited') options.edited = list(value());
+    else if (flag === '--review-pack') options.reviewPack = value();
+    else if (flag === '--out') options.out = value();
+    else if (flag === '--change') options.change = value();
+    else if (flag === '--calibrate') options.calibrate = [value(), value()];
     else if (flag === '--reps') options.reps = count(flag, value());
     else if (flag === '--concurrency') options.concurrency = count(flag, value());
-    else if (flag === '--effort') {
+    else if (flag === '--sample') options.sample = count(flag, value(), 50);
+    else if (flag === '--round') options.round = count(flag, value(), 99);
+    else if (flag === '--split') {
+      const split = value();
+      if (split !== 'dev' && split !== 'test' && split !== 'all')
+        throw new Error('--split takes dev, test or all.');
+      options.split = split;
+    } else if (flag === '--decision') {
+      const decision = value();
+      if (decision !== 'keep' && decision !== 'revert') throw new Error('--decision takes keep or revert.');
+      options.decision = decision;
+    } else if (flag === '--effort') {
       const efforts = list(value());
       const bad = efforts.filter((e) => !EFFORTS.includes(e as Effort));
       if (efforts.length === 0 || bad.length > 0) {
@@ -207,6 +304,10 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
       }
       options.efforts = [...new Set(efforts)] as Effort[];
     } else throw new Error(`Unknown option ${flag}.`);
+  }
+  if (options.decision && options.round === null) throw new Error('--decision needs --round <n>.');
+  if (options.round !== null && !options.decision && options.change.trim() === '') {
+    throw new Error('--round needs --change "<what changed in this round>".');
   }
   return options;
 }
@@ -263,16 +364,12 @@ async function pool<T>(items: T[], limit: number, worker: (item: T) => Promise<v
 }
 
 const ZERO: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
-const add = (a: LlmUsage, b: LlmUsage): LlmUsage => ({
-  inputTokens: a.inputTokens + b.inputTokens,
-  outputTokens: a.outputTokens + b.outputTokens,
-  cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
-  cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
-});
 
 /** The served model may be a dated snapshot of the requested alias, nothing else. */
 const servedBy = (requested: string, served: string): boolean =>
   served === requested || served.startsWith(`${requested}-`);
+
+const hasGroundTruth = (c: EvalCase): c is GradedCase => c.expected !== null;
 
 /**
  * Runs the eval. Prints the plan and its estimated cost first; unless `--yes` is present it
@@ -280,6 +377,7 @@ const servedBy = (requested: string, served: string): boolean =>
  */
 export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcome> {
   const { print } = deps;
+  const none = (exitCode: number): RunOutcome => ({ exitCode, executed: false, estimateUsd: 0 });
   const cfg = resolveConfig((name) => (name === 'anthropic-api-key' ? 'eval' : ''), parseRepoConfig(null));
 
   let options: RunOptions;
@@ -288,22 +386,42 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   } catch (err) {
     print((err as Error).message);
     print(USAGE);
-    return { exitCode: 2, executed: false, estimateUsd: 0 };
+    return none(2);
   }
   if (options.help) {
     print(USAGE);
-    return { exitCode: 0, executed: false, estimateUsd: 0 };
+    return none(0);
   }
 
-  let cases: EvalCase[];
+  let all: EvalCase[];
+  let missingReal: string[];
   try {
-    cases = loadCases(deps.casesRoot, options.caseIds);
+    ({ cases: all, missingReal } = loadDataset(deps.evalsRoot));
   } catch (err) {
     print((err as Error).message);
-    return { exitCode: 2, executed: false, estimateUsd: 0 };
+    return none(2);
   }
 
-  if (options.regrade !== null) return regradeResults(options.regrade, cases, deps, options.edited);
+  // ── offline modes ───────────────────────────────────────────────────────────
+  if (options.regrade !== null) return regradeResults(options.regrade, all, deps, options.edited);
+  if (options.reviewPack !== null) return buildReviewPack(options.reviewPack, all, options, deps);
+  if (options.calibrate !== null) return calibrate(options.calibrate[0], options.calibrate[1], deps);
+  if (options.decision !== null && options.round !== null)
+    return decideRound(options.round, options.decision, deps);
+
+  const unknown = options.caseIds.filter((id) => !all.some((c) => c.id === id));
+  if (unknown.length > 0) {
+    print(`Unknown eval case(s): ${unknown.join(', ')}`);
+    return none(2);
+  }
+  const cases =
+    options.caseIds.length > 0
+      ? all.filter((c) => options.caseIds.includes(c.id))
+      : all.filter((c) => options.split === 'all' || c.split === options.split);
+  if (cases.length === 0) {
+    print(`No eval cases in split "${options.split}".`);
+    return none(2);
+  }
 
   // ── preprocess (no network) ─────────────────────────────────────────────────
   let engine: PreprocessEngine;
@@ -318,7 +436,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
     const pre: PreprocessOutput = engine.run({
       files: evalCase.files,
       prdDocuments: evalCase.prdDocuments,
-      options: cfg.preprocess,
+      options: { ...cfg.preprocess, ...(evalCase.options ?? {}) },
     });
     const { pr } = evalCase;
     const context: PromptContext = {
@@ -341,30 +459,53 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   // ── plan and estimated cost ─────────────────────────────────────────────────
   const pricing = { estimateCostUsd: (usage: LlmUsage) => estimateCostUsd(options.model, usage) };
   const guard = { maxCostUsd: cfg.maxCostUsd, expectedOutputTokens: PRODUCTION.expectedOutputTokens };
-  const perCase = prepared.map(({ evalCase, pre, context }) => ({
-    id: evalCase.id,
-    estimateUsd: pre.chunks.length === 0 ? 0 : planRun(pre.chunks, pricing, context, guard).estimateUsd,
-    shape: `${pre.mode}, ${pre.chunks.length} chunk(s), ~${pre.estimatedTokens} input tokens, ${pre.skipped.length} file(s) skipped`,
-  }));
-  const perVariant = perCase.reduce((n, c) => n + c.estimateUsd, 0) * options.reps;
+  const perCase = prepared.map(({ evalCase, pre, context }) => {
+    const judgeUsd = options.judge
+      ? estimateCostUsd(options.judgeModel, {
+          ...ZERO,
+          inputTokens: pre.estimatedTokens + RUBRIC_JUDGE_EXTRA_INPUT,
+          outputTokens: RUBRIC_JUDGE_OUTPUT,
+        })
+      : 0;
+    const coverageUsd =
+      options.coverageJudge && hasGroundTruth(evalCase)
+        ? estimateCostUsd(JUDGE_MODEL, COVERAGE_JUDGE_ESTIMATE)
+        : 0;
+    return {
+      id: evalCase.id,
+      estimateUsd: pre.chunks.length === 0 ? 0 : planRun(pre.chunks, pricing, context, guard).estimateUsd,
+      judgeUsd: judgeUsd + coverageUsd,
+      shape: `${evalCase.origin ?? 'synthetic'}, ${evalCase.split ?? '-'}, ${pre.mode}, ${pre.chunks.length} chunk(s), ~${pre.estimatedTokens} input tokens${hasGroundTruth(evalCase) ? '' : ', no ground truth'}`,
+    };
+  });
+  const variants = options.efforts.length;
+  const runUsd = perCase.reduce((n, c) => n + c.estimateUsd, 0) * options.reps * variants;
+  const judgeUsd = perCase.reduce((n, c) => n + c.judgeUsd, 0) * options.reps * variants;
+  const estimateUsd = runUsd + judgeUsd;
+  const estimate = { runUsd, judgeUsd };
   const runsPerVariant = cases.length * options.reps;
-  const judgeEstimate = options.judge
-    ? estimateCostUsd(JUDGE_MODEL, JUDGE_ESTIMATE) * runsPerVariant * options.efforts.length
-    : 0;
-  const estimateUsd = perVariant * options.efforts.length + judgeEstimate;
 
   print(`Eval plan — prompt ${PROMPT_VERSION}`);
   print(`  model: ${options.model}   effort: ${options.efforts.join(', ')}   reps: ${options.reps}`);
-  print(`  cases (${cases.length}): ${cases.map((c) => c.id).join(', ')}`);
-  for (const c of perCase) {
-    print(`    ${c.id.padEnd(28)} ~$${c.estimateUsd.toFixed(2)} per run   (${c.shape})`);
-  }
-  print(`  runs: ${runsPerVariant} per variant × ${options.efforts.length} variant(s)`);
   print(
-    `  estimated cost: ~$${perVariant.toFixed(2)} per variant, ~$${estimateUsd.toFixed(2)} in total${options.judge ? ` (includes ~$${judgeEstimate.toFixed(2)} for the ${JUDGE_MODEL} judge)` : ''}`,
+    `  split: ${options.caseIds.length > 0 ? 'selected cases' : options.split}   cases: ${cases.length} (${cases.filter(hasGroundTruth).length} with ground truth)`,
   );
+  for (const c of perCase) {
+    print(`    ${c.id.padEnd(30)} ~$${c.estimateUsd.toFixed(2)} per run   (${c.shape})`);
+  }
+  if (missingReal.length > 0) {
+    print(
+      `  NOTE: ${missingReal.length} real case(s) are not on this machine and were left out: ${missingReal.join(', ')}`,
+    );
+  }
+  print(`  runs: ${runsPerVariant} per variant × ${variants} variant(s)`);
+  print(`  estimated run cost:   ~$${runUsd.toFixed(2)} (${options.model})`);
   print(
-    `  The estimate assumes ${PRODUCTION.expectedOutputTokens} output tokens per call, the same assumption as the Action's cost guard.`,
+    `  estimated judge cost: ~$${judgeUsd.toFixed(2)}${options.judge ? ` (${options.judgeModel} rubric judge${options.coverageJudge ? ` + ${JUDGE_MODEL} coverage judge` : ''})` : options.coverageJudge ? ` (${JUDGE_MODEL} coverage judge)` : ' (no judge; add --judge for rubric scores)'}`,
+  );
+  print(`  estimated total:      ~$${estimateUsd.toFixed(2)}`);
+  print(
+    `  The run estimate assumes ${PRODUCTION.expectedOutputTokens} output tokens per call, the same assumption as the Action's cost guard.`,
   );
   if (!engineReady) {
     print('  NOTE: the preprocess engine is not available yet, so this estimate is based on raw file sizes.');
@@ -372,22 +513,23 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
 
   if (!options.yes) {
     print('Nothing was sent to the API. Re-run with --yes to execute.');
-    return { exitCode: 0, executed: false, estimateUsd };
+    return { exitCode: 0, executed: false, estimateUsd, estimate };
   }
   if (!engineReady) {
     print('Cannot execute: the preprocess engine is not implemented in this checkout.');
-    return { exitCode: 1, executed: false, estimateUsd };
+    return { exitCode: 1, executed: false, estimateUsd, estimate };
   }
   const apiKey = deps.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
     print('Cannot execute: ANTHROPIC_API_KEY is not set.');
-    return { exitCode: 1, executed: false, estimateUsd };
+    return { exitCode: 1, executed: false, estimateUsd, estimate };
   }
 
   // ── execute ─────────────────────────────────────────────────────────────────
-  const judgeClient = options.judge ? deps.createJudgeClient(apiKey) : null;
+  const coverageClient = options.coverageJudge ? deps.createJudgeClient(apiKey) : null;
+  const rubricClient = options.judge ? deps.createRubricClient(apiKey) : null;
   const startedAt = deps.now();
-  const variants: VariantResult[] = [];
+  const results: VariantResult[] = [];
 
   for (const effort of options.efforts) {
     const label = `${options.model} · ${effort}`;
@@ -426,15 +568,42 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
           { ...guard, concurrency: PRODUCTION.mapConcurrency },
           new AbortController().signal,
         );
+        const seconds = (deps.now() - started) / 1000;
         const stray = rec.calls.find((c) => !servedBy(options.model, c.model));
         if (stray) {
           fail('served_model_mismatch', `A call was served by ${stray.model}.`, result.usage);
           return;
         }
-        let grade = gradeCase(evalCase, { report: result.report, raw: rec.lastReport() ?? result.report });
+        const raw = rec.lastReport() ?? result.report;
+        let grade = hasGroundTruth(evalCase) ? gradeCase(evalCase, { report: result.report, raw }) : null;
+
+        // The comment exactly as the Action would post it; the judge and reviewers rate this.
+        const final: FinalReport = {
+          status: 'ok',
+          pr: evalCase.pr,
+          report: result.report,
+          language: cfg.language,
+          meta: {
+            model: options.model,
+            effort,
+            mode: pre.mode,
+            sha: evalCase.pr.headSha,
+            usage: result.usage,
+            costUsd: result.costUsd,
+            durationMs: seconds * 1000,
+            calls: result.calls,
+            skipped: [...pre.skipped, ...result.skipped],
+            redactions: pre.redactions,
+            prdSources: evalCase.prdDocuments.map((d) => d.ref),
+            warnings: result.warnings,
+            dryRun: false,
+          },
+        };
+        const comment = renderPrComment(final);
+
         let judge: RunRecord['judge'];
-        if (judgeClient) {
-          const verdict = await judgeScenarios(judgeClient, evalCase, result.report);
+        if (coverageClient && grade && hasGroundTruth(evalCase)) {
+          const verdict = await judgeScenarios(coverageClient, evalCase, result.report);
           if (verdict.verdicts) grade = withJudgeVerdicts(grade, verdict.verdicts);
           judge = {
             usage: verdict.usage,
@@ -442,22 +611,53 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
             ...(verdict.error ? { error: verdict.error } : {}),
           };
         }
+        let rubric: RubricScore | undefined;
+        let rubricJudge: RunRecord['rubricJudge'];
+        if (rubricClient) {
+          const scored = await judgeWithRubric(
+            rubricClient,
+            options.judgeModel,
+            evalCase,
+            result.report,
+            comment,
+            grade,
+          );
+          rubric = scored.score ?? undefined;
+          rubricJudge = {
+            model: scored.model,
+            usage: scored.usage,
+            costUsd: scored.costUsd,
+            ...(scored.error ? { error: scored.error } : {}),
+          };
+        }
+
         runs.push({
           caseId: evalCase.id,
           rep,
+          origin: evalCase.origin ?? 'synthetic',
           inputHash: inputHashOf(evalCase),
           grade,
+          ...(rubric ? { rubric } : {}),
           report: result.report,
-          raw: rec.lastReport() ?? result.report,
+          raw,
+          comment,
+          mode: pre.mode,
           calls: rec.calls,
           usage: result.usage,
           costUsd: result.costUsd,
-          seconds: (deps.now() - started) / 1000,
+          seconds,
           warnings: result.warnings.map((w) => `${w.code}: ${w.message}`),
           ...(judge ? { judge } : {}),
+          ...(rubricJudge ? { rubricJudge } : {}),
         });
+        const verdict = grade ? (grade.pass ? 'pass' : 'FAIL') : 'no ground truth';
+        const overall = rubric
+          ? `, overall ${rubric.overall.toFixed(2)}`
+          : rubricJudge?.error
+            ? ', judge failed'
+            : '';
         print(
-          `  [${effort}] ${evalCase.id}#${rep + 1}: ${grade.pass ? 'pass' : 'FAIL'} ($${result.costUsd.toFixed(2)})`,
+          `  [${effort}] ${evalCase.id}#${rep + 1}: ${verdict}${overall} ($${result.costUsd.toFixed(2)})`,
         );
       } catch (err) {
         if (err instanceof QtgError) fail(err.code, err.userMessage, err.usage ?? ZERO);
@@ -469,55 +669,56 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
       a.rep - b.rep || a.caseId.localeCompare(b.caseId);
     runs.sort(order);
     errors.sort(order);
-    const byRep = Array.from({ length: options.reps }, (_, rep) =>
-      runs.filter((r) => r.rep === rep).map((r) => r.grade),
-    );
-    variants.push({
+    const grades = (rs: RunRecord[]): CaseGrade[] => rs.flatMap((r) => (r.grade ? [r.grade] : []));
+    const byRep = Array.from({ length: options.reps }, (_, rep) => grades(runs.filter((r) => r.rep === rep)));
+    results.push({
       label,
       model: options.model,
       effort,
       runs,
       errors,
-      summary: summarize(
-        runs.map((r) => r.grade),
-        errors.length,
-        byRep,
-      ),
+      summary: summarize(grades(runs), errors.length, byRep),
+      rubric: summarizeRubric(runs.flatMap((r) => (r.rubric ? [r.rubric] : []))),
       costUsd: runs.reduce((n, r) => n + r.costUsd, 0) + errors.reduce((n, e) => n + e.costUsd, 0),
-      judgeCostUsd: runs.reduce((n, r) => n + (r.judge?.costUsd ?? 0), 0),
+      judgeCostUsd: runs.reduce((n, r) => n + (r.judge?.costUsd ?? 0) + (r.rubricJudge?.costUsd ?? 0), 0),
     });
   }
 
   // ── report ──────────────────────────────────────────────────────────────────
-  const rows: SummaryRow[] = variants.map((v) => ({
-    label: v.label,
-    summary: v.summary,
-    costUsd: v.costUsd,
-    judgeCostUsd: v.judgeCostUsd,
-    avgSeconds: v.runs.length > 0 ? v.runs.reduce((n, r) => n + r.seconds, 0) / v.runs.length : 0,
-  }));
-  const table = formatSummaryTable(rows);
-  const stamp = new Date(startedAt).toISOString().replace(/[:.]/g, '-');
-  const resultsPath = join(deps.resultsRoot, `${stamp}.json`);
-  deps.writeFile(
-    resultsPath,
-    `${JSON.stringify(
-      {
-        startedAt: new Date(startedAt).toISOString(),
-        promptVersion: PROMPT_VERSION,
-        options: { ...options, yes: undefined, help: undefined },
-        production: PRODUCTION,
-        estimateUsd,
-        totalUsage: variants.flatMap((v) => v.runs).reduce((u, r) => add(u, r.usage), ZERO),
-        variants,
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  const table = formatSummaryTable(results.map(summaryRow));
+  const started = new Date(startedAt).toISOString();
+  const saved: SavedResults = {
+    startedAt: started,
+    promptVersion: PROMPT_VERSION,
+    split: options.caseIds.length > 0 ? 'selected' : options.split,
+    judgeModel: options.judge ? options.judgeModel : null,
+    estimateUsd,
+    variants: results,
+  };
+  const json = `${JSON.stringify(saved, null, 2)}\n`;
+  const resultsPath =
+    options.round === null
+      ? join(deps.resultsRoot, `${started.replace(/[:.]/g, '-')}.json`)
+      : join(deps.evalsRoot, 'rounds', String(options.round), 'raw', 'results.json');
+  deps.writeFile(resultsPath, json);
+  if (options.round !== null) recordRound(options.round, options.change, saved, table, deps);
+
   print('');
   print(table);
   print('');
   print(`Results written to ${resultsPath}`);
-  return { exitCode: 0, executed: true, estimateUsd, resultsPath, variants };
+  return { exitCode: 0, executed: true, estimateUsd, estimate, resultsPath, variants: results };
+}
+
+/** One row of the summary table for a variant. */
+export function summaryRow(v: VariantResult): SummaryRow {
+  return {
+    label: v.label,
+    runs: v.runs.length,
+    summary: v.summary,
+    rubric: v.rubric,
+    costUsd: v.costUsd,
+    judgeCostUsd: v.judgeCostUsd,
+    avgSeconds: v.runs.length > 0 ? v.runs.reduce((n, r) => n + r.seconds, 0) / v.runs.length : 0,
+  };
 }

@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const couponExpiryMissing: AuthoredCase = {
   id: 'coupon-expiry-missing',
+  split: 'dev',
   pr: {
     number: 101,
     title: 'Apply coupons at checkout',

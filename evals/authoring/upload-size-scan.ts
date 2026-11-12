@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const uploadSizeScan: AuthoredCase = {
   id: 'upload-size-scan',
+  split: 'test',
   pr: {
     number: 402,
     title: 'Attachment uploads for support tickets',

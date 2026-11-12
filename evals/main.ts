@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { createAnthropicProvider } from '../src/llm/anthropic';
 import { createPreprocessEngine } from '../src/preprocess';
 import { createJudgeClient } from './judge';
+import { createRubricClient } from './rubric';
 import { runEvals } from './run';
 import { writeCases } from './tools/build-cases';
 
@@ -19,7 +20,7 @@ async function main(argv: string[]): Promise<number> {
     return command === undefined || command === '--help' ? 0 : 2;
   }
   const outcome = await runEvals(rest, {
-    casesRoot: resolve('evals/cases'),
+    evalsRoot: resolve('evals'),
     resultsRoot: resolve('evals/results'),
     env: process.env,
     print: (line) => console.log(line),
@@ -31,6 +32,7 @@ async function main(argv: string[]): Promise<number> {
         { logger: { warn: (message) => console.warn(message) } },
       ),
     createJudgeClient,
+    createRubricClient,
     writeFile: (path, text) => {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, text);

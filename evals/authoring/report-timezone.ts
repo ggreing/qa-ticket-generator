@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const reportTimezone: AuthoredCase = {
   id: 'report-timezone',
+  split: 'test',
   pr: {
     number: 507,
     title: 'Daily sales report',

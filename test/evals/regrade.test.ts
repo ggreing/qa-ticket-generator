@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { gradeCase, withJudgeVerdicts } from '../../evals/grade';
 import type { RunDeps, RunRecord } from '../../evals/run';
 import { runEvals } from '../../evals/run';
-import { type EvalCase, inputHashOf, loadCases } from '../../evals/schema';
+import { type GradedCase as EvalCase, inputHashOf } from '../../evals/schema';
 import type { QaReport } from '../../src/core/contracts';
-import { CASES_ROOT, nullReport, oracleReport } from './support';
+import { EVALS_ROOT, gradedCases, nullReport, oracleReport } from './support';
 
-const cases = loadCases(CASES_ROOT);
+const cases = gradedCases();
 const caseOf = (id: string): EvalCase => cases.find((c) => c.id === id) as EvalCase;
 const ZERO = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
@@ -38,7 +38,7 @@ function regrade(runs: RunRecord[], argv: string[] = []) {
     throw new Error('a re-grade must not create engines, providers or judge clients');
   };
   const deps: RunDeps = {
-    casesRoot: CASES_ROOT,
+    evalsRoot: EVALS_ROOT,
     resultsRoot: 'evals/results',
     env: {},
     print: (line) => void lines.push(line),
@@ -46,6 +46,7 @@ function regrade(runs: RunRecord[], argv: string[] = []) {
     createEngine: forbidden,
     createProvider: forbidden,
     createJudgeClient: forbidden,
+    createRubricClient: forbidden,
     writeFile: (path) => void written.push(path),
     readFile: (path) => {
       if (path !== 'saved.json') throw new Error('ENOENT');
@@ -76,8 +77,8 @@ describe('--regrade (offline, no API call)', () => {
     ]);
     expect(out).toContain('Re-grade of saved.json (no API call)');
     expect(out).toContain('0 verdict(s) changed, 2 unchanged, 0 not re-graded');
-    expect(out).toContain('| claude-opus-5-5 · high (as recorded) | 2 | 0 | 50% |');
-    expect(out).toContain('| claude-opus-5-5 · high (re-graded) | 2 | 0 | 50% |');
+    expect(out).toContain('| claude-opus-5-5 · high (as recorded) | 2 | 0 | — | — | — | 2 | 50% |');
+    expect(out).toContain('| claude-opus-5-5 · high (re-graded) | 2 | 0 | — | — | — | 2 | 50% |');
     expect(out).not.toContain('NOTE:');
   });
 
@@ -90,8 +91,8 @@ describe('--regrade (offline, no API call)', () => {
     expect(outcome.regraded?.[0]?.runs[0]).toMatchObject({ status: 'regraded', before: false, after: true });
     expect(out).toMatch(/coupon-expiry-missing#1\s+FAIL → pass/);
     expect(out).toContain('1 verdict(s) changed, 0 unchanged, 0 not re-graded');
-    expect(out).toContain('(as recorded) | 1 | 0 | 0% |');
-    expect(out).toContain('(re-graded) | 1 | 0 | 100% |');
+    expect(out).toContain('(as recorded) | 1 | 0 | — | — | — | 1 | 0% |');
+    expect(out).toContain('(re-graded) | 1 | 0 | — | — | — | 1 | 100% |');
   });
 
   it('marks a run stale when the case inputs changed, and leaves it out of the re-graded numbers', async () => {
@@ -111,7 +112,7 @@ describe('--regrade (offline, no API call)', () => {
       /coupon-expiry-missing#1\s+stale: the case inputs changed after this run, not re-graded/,
     );
     expect(out).toContain('0 verdict(s) changed, 1 unchanged, 1 not re-graded');
-    expect(out).toContain('(re-graded) | 1 | 0 | 100% |');
+    expect(out).toContain('(re-graded) | 1 | 0 | — | — | — | 1 | 100% |');
   });
 
   it('warns that staleness cannot be detected in files written before input hashes existed', async () => {
@@ -141,7 +142,7 @@ describe('--regrade (offline, no API call)', () => {
   it('reports an unreadable or malformed results file with exit code 2', async () => {
     const lines: string[] = [];
     const deps = {
-      casesRoot: CASES_ROOT,
+      evalsRoot: EVALS_ROOT,
       print: (line: string) => void lines.push(line),
       readFile: (path: string) => {
         if (path === 'bad.json') return '{"variants": 3}';

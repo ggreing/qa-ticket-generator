@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const rbacExportRole: AuthoredCase = {
   id: 'rbac-export-role',
+  split: 'dev',
   pr: {
     number: 215,
     title: 'Restrict the user export endpoint',
