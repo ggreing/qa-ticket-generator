@@ -92,6 +92,8 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
       /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Rubric judge: claude-sonnet-5-5\n- Decision: pending\n/,
     );
     expect(summary).toContain('| Variant | Runs | Errors | Overall |');
+    // A blank line before the heading, or Markdown reads it as part of the table above.
+    expect(summary).toMatch(/\|\n\n## Compared with the last kept round\n\n/);
     expect(summary).toContain('| Actionability | 1.00 |');
     expect(summary).toContain('| Alignment correctness |');
     expect(summary).toContain(

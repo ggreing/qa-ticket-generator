@@ -347,7 +347,7 @@ export function recordRound(
   const comparison = formatComparison(round, compareWithLastKept(record, earlier));
   deps.writeFile(
     join(deps.evalsRoot, 'rounds', String(round), 'summary.md'),
-    `${renderRoundSummary(record, saved, table)}## Compared with the last kept round\n\n${comparison.join('\n')}\n`,
+    `${renderRoundSummary(record, saved, table)}\n## Compared with the last kept round\n\n${comparison.join('\n')}\n`,
   );
   writeIndex([...earlier, record], deps);
   deps.print(
