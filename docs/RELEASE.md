@@ -129,6 +129,9 @@ right before publishing.**
 ### npm
 
 - [ ] Check that the package name is free: `npm view qa-ticket-generator` should return 404.
+- [ ] Add `repository` (`{ "type": "git", "url": "git+https://github.com/ggreing/qa-ticket-generator.git" }`),
+      `homepage` and `bugs` to `package.json`. `npm publish --provenance` fails when `repository.url` does not
+      match the repository that built the package.
 - [ ] Configure the **trusted publisher** on npmjs.com: repository `ggreing/qa-ticket-generator`, workflow
       `release.yml`, environment `release`. If npm requires the package to exist first, publish the first version
       with a short-lived granular token (see the alternative above), then add the trusted publisher and revoke
