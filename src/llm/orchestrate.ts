@@ -40,7 +40,7 @@ const cleanPath = (path: string): string => path.trim().replace(/^\.?\/+/, '');
 /**
  * Code-side validation of a model report (SPEC §7):
  * - file references that are not part of the PR are removed (one `invalid_related_file` warning);
- * - scenarios are sorted P0 → P2, cut to `maxScenarios` and renumbered from S-01;
+ * - scenarios are sorted P0 → P2, cut to `maxScenarios` and renumbered from TC-01;
  * - without a PRD the alignment is forced to `no_prd` with no findings;
  * - with findings, the overall status is recomputed from them (the §8 rubric), so `fail-on`
  *   never depends on the model's arithmetic.
@@ -66,7 +66,7 @@ export function normalizeReport(
     .slice(0, Math.max(0, options.maxScenarios))
     .map(({ scenario }, i) => ({
       ...scenario,
-      id: `S-${String(i + 1).padStart(2, '0')}`,
+      id: `TC-${String(i + 1).padStart(2, '0')}`,
       relatedFiles: keepKnown(scenario.relatedFiles),
     }));
 

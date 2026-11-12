@@ -66,7 +66,7 @@ describe('system prompt (SPEC §8)', () => {
     );
     expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
     // Wording changes ship under a new version so result files can be told apart.
-    expect(PROMPT_VERSION).toBe('2026-11-12.2');
+    expect(PROMPT_VERSION).toBe('2026-11-12.3');
   });
 
   it.each([
@@ -215,5 +215,20 @@ describe('reduce prompt (SPEC §8, LLM-07)', () => {
     expect(tail).toMatch(/merge duplicates/i);
     expect(tail).toMatch(/re-rank priorities/);
     expect(tail).toContain('Return at most 12 scenarios');
+  });
+});
+
+describe('ticket-style scenarios (M3.5 baseline, prompt 2026-11-12.3)', () => {
+  it('RUBRIC Actionability: asks for concrete test data, ordered steps and an observable expected result', () => {
+    expect(SYSTEM_PROMPT).toContain('`testData`: the concrete values to use, one "name = value" per line');
+    expect(SYSTEM_PROMPT).toContain('`when`: the steps in order, one action per entry.');
+    expect(SYSTEM_PROMPT).toMatch(/`then`: what the tester observes .* pass or fail is not a judgment call/);
+    expect(SYSTEM_PROMPT).toContain('Leave it empty only when the scenario needs no particular data.');
+  });
+
+  it('RUBRIC Traceability: asks for the PRD label first, and numbers tickets TC-01, TC-02', () => {
+    expect(SYSTEM_PROMPT).toContain('starting with the label the PRD uses (for example "AC2")');
+    expect(SYSTEM_PROMPT).toContain('number them TC-01, TC-02, and so on.');
+    expect(SYSTEM_PROMPT).not.toContain('S-01');
   });
 });
