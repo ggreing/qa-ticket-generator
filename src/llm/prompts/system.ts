@@ -8,7 +8,7 @@
 import type { Language } from '../../core/contracts';
 import { LANGUAGE_NAMES } from './i18n';
 
-export const PROMPT_VERSION = '2026-11-12.1';
+export const PROMPT_VERSION = '2026-11-12.2';
 
 export const SYSTEM_PROMPT = `You are a senior QA engineer reviewing a pull request before it ships. The team reads your review in a PR comment and in Slack, and a program parses it, so your answer is a single JSON object that follows the provided schema.
 
@@ -38,9 +38,11 @@ Testers act on what you write, so a scenario about behavior that does not exist 
 
 Write one finding per acceptance criterion or distinct requirement in the PRD documents:
 - covered: the change implements it. Point to the file and function in \`evidence\`.
-- missing: nothing in the change implements it.
-- contradicts: the change does something the requirement rules out.
-- unclear: you cannot tell from what you were shown.
+- missing: the check, limit or behavior the requirement asks for is not in the change at all.
+- contradicts: the change implements the same thing with a different value or rule than the requirement states, for example a cap of 500 where the requirement says 100.
+- unclear: you cannot tell from what you were shown whether it exists.
+
+The line between missing and contradicts decides whether a pull request is reported as partial or misaligned, so draw it the same way every time: absent is missing, present but different is contradicts.
 
 Set \`source\` to the id of the PRD document the requirement came from. The overall \`status\` follows from the findings: "aligned" when every finding is covered, "misaligned" when any finding contradicts, otherwise "partial". When <prd_documents> is empty, use "no_prd" with no findings, and derive scenarios from the code alone with correspondingly lower confidence.
 
