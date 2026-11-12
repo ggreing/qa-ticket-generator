@@ -232,8 +232,11 @@ describe('--rejudge: scoring stored reports again (M3.5 round 2)', () => {
     expect(runs[1]?.rubricJudge).toMatchObject({ error: 'Error', costUsd: 0 });
     expect(outcome.variants?.[0]?.rubric?.judged).toBe(DEV.length - 1);
     expect(h.out()).toContain(`${runs[1]?.caseId}#1: judge failed (Error)`);
+    expect(h.lines.at(-2)).toBe(
+      `1 report(s) have no rubric score and are left out of the rubric means: ${runs[1]?.caseId}#1 (Error).`,
+    );
     expect(h.lines.at(-1)).toBe(
-      '1 report(s) have no score because the judge failed; run --rejudge again to retry.',
+      `Score only those again with: --rejudge ${outcome.resultsPath} --cases ${runs[1]?.caseId}`,
     );
 
     const empty = harness();

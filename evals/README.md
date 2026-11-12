@@ -150,6 +150,19 @@ node evals/cli.mjs run --rejudge evals/rounds/1/raw/results.json --round 1 --yes
   not on this machine, or the run did not store the rendered comment. No old score is carried
   into the new file.
 
+**Only some reports.** When the judge left a few reports without a usable score, score just those
+again:
+
+```bash
+node evals/cli.mjs run --rejudge evals/rounds/2/raw/results.json --cases real-tenacity-640 --round 2 --yes
+```
+
+The file must already hold scores of the current rubric version. It is updated in place, after
+the original is copied to `<file>.bak-<time>`; the other reports keep their scores. With
+`--round` the record that file belongs to, its summary and its comparison with the last kept
+round are regenerated. Fix an earlier round before a later one, since the later one is compared
+with it.
+
 ## Offline re-grade
 
 ```bash
@@ -183,6 +196,17 @@ carried over; only alignment correctness is recomputed from the new grade.
   two flawless tickets scored full marks while skipping three required risks (round 1).
 - A score outside 0–2, a truncated reply or a failed call leaves the report without rubric scores
   (the run and its deterministic grade stay). It is not retried.
+- **A reply that scores fewer than half of a report's tickets is not a score.** The judge is
+  asked once more; if the second reply is short too, the report is marked "judge incomplete" and
+  **left out of the rubric means** instead of counting its unscored tickets as 0. The run prints
+  which reports were left out and the `--rejudge … --cases` command for them; `summary.md` names
+  them, and `ROUNDS.md` shows the overall as `1.72 (18/19)`. (Rounds 1 and 2 each had replies
+  with an empty ticket list, which pulled those reports' overall down to 0.75–0.88.)
+- Ticket ids are matched loosely (`TC-1` for `TC-01`), then by title, then by position when the
+  judge returned exactly one entry per ticket. The per-case table has a "Scored" column
+  (`7/7`).
+- Two rounds are compared on the reports that both scored, so a report one judge run could not
+  score does not move the overall.
 
 ### Deterministic grader (synthetic cases only)
 

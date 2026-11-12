@@ -53,6 +53,7 @@ import {
   type RubricScore,
   type RubricSummary,
   summarizeRubric,
+  unscoredNote,
 } from './rubric';
 import { type EvalCase, type GradedCase, inputHashOf, loadDataset } from './schema';
 
@@ -148,7 +149,7 @@ export interface RunRecord {
   seconds: number;
   warnings: string[];
   judge?: { usage: LlmUsage; costUsd: number; error?: string };
-  rubricJudge?: { model: string; usage: LlmUsage; costUsd: number; error?: string };
+  rubricJudge?: { model: string; usage: LlmUsage; costUsd: number; error?: string; attempts?: number };
 }
 
 /** A run that produced nothing to grade. Kept apart from grades so plumbing is never scored as a model failure. */
@@ -194,6 +195,8 @@ export interface SavedResults {
   /** Set by --rejudge: the results file whose reports were scored again, and when. */
   rejudgedFrom?: string;
   rejudgedAt?: string;
+  /** Set by --rejudge --cases: which reports of this file were scored again in place, and when. */
+  rejudgedCases?: { at: string; cases: string[]; judgeModel: string }[];
   variants: VariantResult[];
 }
 
@@ -229,6 +232,8 @@ Offline (no API call, no key):
   --rejudge <file>      score the reports of a saved results file again with the current rubric;
                         calls only the judge, prints its cost first and needs --yes like a run.
                         With --round <n> the new scores are recorded for that round.
+                        With --cases <id,id> only those reports are scored again and the file
+                        is updated in place (the original is copied to <file>.bak-<time>).
   --regrade <file>      re-grade a saved results file with the current cases and rules
   --edited <id,id>      with --regrade: cases whose PR, files or PRD changed since that run
   --review-pack <file>  write a blind rating pack for people from a results file
@@ -652,6 +657,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
             usage: scored.usage,
             costUsd: scored.costUsd,
             ...(scored.error ? { error: scored.error } : {}),
+            ...(scored.attempts ? { attempts: scored.attempts } : {}),
           };
         }
 
@@ -731,6 +737,11 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   print(table);
   print('');
   print(`Results written to ${resultsPath}`);
+  for (const line of unscoredNote(
+    results.flatMap((v) => v.runs),
+    resultsPath,
+  ))
+    print(line);
   // Last, so the recommendation is the final thing on screen.
   if (options.round !== null) recordRound(options.round, options.change, saved, table, deps);
   return { exitCode: 0, executed: true, estimateUsd, estimate, resultsPath, variants: results };
