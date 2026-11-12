@@ -1,0 +1,119 @@
+name: QA Ticket Generator
+description: Cross-check PR diffs against linked PRDs with Claude and publish BDD QA scenarios to the PR and Slack.
+author: ggreing
+branding:
+  icon: check-square
+  color: blue
+
+inputs:
+  anthropic-api-key:
+    description: Anthropic API key.
+    required: true
+  github-token:
+    description: Token for reading the PR and writing the report comment.
+    required: false
+    default: ${{ github.token }}
+  model:
+    description: Claude model id.
+    required: false
+    default: claude-opus-5-5
+  effort:
+    description: "Reasoning effort: low | medium | high | xhigh | max."
+    required: false
+    default: high
+  language:
+    description: "Output language: en | ko | ja | zh-CN (aliases kr, jp, cn, zh accepted)."
+    required: false
+    default: en
+  trigger-label:
+    description: Label that requests a QA run.
+    required: false
+    default: needs-ai-qa
+  rerun-on-push:
+    description: Re-run on new commits while the label is present.
+    required: false
+    default: "true"
+  require-prd:
+    description: Fail when no linked PRD can be fetched.
+    required: false
+    default: "false"
+  token-budget:
+    description: Estimated input token budget per LLM call; larger PRs are split (map-reduce).
+    required: false
+    default: "150000"
+  max-cost-usd:
+    description: Estimated cost ceiling per run in USD; lowest-priority chunks are dropped beyond it.
+    required: false
+    default: "2.00"
+  max-scenarios:
+    description: Maximum number of scenarios in the report.
+    required: false
+    default: "20"
+  pr-comment:
+    description: Publish the report as a PR comment (updated in place).
+    required: false
+    default: "true"
+  slack-bot-token:
+    description: Slack bot token (xoxb-). Enables bot mode (update + thread).
+    required: false
+  slack-channel:
+    description: Slack channel id or name for bot mode.
+    required: false
+  slack-webhook-url:
+    description: Slack incoming webhook URL (used when no bot token is set).
+    required: false
+  jira-base-url:
+    description: Jira Cloud site URL, e.g. https://acme.atlassian.net.
+    required: false
+  jira-email:
+    description: Jira account email for API token auth.
+    required: false
+  jira-api-token:
+    description: Jira API token.
+    required: false
+  jira-project-keys:
+    description: Comma-separated Jira project keys recognized in PR bodies (e.g. PROJ,WEB).
+    required: false
+  notion-token:
+    description: Notion integration token.
+    required: false
+  config-path:
+    description: Repo config file path (read from the base branch).
+    required: false
+    default: .github/qa-ticket-generator.yml
+  fail-on:
+    description: "Fail the check on PRD alignment: none | partial | misaligned."
+    required: false
+    default: none
+  fail-on-error:
+    description: Fail the check on internal errors (default only warns).
+    required: false
+    default: "false"
+  allow-fork-prs:
+    description: Allow runs for fork PRs (use only with the pull_request_target opt-in workflow).
+    required: false
+    default: "false"
+  server-fallback:
+    description: Enable Anthropic server-side refusal fallback.
+    required: false
+    default: "true"
+  dry-run:
+    description: Do not publish; write the report to the job summary only.
+    required: false
+    default: "false"
+
+outputs:
+  report-path:
+    description: Path to report.json.
+  scenario-count:
+    description: Number of generated scenarios.
+  alignment-status:
+    description: "aligned | partial | misaligned | no_prd"
+  cost-usd:
+    description: Estimated cost of this run in USD.
+  skipped-reason:
+    description: Why the run was skipped, if it was.
+
+runs:
+  using: node24
+  main: dist/action.js

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="890" viewBox="0 0 800 890" font-family="'Malgun Gothic','맑은 고딕',sans-serif">
+  <title>전처리 파이프라인 상세</title>
+  <rect x="0" y="0" width="800" height="890" fill="#FFFFFF"/>
+
+  <!-- 입력 -->
+  <rect x="24" y="10" width="576" height="62" rx="8" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="42" y="36" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#1E3A8A">PreprocessInput</tspan><tspan font-weight="normal" fill="#374151">  JSON 직렬화 가능한 값만</tspan></text>
+  <text x="42" y="59" font-size="16" fill="#111827">files[] (patch · headContent) · prdDocuments[] · options</text>
+
+  <!-- ★ Rust 전환점 경계 -->
+  <rect x="10" y="100" width="780" height="594" rx="12" fill="#FFFBF5" stroke="#C2410C" stroke-width="2.2" stroke-dasharray="9 5"/>
+  <text x="126" y="128" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#C2410C">★ Rust 전환점</tspan><tspan font-weight="normal" fill="#9A3412">  src/preprocess — I/O 없는 순수 함수, 같은 입력 → 같은 출력</tspan></text>
+
+  <!-- 입력 → ① filter -->
+  <polygon points="106,144 100.5,133 111.5,133" fill="#1E3A8A"/>
+  <polyline points="106,72 106,134" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+
+  <!-- 6단계 -->
+  <rect x="24" y="144" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,145 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="145" x2="188" y2="207" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="166" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="171.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">1</text>
+  <text x="68" y="172" font-size="17" fill="#1E3A8A" font-weight="bold">filter</text>
+  <text x="36" y="196" font-size="16" fill="#374151">filter.ts</text>
+  <text x="202" y="171" font-size="16" fill="#111827">lock · 바이너리 · 빌드 산출물 · 자동 생성 파일 제외</text>
+  <text x="202" y="194" font-size="16" fill="#374151">의존성·설정 변경은 제외하지 않고 요약</text>
+  <polygon points="106,238 100.5,227 111.5,227" fill="#1E3A8A"/>
+  <polyline points="106,208 106,228" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="120" y="229" font-size="16" fill="#1E3A8A">남은 파일</text>
+  <rect x="24" y="238" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,239 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="239" x2="188" y2="301" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="260" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="265.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">2</text>
+  <text x="68" y="266" font-size="17" fill="#1E3A8A" font-weight="bold">parse</text>
+  <text x="36" y="290" font-size="16" fill="#374151">diff.ts</text>
+  <text x="202" y="265" font-size="16" fill="#111827">unified diff를 hunk 단위로 파싱</text>
+  <text x="202" y="288" font-size="16" fill="#374151">파일 경로 · rename · 추가/삭제 줄 범위</text>
+  <polygon points="106,332 100.5,321 111.5,321" fill="#1E3A8A"/>
+  <polyline points="106,302 106,322" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="120" y="323" font-size="16" fill="#1E3A8A">hunk[]</text>
+  <rect x="24" y="332" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,333 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="333" x2="188" y2="395" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="354" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="359.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">3</text>
+  <text x="68" y="360" font-size="17" fill="#1E3A8A" font-weight="bold">redact</text>
+  <text x="36" y="384" font-size="16" fill="#374151">redact.ts</text>
+  <text x="202" y="359" font-size="16" fill="#111827">diff · 원문 · PRD의 비밀값을 마스킹</text>
+  <text x="202" y="382" font-size="16" fill="#374151">키 · 토큰 · JWT · 고엔트로피 → [REDACTED:type]</text>
+  <polygon points="106,426 100.5,415 111.5,415" fill="#1E3A8A"/>
+  <polyline points="106,396 106,416" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="120" y="417" font-size="16" fill="#1E3A8A">마스킹된 hunk</text>
+  <rect x="24" y="426" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,427 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="427" x2="188" y2="489" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="448" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="453.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">4</text>
+  <text x="68" y="454" font-size="17" fill="#1E3A8A" font-weight="bold">AST</text>
+  <text x="36" y="478" font-size="16" fill="#374151">ast/expand.ts</text>
+  <text x="202" y="453" font-size="16" fill="#111827">변경 줄을 감싸는 함수 · 메서드 · 클래스 추출</text>
+  <text x="202" y="476" font-size="16" fill="#374151">TS · JS · Python · Java · Go, 실패 시 ±20줄</text>
+  <polygon points="106,520 100.5,509 111.5,509" fill="#1E3A8A"/>
+  <polyline points="106,490 106,510" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="120" y="511" font-size="16" fill="#1E3A8A">hunk + 심볼 문맥</text>
+  <rect x="24" y="520" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,521 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="521" x2="188" y2="583" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="542" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="547.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">5</text>
+  <text x="68" y="548" font-size="17" fill="#1E3A8A" font-weight="bold">score</text>
+  <text x="36" y="572" font-size="16" fill="#374151">score.ts</text>
+  <text x="202" y="547" font-size="16" fill="#111827">PRD 키워드 + log(변경 줄 수) + 도메인 경로</text>
+  <text x="202" y="570" font-size="16" fill="#374151">− 테스트 · 설정 파일 (가중치 설정 가능)</text>
+  <polygon points="106,614 100.5,603 111.5,603" fill="#1E3A8A"/>
+  <polyline points="106,584 106,604" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="120" y="605" font-size="16" fill="#1E3A8A">점수순 파일</text>
+  <rect x="24" y="614" width="576" height="64" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <path d="M32,615 h156 v62 h-156 a8,8 0 0 1 -8,-8 v-46 a8,8 0 0 1 8,-8 z" fill="#DBEAFE"/>
+  <line x1="188" y1="615" x2="188" y2="677" stroke="#2563EB" stroke-width="1.2"/>
+  <circle cx="48" cy="636" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="48" y="641.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">6</text>
+  <text x="68" y="642" font-size="17" fill="#1E3A8A" font-weight="bold">pack</text>
+  <text x="36" y="666" font-size="16" fill="#374151">pack.ts · tokens.ts</text>
+  <text x="202" y="641" font-size="16" fill="#111827">점수순으로 토큰 예산 안에 담기</text>
+  <text x="202" y="664" font-size="16" fill="#374151">넘치면 map_reduce로 전환해 청크 분할</text>
+
+  <!-- 부산물: skipped[] · redactions[] → 오른쪽 세로선으로 출력에 합류 -->
+  <rect x="622" y="158" width="128" height="36" rx="18" fill="#FFFFFF" stroke="#4B5563" stroke-width="1.5"/>
+  <text x="686" y="182" font-size="16" fill="#111827" text-anchor="middle">skipped[]</text>
+  <polygon points="622,176 613,180.5 613,171.5" fill="#374151"/>
+  <polyline points="600,176 614,176" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <line x1="750" y1="176" x2="772" y2="176" stroke="#374151" stroke-width="1.8"/>
+  <rect x="622" y="346" width="128" height="36" rx="18" fill="#FFFFFF" stroke="#4B5563" stroke-width="1.5"/>
+  <text x="686" y="370" font-size="16" fill="#111827" text-anchor="middle">redactions[]</text>
+  <polygon points="622,364 613,368.5 613,359.5" fill="#374151"/>
+  <polyline points="600,364 614,364" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <line x1="750" y1="364" x2="772" y2="364" stroke="#374151" stroke-width="1.8"/>
+  <polygon points="772,724 767.5,715 776.5,715" fill="#374151"/>
+  <polyline points="772,176 772,716" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <circle cx="772" cy="364.0" r="3.5" fill="#374151"/>
+
+  <!-- ⑥ pack → 출력 -->
+  <polygon points="106,724 100.5,713 111.5,713" fill="#1E3A8A"/>
+  <polyline points="106,678 106,714" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+
+  <!-- 출력 -->
+  <rect x="24" y="724" width="762" height="62" rx="8" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="42" y="750" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#1E3A8A">PreprocessOutput</tspan></text>
+  <text x="42" y="773" font-size="16" fill="#111827">mode · chunks[] · prdDocuments[] (마스킹본) · skipped[] · redactions[] · estimatedTokens</text>
+
+  <!-- mode에 따른 다음 단계 (LLM Orchestrator) -->
+  <rect x="24" y="820" width="371" height="58" rx="8" fill="#FEFCE8" stroke="#B45309" stroke-width="1.6"/>
+  <text x="209.5" y="843.5" font-size="17" fill="#111827" font-weight="bold" text-anchor="middle">mode: single</text>
+  <text x="209.5" y="865.5" font-size="16" fill="#374151" text-anchor="middle">예산 이내 → LLM 1회 호출</text>
+  <polygon points="209.5,820 204,809 215,809" fill="#1E3A8A"/>
+  <polyline points="209.5,786 209.5,810" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <rect x="415" y="820" width="371" height="58" rx="8" fill="#FFEDD5" stroke="#B45309" stroke-width="1.6"/>
+  <text x="600.5" y="843.5" font-size="17" fill="#111827" font-weight="bold" text-anchor="middle">mode: map_reduce</text>
+  <text x="600.5" y="865.5" font-size="16" fill="#374151" text-anchor="middle">예산 초과 → 청크별 map + reduce</text>
+  <polygon points="600.5,820 595,809 606,809" fill="#1E3A8A"/>
+  <polyline points="600.5,786 600.5,810" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="405" y="808" font-size="16" fill="#4B5563" text-anchor="middle">둘 중 하나</text>
+</svg>

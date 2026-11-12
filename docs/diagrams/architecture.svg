@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1038" viewBox="0 0 800 1038" font-family="'Malgun Gothic','맑은 고딕',sans-serif">
+  <title>qa-ticket-generator 구성도</title>
+  <rect x="0" y="0" width="800" height="1038" fill="#FFFFFF"/>
+
+  <!-- 영역 1: GitHub -->
+  <rect x="10" y="10" width="176" height="1018" rx="12" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="1.5"/>
+  <text x="98" y="34" font-size="17" fill="#1F2937" font-weight="bold" text-anchor="middle">GitHub</text>
+
+  <!-- 영역 2: qa-ticket-generator 내부 파이프라인 -->
+  <rect x="202" y="10" width="396" height="1018" rx="12" fill="#EFF6FF" stroke="#60A5FA" stroke-width="1.5"/>
+  <text x="400" y="34" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">qa-ticket-generator 내부 파이프라인</text>
+
+  <!-- 영역 3: 외부 서비스 -->
+  <rect x="614" y="306" width="176" height="722" rx="12" fill="#F5F3FF" stroke="#A78BFA" stroke-width="1.5"/>
+  <text x="702" y="332" font-size="17" fill="#4C1D95" font-weight="bold" text-anchor="middle">외부 서비스</text>
+
+  <!-- 파이프라인 ①~③ -->
+  <rect x="224" y="48" width="352" height="58" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="71.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">Input Adapter</text>
+  <text x="400" y="93.5" font-size="16" fill="#374151" text-anchor="middle">Action · CLI 진입점 (코어 공유)</text>
+  <circle cx="224" cy="48" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="53.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">1</text>
+  <rect x="224" y="134" width="352" height="58" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="157.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">Config Loader</text>
+  <text x="400" y="179.5" font-size="16" fill="#374151" text-anchor="middle">input &gt; 설정 파일 &gt; 기본값 병합</text>
+  <circle cx="224" cy="134" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="139.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">2</text>
+  <rect x="224" y="220" width="352" height="58" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="243.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">Trigger Gate</text>
+  <text x="400" y="265.5" font-size="16" fill="#374151" text-anchor="middle">run / skip 판정 · skip이면 종료</text>
+  <circle cx="224" cy="220" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="225.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">3</text>
+
+  <!-- 파이프라인 ④ Context 수집 (Context Aggregator + PRD Providers) -->
+  <rect x="216" y="306" width="368" height="256" rx="10" fill="#DBEAFE"/>
+  <circle cx="224" cy="306" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="311.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">4</text>
+  <text x="244" y="329" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#1E3A8A">Context 수집</tspan><tspan font-weight="normal" fill="#374151">  src/context</tspan></text>
+  <rect x="224" y="340" width="352" height="58" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="363.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">Context Aggregator</text>
+  <text x="400" y="385.5" font-size="16" fill="#374151" text-anchor="middle">PR 메타 · 변경 파일+patch · 원문</text>
+  <rect x="224" y="426" width="352" height="124" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="460.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">PRD Providers</text>
+  <text x="400" y="482.5" font-size="16" fill="#374151" text-anchor="middle">GitHub Issue · Jira · Notion</text>
+  <text x="400" y="504.5" font-size="16" fill="#374151" text-anchor="middle">병렬 조회 · 문서당 15초 타임아웃</text>
+  <text x="400" y="526.5" font-size="16" fill="#374151" text-anchor="middle">실패한 문서는 경고 후 계속</text>
+
+  <!-- 파이프라인 ⑤ Preprocess — ★ Rust 전환점 -->
+  <rect x="224" y="590" width="352" height="88" rx="8" fill="#FFF3E0" stroke="#C2410C" stroke-width="2.8"/>
+  <text x="298.7" y="617.5" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#1E3A8A">Preprocess  </tspan><tspan font-weight="bold" fill="#C2410C">★ Rust 전환점</tspan></text>
+  <text x="400" y="639.5" font-size="16" fill="#111827" text-anchor="middle">filter→parse→redact→AST→score→pack</text>
+  <text x="400" y="661.5" font-size="16" fill="#9A3412" text-anchor="middle">I/O 없는 순수 함수 (결정적)</text>
+  <circle cx="224" cy="590" r="12" fill="#C2410C" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="595.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">5</text>
+
+  <!-- 파이프라인 ⑥~⑧ -->
+  <rect x="224" y="706" width="352" height="80" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="729.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">LLM Orchestrator</text>
+  <text x="400" y="751.5" font-size="16" fill="#374151" text-anchor="middle">single: 1회 호출</text>
+  <text x="400" y="773.5" font-size="16" fill="#374151" text-anchor="middle">map-reduce: map N회 + reduce 1회</text>
+  <circle cx="224" cy="706" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="711.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">6</text>
+  <rect x="224" y="814" width="352" height="58" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="837.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">QaReport 검증</text>
+  <text x="400" y="859.5" font-size="16" fill="#374151" text-anchor="middle">zod 스키마 검증 · 비용 집계</text>
+  <circle cx="224" cy="814" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="819.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">7</text>
+  <rect x="224" y="900" width="352" height="112" rx="8" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="400" y="939.5" font-size="17" fill="#1E3A8A" font-weight="bold" text-anchor="middle">Delivery</text>
+  <text x="400" y="961.5" font-size="16" fill="#374151" text-anchor="middle">PR comment · Slack · Job Summary</text>
+  <text x="400" y="983.5" font-size="16" fill="#374151" text-anchor="middle">채널별 독립 발행 · 출력 무해화</text>
+  <circle cx="224" cy="900" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="224" y="905.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">8</text>
+
+  <!-- 파이프라인 데이터 흐름 (굵은 실선, 위→아래) -->
+  <polygon points="400,134 394.5,123 405.5,123" fill="#1E3A8A"/>
+  <polyline points="400,106 400,124" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="125" font-size="16" fill="#1E3A8A">이벤트 · inputs</text>
+  <polygon points="400,220 394.5,209 405.5,209" fill="#1E3A8A"/>
+  <polyline points="400,192 400,210" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="211" font-size="16" fill="#1E3A8A">Config</text>
+  <polygon points="400,306 394.5,295 405.5,295" fill="#1E3A8A"/>
+  <polyline points="400,278 400,296" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="297" font-size="16" fill="#1E3A8A">run</text>
+  <polygon points="400,426 394.5,415 405.5,415" fill="#1E3A8A"/>
+  <polyline points="400,398 400,416" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="417" font-size="16" fill="#1E3A8A">PrdRef[]</text>
+  <polygon points="400,590 394.5,579 405.5,579" fill="#1E3A8A"/>
+  <polyline points="400,562 400,580" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="581" font-size="16" fill="#1E3A8A">PreprocessInput</text>
+  <polygon points="400,706 394.5,695 405.5,695" fill="#1E3A8A"/>
+  <polyline points="400,678 400,696" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="697" font-size="16" fill="#1E3A8A">PreprocessOutput</text>
+  <polygon points="400,814 394.5,803 405.5,803" fill="#1E3A8A"/>
+  <polyline points="400,786 400,804" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="805" font-size="16" fill="#1E3A8A">parsed_output</text>
+  <polygon points="400,900 394.5,889 405.5,889" fill="#1E3A8A"/>
+  <polyline points="400,872 400,890" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="414" y="891" font-size="16" fill="#1E3A8A">QaReport</text>
+
+  <!-- GitHub: 이벤트(트리거) -->
+  <rect x="22" y="48" width="152" height="58" rx="8" fill="#FFFFFF" stroke="#4B5563" stroke-width="1.8"/>
+  <text x="98" y="71.5" font-size="17" fill="#1F2937" font-weight="bold" text-anchor="middle">PR 이벤트</text>
+  <text x="98" y="93.5" font-size="16" fill="#374151" text-anchor="middle">workflow_dispatch</text>
+  <polygon points="224,77 214,81.5 214,72.5" fill="#374151"/>
+  <polyline points="174,77 215,77" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- GitHub REST API (세로로 긴 상자 1개 — 조회 2곳, 발행 1곳) -->
+  <rect x="22" y="306" width="152" height="650" rx="8" fill="#FFFFFF" stroke="#4B5563" stroke-width="1.8"/>
+  <text x="98" y="332" font-size="16" fill="#1F2937" font-weight="bold" text-anchor="middle">GitHub REST API</text>
+  <rect x="30" y="345" width="136" height="48" rx="6" fill="#E5E7EB"/>
+  <text x="98" y="364.5" font-size="16" fill="#111827" text-anchor="middle">PR 메타 · 파일</text>
+  <text x="98" y="385.5" font-size="16" fill="#111827" text-anchor="middle">원문 · 설정 조회</text>
+  <rect x="30" y="464" width="136" height="48" rx="6" fill="#E5E7EB"/>
+  <text x="98" y="483.5" font-size="16" fill="#111827" text-anchor="middle">GitHub Issue</text>
+  <text x="98" y="504.5" font-size="16" fill="#111827" text-anchor="middle">조회 (PRD)</text>
+  <rect x="30" y="902" width="136" height="48" rx="6" fill="#E5E7EB"/>
+  <text x="98" y="921.5" font-size="16" fill="#111827" text-anchor="middle">PR 코멘트</text>
+  <text x="98" y="942.5" font-size="16" fill="#111827" text-anchor="middle">검색 · 수정/생성</text>
+  <text x="98" y="690.5" font-size="16" fill="#4B5563" text-anchor="middle">모든 호출 공통</text>
+  <text x="98" y="712.5" font-size="16" fill="#4B5563" text-anchor="middle">재시도 최대 3회</text>
+  <text x="98" y="734.5" font-size="16" fill="#4B5563" text-anchor="middle">rate-limit 대기</text>
+  <polygon points="224,369 214,373.5 214,364.5" fill="#374151"/>
+  <polygon points="174,369 184,364.5 184,373.5" fill="#374151"/>
+  <polyline points="183,369 215,369" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <polygon points="224,488 214,492.5 214,483.5" fill="#374151"/>
+  <polygon points="174,488 184,483.5 184,492.5" fill="#374151"/>
+  <polyline points="183,488 215,488" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <polygon points="174,926 184,921.5 184,930.5" fill="#374151"/>
+  <polyline points="224,926 183,926" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- GitHub Actions Job Summary -->
+  <rect x="22" y="964" width="152" height="52" rx="8" fill="#FFFFFF" stroke="#4B5563" stroke-width="1.8"/>
+  <text x="98" y="985.5" font-size="17" fill="#1F2937" font-weight="bold" text-anchor="middle">Job Summary</text>
+  <text x="98" y="1006.5" font-size="16" fill="#374151" text-anchor="middle">+ report.json</text>
+  <polygon points="174,990 184,985.5 184,994.5" fill="#374151"/>
+  <polyline points="224,990 183,990" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- 외부 서비스: Jira · Notion (PRD Providers 옆) -->
+  <rect x="626" y="426" width="152" height="58" rx="8" fill="#FFFFFF" stroke="#7C3AED" stroke-width="1.8"/>
+  <text x="702" y="449.5" font-size="17" fill="#4C1D95" font-weight="bold" text-anchor="middle">Jira Cloud</text>
+  <text x="702" y="471.5" font-size="16" fill="#374151" text-anchor="middle">이슈 조회</text>
+  <rect x="626" y="492" width="152" height="58" rx="8" fill="#FFFFFF" stroke="#7C3AED" stroke-width="1.8"/>
+  <text x="702" y="515.5" font-size="17" fill="#4C1D95" font-weight="bold" text-anchor="middle">Notion</text>
+  <text x="702" y="537.5" font-size="16" fill="#374151" text-anchor="middle">페이지·블록 조회</text>
+  <polygon points="626,455 616,459.5 616,450.5" fill="#374151"/>
+  <polygon points="576,455 586,450.5 586,459.5" fill="#374151"/>
+  <polyline points="585,455 617,455" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <polygon points="626,521 616,525.5 616,516.5" fill="#374151"/>
+  <polygon points="576,521 586,516.5 586,525.5" fill="#374151"/>
+  <polyline points="585,521 617,521" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- 외부 서비스: Anthropic (LLM Orchestrator 옆) -->
+  <rect x="626" y="706" width="152" height="80" rx="8" fill="#FFFFFF" stroke="#7C3AED" stroke-width="1.8"/>
+  <text x="702" y="729.5" font-size="17" fill="#4C1D95" font-weight="bold" text-anchor="middle">Anthropic API</text>
+  <text x="702" y="751.5" font-size="16" fill="#374151" text-anchor="middle">Structured</text>
+  <text x="702" y="773.5" font-size="16" fill="#374151" text-anchor="middle">Outputs 호출</text>
+  <polygon points="626,746 616,750.5 616,741.5" fill="#374151"/>
+  <polygon points="576,746 586,741.5 586,750.5" fill="#374151"/>
+  <polyline points="585,746 617,746" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- 외부 서비스: Slack (Delivery 옆) -->
+  <rect x="626" y="927" width="152" height="58" rx="8" fill="#FFFFFF" stroke="#7C3AED" stroke-width="1.8"/>
+  <text x="702" y="950.5" font-size="17" fill="#4C1D95" font-weight="bold" text-anchor="middle">Slack</text>
+  <text x="702" y="972.5" font-size="16" fill="#374151" text-anchor="middle">Bot · Webhook</text>
+  <polygon points="626,956 616,960.5 616,951.5" fill="#374151"/>
+  <polyline points="576,956 617,956" fill="none" stroke="#374151" stroke-width="1.8"/>
+
+  <!-- 범례 -->
+  <rect x="614" y="10" width="176" height="280" rx="10" fill="#FFFFFF" stroke="#6B7280" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="702" y="36" font-size="17" fill="#111827" font-weight="bold" text-anchor="middle">범례</text>
+  <rect x="626" y="52" width="30" height="18" rx="4" fill="#F3F4F6" stroke="#4B5563" stroke-width="1.8"/>
+  <text x="664" y="66" font-size="16" fill="#111827">GitHub</text>
+  <rect x="626" y="81" width="30" height="18" rx="4" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.8"/>
+  <text x="664" y="95" font-size="16" fill="#111827">내부 파이프라인</text>
+  <rect x="626" y="110" width="30" height="18" rx="4" fill="#F5F3FF" stroke="#7C3AED" stroke-width="1.8"/>
+  <text x="664" y="124" font-size="16" fill="#111827">외부 서비스</text>
+  <rect x="626" y="139" width="30" height="18" rx="4" fill="#FFF3E0" stroke="#C2410C" stroke-width="2.6"/>
+  <text x="664" y="153" font-size="16" xml:space="preserve"><tspan font-weight="bold" fill="#C2410C">★ </tspan><tspan font-weight="normal" fill="#111827">Rust 전환점</tspan></text>
+  <polygon points="656,177 645,182.5 645,171.5" fill="#1E3A8A"/>
+  <polyline points="626,177 646,177" fill="none" stroke="#1E3A8A" stroke-width="2.6"/>
+  <text x="664" y="182" font-size="16" fill="#111827">데이터 흐름</text>
+  <polygon points="656,206 647,210.5 647,201.5" fill="#374151"/>
+  <polygon points="626,206 635,201.5 635,210.5" fill="#374151"/>
+  <polyline points="634,206 648,206" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <text x="664" y="211" font-size="16" fill="#111827">요청·응답 호출</text>
+  <polygon points="656,235 647,239.5 647,230.5" fill="#374151"/>
+  <polyline points="626,235 648,235" fill="none" stroke="#374151" stroke-width="1.8"/>
+  <text x="664" y="240" font-size="16" fill="#111827">트리거 · 발행</text>
+  <circle cx="641" cy="264" r="12" fill="#1D4ED8" stroke="#FFFFFF" stroke-width="1.5"/>
+  <text x="641" y="269.7" font-size="16" fill="#FFFFFF" font-weight="bold" text-anchor="middle">1</text>
+  <text x="664" y="269" font-size="16" fill="#111827">실행 순서</text>
+</svg>
