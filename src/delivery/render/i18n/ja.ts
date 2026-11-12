@@ -6,7 +6,7 @@ export const ja: Strings = {
   noPrd: 'リンクされた PRD がありません — コードのみから推定したシナリオです(信頼度は低め)',
   linked: 'リンク済みドキュメント',
   actionNeeded: (n) => `要対応 (${n})`,
-  allCovered: (n) => `対応不要 — 要件 ${n} 件をすべて充足`,
+  allCovered: (n) => `要件 ${n} 件をすべて充足`,
   needsCheck: (n) => `要確認 (${n})`,
   p0Checklist: (n) => `P0 チェックリスト (${n})`,
   noP0: 'P0 シナリオなし',

@@ -100,6 +100,11 @@ latest earlier round marked `keep`, prints the four numbers side by side and end
 `Recommendation for round <n>: KEEP` or `REVERT` and the reason; the same text is at the end of
 `summary.md`. That is advice. The decision is made by a person and entered with `--decision`.
 
+The table also shows pass rate, scenario coverage by keyword and tickets per report, marked
+"context". They do not change the recommendation, but when pass rate or coverage fell the reason
+says so: a change that shortens reports can raise the overall while dropping a risk that had to
+be covered.
+
 - Run the baseline as `--round 0` and mark it `--round 0 --decision keep`, or later rounds have
   nothing to be compared with.
 - There is no recommendation when the two rounds ran different splits, share no variant (model

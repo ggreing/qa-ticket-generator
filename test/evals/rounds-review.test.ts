@@ -71,10 +71,13 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
         alignmentAccuracy: 1,
         findingRecall: 1,
         injectionFlagged: variant?.summary.injectionFlagged,
+        scenarioRecall: 1,
+        avgTickets: (variant?.runs ?? []).reduce((n, r) => n + r.report.scenarios.length, 0) / DEV.length,
         costUsd: variant?.costUsd,
         judgeCostUsd: variant?.judgeCostUsd,
       },
     ]);
+    expect(record?.variants[0]?.avgTickets).toBeGreaterThan(1);
 
     const rounds = h.files['evals/ROUNDS.md'] as string;
     expect(rounds).toContain(
@@ -92,6 +95,8 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
       /^# Round 1\n\n- Date: 2026-11-12\n- Prompt: `\S+`\n- Change: baseline \| ticket format\n- Split: dev\n- Rubric judge: claude-sonnet-5-5\n- Decision: pending\n/,
     );
     expect(summary).toContain('| Variant | Runs | Errors | Overall |');
+    // A blank line before the heading, or Markdown reads it as part of the table above.
+    expect(summary).toMatch(/\|\n\n## Compared with the last kept round\n\n/);
     expect(summary).toContain('| Actionability | 1.00 |');
     expect(summary).toContain('| Alignment correctness |');
     expect(summary).toContain(
@@ -202,6 +207,8 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
     alignmentAccuracy: 0.8,
     findingRecall: 0.9,
     injectionFlagged: '1/2',
+    scenarioRecall: 1,
+    avgTickets: 13.3,
     costUsd: 4,
     judgeCostUsd: 1,
     ...overrides,
@@ -320,11 +327,14 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
     ];
     const result = advise(round(4, 'pending', { overall: 1.5 }), earlier);
     expect(result).toMatchObject({ baseline: 1, recommendation: 'keep' });
-    expect(result.rows.map((r) => [r.metric, r.before, r.after, r.change])).toEqual([
-      ['Overall', 1.4, 1.5, 'up'],
-      ['Alignment', 0.8, 0.8, 'same'],
-      ['Findings', 0.9, 0.9, 'same'],
-      ['Injection', 0.5, 0.5, 'same'],
+    expect(result.rows.map((r) => [r.metric, r.before, r.after, r.change, r.context])).toEqual([
+      ['Overall', 1.4, 1.5, 'up', false],
+      ['Alignment', 0.8, 0.8, 'same', false],
+      ['Findings', 0.9, 0.9, 'same', false],
+      ['Injection', 0.5, 0.5, 'same', false],
+      ['Pass', 0.8, 0.8, 'same', true],
+      ['Scenarios (kw)', 1, 1, 'same', true],
+      ['Tickets per report', 13.3, 13.3, 'same', true],
     ]);
     expect(advise(round(4, 'pending', { overall: 1.3 }), earlier)).toMatchObject({
       baseline: 1,
@@ -362,6 +372,50 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
     ).toBe('keep');
   });
 
+  it('M3.5 context rows never change the recommendation, but a fall in pass rate or coverage is called out', () => {
+    const kept = [round(0, 'keep')];
+    // Fewer tickets with the same coverage: nothing to note.
+    const leaner = advise(round(1, 'pending', { overall: 1.6, avgTickets: 7.5 }), kept);
+    expect(leaner).toMatchObject({
+      recommendation: 'keep',
+      reason: 'The dev overall rose and no deterministic metric fell.',
+    });
+    expect(leaner.rows.find((r) => r.metric === 'Tickets per report')).toMatchObject({
+      before: 13.3,
+      after: 7.5,
+      change: 'down',
+      context: true,
+    });
+    expect(formatComparison(1, leaner)).toContain(
+      '| claude-opus-5-5 · high | Tickets per report (context) | 13.3 | 7.5 | −5.8 |',
+    );
+
+    // The overall rose, so the rule says keep, but cutting tickets cost coverage and passes.
+    const thinner = advise(
+      round(1, 'pending', { overall: 1.6, avgTickets: 6, scenarioRecall: 0.7, passRate: 0.6 }),
+      kept,
+    );
+    expect(thinner).toMatchObject({
+      recommendation: 'keep',
+      reason:
+        'The dev overall rose and no deterministic metric fell. Note: Pass and Scenarios (kw) fell. That is outside the rule, so look at it before deciding.',
+    });
+    expect(formatComparison(1, thinner)).toContain(
+      '| claude-opus-5-5 · high | Scenarios (kw) (context) | 100% | 70% | −30 pt |',
+    );
+    expect(advise(round(1, 'pending', { overall: 1.2, scenarioRecall: 0.7 }), kept).reason).toBe(
+      'The dev overall did not rise. Note: Scenarios (kw) fell. That is outside the rule, so look at it before deciding.',
+    );
+
+    // A record written before these values were stored shows "—" and is not treated as a fall.
+    const old = [round(0, 'keep', { scenarioRecall: undefined, avgTickets: undefined })];
+    const first = advise(round(1, 'pending', { overall: 1.6, avgTickets: 7.5 }), old);
+    expect(first.reason).toBe('The dev overall rose and no deterministic metric fell.');
+    expect(formatComparison(1, first)).toContain(
+      '| claude-opus-5-5 · high | Tickets per report (context) | — | 7.5 | — |',
+    );
+  });
+
   it('M3.5 gives no recommendation when the rounds cannot be compared, and says why', () => {
     const kept = [round(0, 'keep')];
     expect(advise(round(1, 'pending', { overall: null }), kept)).toMatchObject({
@@ -386,6 +440,7 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
       'Alignment',
       'Findings',
       'Injection',
+      'Pass',
     ]);
     expect(formatComparison(1, judgeOnly)).toEqual([
       'Compared with round 0 (the last one kept):',
@@ -396,6 +451,11 @@ describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")
       '| claude-opus-5-5 · high | Alignment | — | — | — |',
       '| claude-opus-5-5 · high | Findings | — | — | — |',
       '| claude-opus-5-5 · high | Injection | 50% | — | — |',
+      '| claude-opus-5-5 · high | Pass (context) | — | — | — |',
+      '| claude-opus-5-5 · high | Scenarios (kw) (context) | 100% | 100% | 0 |',
+      '| claude-opus-5-5 · high | Tickets per report (context) | 13.3 | 13.3 | 0 |',
+      '',
+      'Rows marked "context" do not affect the recommendation.',
       '',
       'Recommendation for round 1: KEEP. The dev overall rose and no deterministic metric fell. Record the decision with --round 1 --decision keep|revert.',
     ]);

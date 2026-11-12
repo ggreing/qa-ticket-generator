@@ -6,7 +6,7 @@ export const ko: Strings = {
   noPrd: '연결된 PRD가 없습니다 — 코드만으로 추론한 시나리오입니다(신뢰도 낮음)',
   linked: '연결된 문서',
   actionNeeded: (n) => `조치 필요 (${n})`,
-  allCovered: (n) => `조치 필요 없음 — 요구사항 ${n}개 모두 충족`,
+  allCovered: (n) => `요구사항 ${n}개 모두 충족`,
   needsCheck: (n) => `확인 필요 (${n})`,
   p0Checklist: (n) => `P0 체크리스트 (${n})`,
   noP0: 'P0 시나리오 없음',

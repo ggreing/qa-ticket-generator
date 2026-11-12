@@ -1,0 +1,60 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ⚠️ **一部一致**
+
+> リンク済みドキュメント: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+**要対応 (1)**
+- ❌ **AC3** ユーザーは1時間に最大5回までエクスポートできる。 — export_users にもルート登録にも回数制限がありません。 <code>src/coupon.ts</code> +1
+
+**P0 チェックリスト (1)**
+- [ ] **TC-01** 1時間以内の6回目のエクスポートは 429 で拒否される → 6回目のリクエストは HTTP 429 を返し、CSV データはない
+
+<details><summary><b>TC-01 1時間以内の6回目のエクスポートは 429 で拒否される</b> [P0 · AC3]</summary>
+
+- **前提**: a coupon that expires in 1 second
+- **データ**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **手順**:
+  1. the user applies it at checkout
+- **期待結果**:
+  - 6回目のリクエストは HTTP 429 を返し、CSV データはない
+  - 1&#126;5回目のリクエストは HTTP 200 を返す
+- **関連**: AC3 · <code>src/coupon.ts</code>
+- **理由**: Boundary of the expiry rule.
+
+</details>
+
+<details><summary>P1 · P2 チケット (1)</summary>
+
+<details><summary><b>TC-02 1時間以内の6回目のエクスポートは 429 で拒否される</b> [P1 · AC3, AC2]</summary>
+
+- **前提**: a coupon that expires in 1 second
+- **データ**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **手順**:
+  1. the user applies it at checkout
+- **期待結果**: the discount is applied
+- **関連**: AC3: ユーザーは1時間に最大5回までエクスポートできる。それ以降のリクエストは HTTP 429 を受け取る。 · AC2 · <code>src/coupon.ts</code>
+- **理由**: Boundary of the expiry rule.
+
+</details>
+
+</details>
+
+<details><summary>要件ごとの判定 (1)</summary>
+
+Adds coupon application to checkout.
+
+| 要件 | 状態 | 根拠 |
+| --- | --- | --- |
+| AC3: ユーザーは1時間に最大5回までエクスポートできる。それ以降のリクエストは HTTP 429 を受け取る。 | ❌ 未実装 | export_users にもルート登録にも回数制限がありません。同じ時間帯の6回目のリクエストも1回目と同じように処理されます。 <code>src/coupon.ts</code> <code>src/checkout.ts</code> |
+
+</details>
+
+### リスク
+
+- 🔴 **Missing expiry check** — AC3 not implemented <code>src/coupon.ts</code>
+- 🟡 **No audit log** — Coupon use is not logged.
+
+### 前提条件
+
+- Coupon codes are case-insensitive.
+
+<sub><code>claude-opus-5-5</code> · effort high · single · 入力 31.2K / 出力 5.8K トークン · ~$0.24 · 74s · 3 ファイルを除外 (ノイズ 2, バイナリ 1) · 秘密情報 2 件をマスク</sub>

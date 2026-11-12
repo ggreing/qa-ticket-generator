@@ -6,7 +6,7 @@ export const zhCN: Strings = {
   noPrd: '未关联 PRD — 场景仅根据代码推断(可信度较低)',
   linked: '关联文档',
   actionNeeded: (n) => `需要处理 (${n})`,
-  allCovered: (n) => `无需处理 — ${n} 项需求均已覆盖`,
+  allCovered: (n) => `${n} 项需求均已覆盖`,
   needsCheck: (n) => `需要确认 (${n})`,
   p0Checklist: (n) => `P0 检查清单 (${n})`,
   noP0: '没有 P0 场景',

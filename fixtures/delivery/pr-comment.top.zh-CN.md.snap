@@ -1,0 +1,60 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ⚠️ **部分一致**
+
+> 关联文档: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+**需要处理 (1)**
+- ❌ **AC3** 每个用户每小时最多导出 5 次。 — export_users 和路由注册中都没有任何次数限制。 <code>src/coupon.ts</code> +1
+
+**P0 检查清单 (1)**
+- [ ] **TC-01** 一小时内的第六次导出被 429 拒绝 → 第 6 次请求返回 HTTP 429 且没有 CSV 数据
+
+<details><summary><b>TC-01 一小时内的第六次导出被 429 拒绝</b> [P0 · AC3]</summary>
+
+- **前置条件**: a coupon that expires in 1 second
+- **数据**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **步骤**:
+  1. the user applies it at checkout
+- **预期结果**:
+  - 第 6 次请求返回 HTTP 429 且没有 CSV 数据
+  - 第 1&#126;5 次请求返回 HTTP 200
+- **相关**: AC3 · <code>src/coupon.ts</code>
+- **原因**: Boundary of the expiry rule.
+
+</details>
+
+<details><summary>P1 · P2 工单 (1)</summary>
+
+<details><summary><b>TC-02 一小时内的第六次导出被 429 拒绝</b> [P1 · AC3, AC2]</summary>
+
+- **前置条件**: a coupon that expires in 1 second
+- **数据**: <code>coupon.expiresAt = now + 1s</code> · <code>order.subtotal = 30000</code>
+- **步骤**:
+  1. the user applies it at checkout
+- **预期结果**: the discount is applied
+- **相关**: AC3: 每个用户每小时最多导出 5 次。之后的请求返回 HTTP 429。 · AC2 · <code>src/coupon.ts</code>
+- **原因**: Boundary of the expiry rule.
+
+</details>
+
+</details>
+
+<details><summary>逐项需求判定 (1)</summary>
+
+Adds coupon application to checkout.
+
+| 需求 | 状态 | 依据 |
+| --- | --- | --- |
+| AC3: 每个用户每小时最多导出 5 次。之后的请求返回 HTTP 429。 | ❌ 缺失 | export_users 和路由注册中都没有任何次数限制。同一小时内的第六次请求与第一次的处理方式相同。 <code>src/coupon.ts</code> <code>src/checkout.ts</code> |
+
+</details>
+
+### 风险
+
+- 🔴 **Missing expiry check** — AC3 not implemented <code>src/coupon.ts</code>
+- 🟡 **No audit log** — Coupon use is not logged.
+
+### 假设
+
+- Coupon codes are case-insensitive.
+
+<sub><code>claude-opus-5-5</code> · effort high · single · 输入 31.2K / 输出 5.8K tokens · ~$0.24 · 74s · 排除 3 个文件 (噪声 2, 二进制 1) · 脱敏 2 个密钥</sub>
