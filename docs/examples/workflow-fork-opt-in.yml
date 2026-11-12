@@ -1,0 +1,45 @@
+# ⚠️ SECURITY WARNING — READ BEFORE USING THIS WORKFLOW ⚠️
+#
+# NEVER use actions/checkout (or any step that downloads, installs, builds or runs code
+# from the pull request) in this workflow.
+#
+# `pull_request_target` runs in the context of the BASE repository: it has your secrets and a
+# token with write access, even for pull requests opened from forks. Checking out and running
+# fork code here lets anyone who opens a PR steal those secrets (a "pwn request").
+# qa-ticket-generator never checks out or executes PR code; it reads the diff through the
+# GitHub API only. Keep it that way: this job must contain exactly one step.
+#
+# How this opt-in stays safe and cheap:
+# - It runs only when someone adds the `needs-ai-qa` label. Only people with write access can
+#   label, so a maintainer decides when an outside PR is analyzed.
+# - New pushes to the fork do NOT re-run it. To analyze new commits, remove and re-add the label.
+# - Same-repository PRs are left to the regular workflow (docs/examples/workflow.yml).
+# - Consider pinning the action to a full commit SHA instead of a tag.
+name: AI QA Scenarios (fork PRs)
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read # read file contents for AST context
+  pull-requests: write # create / update the PR comment
+  issues: read # read GitHub Issue PRDs
+
+concurrency:
+  group: qa-ticket-generator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    if: >-
+      github.event.label.name == 'needs-ai-qa' &&
+      github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Do NOT add actions/checkout or any other step here.
+      - uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allow-fork-prs: "true"
+          max-cost-usd: "1.00"

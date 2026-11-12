@@ -1,0 +1,41 @@
+# .github/workflows/qa-ticket-generator.yml
+#
+# Quickstart (SPEC §4.1). Add the ANTHROPIC_API_KEY secret, create the `needs-ai-qa` label
+# and commit this file. Slack, Jira and Notion inputs are optional — delete what you don't use.
+# Do NOT add actions/checkout: the action reads everything through the GitHub API.
+name: AI QA Scenarios
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      pr-number: { description: "PR number", required: true }
+
+permissions:
+  contents: read # read file contents for AST context
+  pull-requests: write # create / update the PR comment
+  issues: read # read GitHub Issue PRDs
+
+concurrency:
+  group: qa-ticket-generator-${{ github.event.pull_request.number || inputs.pr-number }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    # Only start a runner when the label is present, to save cost (the action checks again).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          language: en
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-channel: "#qa-request"
+          jira-base-url: https://acme.atlassian.net
+          jira-email: ${{ secrets.JIRA_EMAIL }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          notion-token: ${{ secrets.NOTION_TOKEN }}

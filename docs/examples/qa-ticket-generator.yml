@@ -1,0 +1,20 @@
+# .github/qa-ticket-generator.yml — optional repo config (SPEC §4.3).
+# Precedence: action input > this file > defaults.
+# This file is read from the BASE branch, so a pull request cannot change its own
+# filters or prompt instructions.
+filters:
+  exclude: ["**/*.snap", "src/generated/**"] # added to the built-in noise list
+  include: ["db/migrations/**"] # rescued from the built-in noise list
+prd:
+  jiraProjectKeys: [PROJ, WEB]
+  jiraAcceptanceCriteriaField: customfield_10042 # for teams that keep AC in a custom field
+  maxDocuments: 5
+scoring:
+  boostPaths: ["src/domain/**", "src/services/**"]
+  penalizePaths: ["**/__tests__/**"]
+prompt:
+  extraInstructions: |
+    Payment amounts are always integers in the smallest currency unit. Partial refunds are supported.
+  glossary:
+    - term: "Settlement"
+      meaning: "The batch process that pays sellers what they are owed"
