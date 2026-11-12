@@ -1,0 +1,153 @@
+{
+  "_comment": "Synthetic Jira Cloud REST v3 issue (no real customer data).",
+  "id": "10042",
+  "key": "PROJ-123",
+  "fields": {
+    "summary": "Apply a coupon at checkout",
+    "status": { "name": "In Progress" },
+    "issuetype": { "name": "Story" },
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "heading",
+          "attrs": { "level": 2 },
+          "content": [{ "type": "text", "text": "Background" }]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Shoppers enter a " },
+            { "type": "text", "text": "coupon code", "marks": [{ "type": "strong" }] },
+            { "type": "text", "text": " in " },
+            { "type": "text", "text": "Checkout", "marks": [{ "type": "em" }] },
+            { "type": "text", "text": ". See " },
+            { "type": "text", "text": "CouponService.apply()", "marks": [{ "type": "code" }] },
+            { "type": "text", "text": " and the " },
+            {
+              "type": "text",
+              "text": "pricing doc",
+              "marks": [{ "type": "link", "attrs": { "href": "https://example.com/pricing" } }]
+            },
+            { "type": "text", "text": "." },
+            { "type": "hardBreak" },
+            { "type": "text", "text": "Owner: " },
+            { "type": "mention", "attrs": { "id": "u-1", "text": "@Example Owner" } },
+            { "type": "text", "text": " · Design: " },
+            { "type": "inlineCard", "attrs": { "url": "https://example.com/design/coupon" } }
+          ]
+        },
+        {
+          "type": "heading",
+          "attrs": { "level": 2 },
+          "content": [{ "type": "text", "text": "Acceptance Criteria" }]
+        },
+        {
+          "type": "bulletList",
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "AC1: a coupon can be applied once per order" }] },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "also across devices" }] }]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "AC2: the discount shows before payment" }] }]
+            },
+            {
+              "type": "listItem",
+              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "AC3: expired coupons are rejected" }] }]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "attrs": { "level": 2 },
+          "content": [{ "type": "text", "text": "Rollout" }]
+        },
+        {
+          "type": "orderedList",
+          "attrs": { "order": 3 },
+          "content": [
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Staff only" }] }] },
+            { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Everyone" }] }] }
+          ]
+        },
+        {
+          "type": "taskList",
+          "attrs": { "localId": "t" },
+          "content": [
+            { "type": "taskItem", "attrs": { "localId": "t1", "state": "DONE" }, "content": [{ "type": "text", "text": "Copy reviewed" }] },
+            { "type": "taskItem", "attrs": { "localId": "t2", "state": "TODO" }, "content": [{ "type": "text", "text": "Analytics event" }] },
+            {
+              "type": "taskList",
+              "attrs": { "localId": "t3" },
+              "content": [
+                { "type": "taskItem", "attrs": { "localId": "t4", "state": "TODO" }, "content": [{ "type": "text", "text": "Dashboard" }] }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "codeBlock",
+          "attrs": { "language": "json" },
+          "content": [{ "type": "text", "text": "{ \"code\": \"SAVE10\" }" }]
+        },
+        {
+          "type": "blockquote",
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Legal: no stacking of coupons." }] }]
+        },
+        {
+          "type": "table",
+          "attrs": { "isNumberColumnEnabled": false, "layout": "default" },
+          "content": [
+            {
+              "type": "tableRow",
+              "content": [
+                { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Code" }] }] },
+                { "type": "tableHeader", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Discount" }] }] }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "SAVE10" }] }] },
+                { "type": "tableCell", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "10% | max 5" }] }] }
+              ]
+            }
+          ]
+        },
+        { "type": "rule" },
+        {
+          "type": "panel",
+          "attrs": { "panelType": "info" },
+          "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Ships behind a flag." }] }]
+        },
+        {
+          "type": "mediaSingle",
+          "content": [{ "type": "media", "attrs": { "id": "m", "type": "file", "collection": "c" } }]
+        },
+        {
+          "type": "layoutSection",
+          "content": [
+            {
+              "type": "layoutColumn",
+              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Unknown container text" }] }]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
