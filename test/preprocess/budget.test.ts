@@ -1,5 +1,8 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { PackedFile } from '../../src/core/contracts';
+import type { PackedFile, PreprocessInput, PreprocessOutput } from '../../src/core/contracts';
 import { byPriority, fileTokens, pack, sized, splitFile } from '../../src/preprocess/pack';
 import { marker } from '../../src/preprocess/redact';
 import { changedText, prdKeywords, round3, scoreFile, tokenize } from '../../src/preprocess/score';
@@ -7,7 +10,10 @@ import {
   allocatePrdBudget,
   charsForTokens,
   codeBudget,
+  countCjk,
   estimateTokens,
+  fitPrefix,
+  isCjk,
   PRD_MAX_TOKENS_PER_DOCUMENT,
   prdBudget,
   prdDocumentTokens,
@@ -17,6 +23,7 @@ import {
   truncateText,
   usableBudget,
 } from '../../src/preprocess/tokens';
+import { expectedTokens } from './golden/cases-cjk';
 import { options, prd, rng } from './helpers';
 
 describe('PRE-08 token estimation and budget', () => {
@@ -75,6 +82,117 @@ describe('PRE-08 token estimation and budget', () => {
     expect(truncateText('short', 10)).toBe('short');
     const text = `${'a'.repeat(10)}${marker('jwt')}`;
     expect(truncateText(text, 15)).toBe('a'.repeat(10));
+  });
+});
+
+describe('PRE-08 CJK estimate', () => {
+  it.each([
+    ['쿠폰 만료', 4 + 1],
+    ['クーポン', 4],
+    ['优惠券过期', 5],
+    ['ＡＢＣ１２３', 6],
+    ['「」、。', 4],
+    ['ㄱㄴㄷ', 3],
+    ['ᄀᄁ', 2],
+    ['coupon 쿠폰', 2 + Math.ceil(7 / 3.2)],
+    ['😀', 1],
+    ['', 0],
+  ])('PRE-08 estimates %j as %i tokens', (text, tokens) => {
+    expect(estimateTokens(text)).toBe(tokens);
+    expect(expectedTokens(text)).toBe(tokens);
+  });
+
+  it('PRE-08 CJK range boundaries', () => {
+    for (const c of [
+      0x1100, 0x11ff, 0x3000, 0x30ff, 0x3130, 0x318f, 0x3400, 0x4dbf, 0x4e00, 0x9fff, 0xac00, 0xd7af, 0xff00,
+      0xffef,
+    ]) {
+      expect(isCjk(c), c.toString(16)).toBe(true);
+    }
+    for (const c of [
+      0x10ff, 0x1200, 0x2fff, 0x3100, 0x3190, 0x33ff, 0x4dc0, 0xa000, 0xabff, 0xd7b0, 0xfeff, 0xfff0, 0x41,
+    ]) {
+      expect(isCjk(c), c.toString(16)).toBe(false);
+    }
+    expect(countCjk('abc')).toBe(0);
+    expect(countCjk('a가b나')).toBe(2);
+  });
+
+  it('PRE-08 fitPrefix returns the longest prefix within the budget for mixed text', () => {
+    const text = 'abc가나다 def라마';
+    for (let t = 0; t <= estimateTokens(text) + 1; t++) {
+      const n = fitPrefix(text, t);
+      expect(estimateTokens(text.slice(0, n))).toBeLessThanOrEqual(t);
+      if (n < text.length) expect(estimateTokens(text.slice(0, n + 1))).toBeGreaterThan(t);
+    }
+    expect(fitPrefix('abcdef', 1)).toBe(3);
+    expect(fitPrefix('abc', 100)).toBe(3);
+  });
+
+  it('PRE-08 Korean PRD truncation stays within the allowance', () => {
+    const doc = prd('1', '쿠폰', '쿠폰은 만료된다.\n'.repeat(500), ['만료 쿠폰 거절']);
+    const out = truncatePrdDocument(doc, 300);
+    expect(prdDocumentTokens(out)).toBeLessThanOrEqual(300);
+    expect(prdDocumentTokens(out)).toBeGreaterThan(280);
+  });
+});
+
+describe('PRE-08 golden fixtures agree with an independent estimator', () => {
+  const dir = fileURLToPath(new URL('../../fixtures/preprocess/', import.meta.url));
+  const fixtures = readdirSync(dir)
+    .filter((f) => f.endsWith('.json'))
+    .map(
+      (f) =>
+        JSON.parse(readFileSync(join(dir, f), 'utf8')) as {
+          name: string;
+          input: PreprocessInput;
+          expected: PreprocessOutput;
+        },
+    );
+
+  it('PRE-08 file, chunk, PRD and total token counts', () => {
+    for (const { name, input: inp, expected } of fixtures) {
+      for (const chunk of expected.chunks) {
+        for (const f of chunk.files) {
+          let t =
+            16 +
+            expectedTokens(f.path) +
+            expectedTokens(f.previousPath ?? '') +
+            expectedTokens(f.summary ?? '');
+          for (const h of f.hunks) t += expectedTokens(h.header) + expectedTokens(h.text);
+          for (const c of f.contexts) t += 8 + expectedTokens(c.text) + expectedTokens(c.name ?? '');
+          expect(f.estimatedTokens, `${name}: ${f.path}`).toBe(t);
+        }
+        expect(chunk.estimatedTokens, name).toBe(chunk.files.reduce((s, f) => s + f.estimatedTokens, 0));
+      }
+      const prdTokens = expected.prdDocuments.reduce(
+        (s, d) =>
+          s +
+          expectedTokens(d.title) +
+          expectedTokens(d.bodyMarkdown) +
+          d.acceptanceCriteria.reduce((a, c) => a + expectedTokens(c), 0),
+        0,
+      );
+      expect(prdTokens, name).toBeLessThanOrEqual(Math.floor(inp.options.tokenBudget * 0.3));
+      const perCall = inp.options.reservedTokens + prdTokens;
+      expect(expected.estimatedTokens, name).toBe(
+        expected.chunks.reduce((s, c) => s + perCall + c.estimatedTokens, 0),
+      );
+    }
+  });
+
+  it('PRE-08 the 30% boundary fixtures: exactly at the share is whole, one over is truncated', () => {
+    const at = fixtures.find((f) => f.name.startsWith('PRE-08 a Korean PRD exactly'));
+    const over = fixtures.find((f) => f.name.startsWith('PRE-08 a Korean PRD one token over'));
+    const docTokens = (d: PreprocessOutput['prdDocuments'][number]) =>
+      expectedTokens(d.title) +
+      expectedTokens(d.bodyMarkdown) +
+      d.acceptanceCriteria.reduce((a, c) => a + expectedTokens(c), 0);
+    expect(docTokens(at?.input.prdDocuments[0] as never)).toBe(6_000);
+    expect(at?.expected.prdDocuments[0]).toStrictEqual(at?.input.prdDocuments[0]);
+    expect(docTokens(over?.input.prdDocuments[0] as never)).toBe(6_001);
+    expect(docTokens(over?.expected.prdDocuments[0] as never)).toBeLessThanOrEqual(6_000);
+    expect(over?.expected.prdDocuments[0]?.bodyMarkdown.endsWith(TRUNCATION_MARKER)).toBe(true);
   });
 });
 

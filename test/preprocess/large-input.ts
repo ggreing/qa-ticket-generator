@@ -18,7 +18,7 @@ const FUNCTIONS = 30;
 const BODY = 12;
 
 /** A TS module of 30 functions; every other function gets one edited and six added lines. */
-function tsFile(path: string, rand: () => number, withSecret: boolean): ChangedFile {
+function tsFile(path: string, rand: () => number, withSecret: boolean, korean: boolean): ChangedFile {
   const oldLines: string[] = ["import { db } from './db';", ''];
   const starts: number[] = [];
   for (let f = 0; f < FUNCTIONS; f++) {
@@ -42,7 +42,7 @@ function tsFile(path: string, rand: () => number, withSecret: boolean): ChangedF
     const added = Array.from({ length: 6 }, (_, k) =>
       withSecret && f === 0 && k === 0
         ? '  const password = "hunter2!x";'
-        : `  audit(${k}, "${WORDS[k]}", amount);`,
+        : `  audit(${k}, "${WORDS[k]}", amount);${korean ? ' // 쿠폰 만료 및 환불 감사 로그' : ''}`,
     );
     const newStart = newLines.length + 1;
     hunks.push(
@@ -61,18 +61,19 @@ function tsFile(path: string, rand: () => number, withSecret: boolean): ChangedF
   return file(path, hunks.join('\n'), { headContent: newLines.join('\n') });
 }
 
-export function largeInput(): { input: PreprocessInput; patchBytes: number } {
+/** `korean`: Korean comments, docs and a long Korean PRD (exercises the CJK estimate and PRD cut). */
+export function largeInput({ korean = false } = {}): { input: PreprocessInput; patchBytes: number } {
   const rand = rng(7);
   const files: ChangedFile[] = [];
   for (let i = 0; i < 300; i++) {
     const kind = i % 2 === 0 ? 0 : 1 + (i % 3);
     const dir = `src/${WORDS[i % WORDS.length]}/${['api', 'domain', 'ui'][i % 3]}`;
     if (kind === 0) {
-      files.push(tsFile(`${dir}/m${i}.ts`, rand, i % 20 === 0));
+      files.push(tsFile(`${dir}/m${i}.ts`, rand, i % 20 === 0, korean));
     } else if (kind === 1) {
       const body = Array.from(
         { length: 150 },
-        (_, k) => `+    ${WORDS[k % 10]}_${k} = await svc.call(${k})  # step`,
+        (_, k) => `+    ${WORDS[k % 10]}_${k} = await svc.call(${k})  # ${korean ? '단계별 처리' : 'step'}`,
       );
       files.push(file(`${dir}/m${i}.py`, hunk(10, 10, ['     def handler(self):', ...body])));
     } else if (kind === 2) {
@@ -84,9 +85,10 @@ export function largeInput(): { input: PreprocessInput; patchBytes: number } {
         file(`${dir}/m${i}.go`, hunk(10, 10, [' func Handle(ctx context.Context) error {', ...body])),
       );
     } else {
-      const body = Array.from(
-        { length: 120 },
-        (_, k) => `+- The ${WORDS[k % 10]} flow must handle case ${k} gracefully.`,
+      const body = Array.from({ length: 120 }, (_, k) =>
+        korean
+          ? `+- ${WORDS[k % 10]} 흐름은 사례 ${k}를 안전하게 처리해야 한다.`
+          : `+- The ${WORDS[k % 10]} flow must handle case ${k} gracefully.`,
       );
       files.push(file(`docs/${WORDS[i % 10]}/m${i}.md`, hunk(1, 1, body)));
     }
@@ -94,10 +96,15 @@ export function largeInput(): { input: PreprocessInput; patchBytes: number } {
   const patchBytes = files.reduce((s, f) => s + (f.patch?.length ?? 0), 0);
   return {
     input: input(files, [
-      prd('1', 'Coupon refunds', 'Refund flow for coupon orders.', [
-        'Refunds restore the coupon',
-        'Ledger is updated',
-      ]),
+      korean
+        ? prd('1', '쿠폰 환불', '환불 시 쿠폰을 복구하고 원장을 갱신한다.\n'.repeat(3_000), [
+            '환불하면 쿠폰이 복구된다',
+            '원장이 갱신된다',
+          ])
+        : prd('1', 'Coupon refunds', 'Refund flow for coupon orders.', [
+            'Refunds restore the coupon',
+            'Ledger is updated',
+          ]),
     ]),
     patchBytes,
   };

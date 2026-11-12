@@ -134,7 +134,7 @@ describe('PRE-06 runtime failures never throw', () => {
   });
 
   it('PRE-06 an engine without parsers still produces line contexts', () => {
-    const engine = engineFromRuntime({ parsers: new Map(), grammarDir: null, errors: ['x'] });
+    const engine = engineFromRuntime({ parsers: new Map(), grammarDir: null, errors: ['x'], failed: [] });
     expect(engine.astErrors).toEqual(['x']);
     const text = pad(60, (i) => `const v${i} = ${i};`);
     const out = engine.run(input([modified('src/a.ts', text, text.replace('v30 = 30', 'v30 = 31'))]));
