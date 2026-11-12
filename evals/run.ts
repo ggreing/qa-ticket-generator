@@ -22,6 +22,7 @@ import type {
   QaReport,
 } from '../src/core/contracts';
 import { QtgError } from '../src/core/errors';
+import { EXPECTED_OUTPUT_TOKENS, MAP_CONCURRENCY, MAX_OUTPUT_TOKENS } from '../src/core/limits';
 import { orchestrate, planRun } from '../src/llm/orchestrate';
 import { estimateCostUsd } from '../src/llm/pricing';
 import { PROMPT_VERSION } from '../src/llm/prompts/system';
@@ -37,11 +38,11 @@ import {
 import { JUDGE_MODEL, type JudgeClientLike, judgeScenarios } from './judge';
 import { type EvalCase, loadCases } from './schema';
 
-/** Mirrors src/core/pipeline.ts (EXPECTED_OUTPUT_TOKENS, MAP_CONCURRENCY) and src/adapters/wire.ts (MAX_OUTPUT_TOKENS). */
+/** The Action's own limits (src/core/limits.ts), so the eval runs and estimates exactly like production. */
 export const PRODUCTION = {
-  expectedOutputTokens: 12_000,
-  mapConcurrency: 3,
-  maxOutputTokens: 32_000,
+  expectedOutputTokens: EXPECTED_OUTPUT_TOKENS,
+  mapConcurrency: MAP_CONCURRENCY,
+  maxOutputTokens: MAX_OUTPUT_TOKENS,
 } as const;
 /** Rough size of one judge call, for the pre-run estimate only. */
 const JUDGE_ESTIMATE: LlmUsage = {
@@ -326,6 +327,7 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   const perCase = prepared.map(({ evalCase, pre, context }) => ({
     id: evalCase.id,
     estimateUsd: pre.chunks.length === 0 ? 0 : planRun(pre.chunks, pricing, context, guard).estimateUsd,
+    shape: `${pre.mode}, ${pre.chunks.length} chunk(s), ~${pre.estimatedTokens} input tokens, ${pre.skipped.length} file(s) skipped`,
   }));
   const perVariant = perCase.reduce((n, c) => n + c.estimateUsd, 0) * options.reps;
   const runsPerVariant = cases.length * options.reps;
@@ -337,7 +339,9 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
   print(`Eval plan — prompt ${PROMPT_VERSION}`);
   print(`  model: ${options.model}   effort: ${options.efforts.join(', ')}   reps: ${options.reps}`);
   print(`  cases (${cases.length}): ${cases.map((c) => c.id).join(', ')}`);
-  for (const c of perCase) print(`    ${c.id.padEnd(28)} ~$${c.estimateUsd.toFixed(2)} per run`);
+  for (const c of perCase) {
+    print(`    ${c.id.padEnd(28)} ~$${c.estimateUsd.toFixed(2)} per run   (${c.shape})`);
+  }
   print(`  runs: ${runsPerVariant} per variant × ${options.efforts.length} variant(s)`);
   print(
     `  estimated cost: ~$${perVariant.toFixed(2)} per variant, ~$${estimateUsd.toFixed(2)} in total${options.judge ? ` (includes ~$${judgeEstimate.toFixed(2)} for the ${JUDGE_MODEL} judge)` : ''}`,
