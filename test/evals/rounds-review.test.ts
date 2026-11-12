@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CALIBRATION_LIMIT, compareRatings, pickSamples, type ReviewPack } from '../../evals/review';
-import { type RoundRecord, renderRoundsIndex } from '../../evals/rounds';
-import { type RunRecord, runEvals, type SavedResults } from '../../evals/run';
+import {
+  compareWithLastKept,
+  formatComparison,
+  type RoundRecord,
+  type RoundVariant,
+  renderRoundsIndex,
+} from '../../evals/rounds';
+import { parseArgs, type RunRecord, runEvals, type SavedResults } from '../../evals/run';
 import { DEV, DEV_GRADED, dataset, graded, harness } from './harness';
-import { nullReport, oracleReport } from './support';
+import { fakeRubricClient, nullReport, oracleReport } from './support';
 
 type Harness = ReturnType<typeof harness>;
 const forbidden = (): never => {
@@ -180,6 +186,219 @@ describe('improvement rounds (M3.5, RUBRIC.md "Procedure")', () => {
     });
     expect(h.files).toEqual({});
     expect(renderRoundsIndex([])).toMatch(/\| Round \| Date \|.*\n\| --- \|.*\n$/);
+  });
+});
+
+describe('round 0 and the keep/revert recommendation (M3.5, RUBRIC.md "Scoring")', () => {
+  const variant = (overrides: Partial<RoundVariant> = {}): RoundVariant => ({
+    label: 'claude-opus-5-5 · high',
+    runs: 19,
+    errors: 0,
+    overall: 1.4,
+    scenarioScore: 1.3,
+    reportScore: 1.5,
+    graded: 15,
+    passRate: 0.8,
+    alignmentAccuracy: 0.8,
+    findingRecall: 0.9,
+    injectionFlagged: '1/2',
+    costUsd: 4,
+    judgeCostUsd: 1,
+    ...overrides,
+  });
+  const round = (
+    n: number,
+    decision: RoundRecord['decision'],
+    v: Partial<RoundVariant> = {},
+    overrides: Partial<RoundRecord> = {},
+  ): RoundRecord => ({
+    round: n,
+    date: '2026-11-12T09:00:00.000Z',
+    promptVersion: '2026-11-12.3',
+    change: `change ${n}`,
+    split: 'dev',
+    judgeModel: 'claude-sonnet-5-5',
+    variants: [variant(v)],
+    decision,
+    ...overrides,
+  });
+  const advise = (current: RoundRecord, earlier: RoundRecord[]) => compareWithLastKept(current, earlier);
+
+  it('M3.5 --round accepts 0 for the baseline, for a run and for a decision', async () => {
+    expect(parseArgs(['--round', '0', '--change', 'baseline'], { model: 'm', effort: 'high' }).round).toBe(0);
+    expect(parseArgs(['--round', '0', '--decision', 'keep'], { model: 'm', effort: 'high' })).toMatchObject({
+      round: 0,
+      decision: 'keep',
+    });
+
+    const h = harness();
+    const outcome = await runEvals(['--yes', '--judge', '--round', '0', '--change', 'baseline'], h.deps);
+    expect(outcome).toMatchObject({ exitCode: 0, executed: true });
+    expect(Object.keys(h.files).sort()).toEqual([
+      'evals/ROUNDS.md',
+      'evals/rounds/0/raw/results.json',
+      'evals/rounds/0/summary.md',
+      'evals/rounds/index.json',
+    ]);
+    expect(h.files['evals/ROUNDS.md']).toMatch(/\n\| 0 \| 2026-11-12 \| \S+ \| baseline \| dev \|/);
+    const advice =
+      'No recommendation for round 0: Round 0 is the baseline. Mark it with --round 0 --decision keep so later rounds are compared with it.';
+    expect(h.lines.at(-1)).toBe(advice);
+    expect(h.files['evals/rounds/0/summary.md']).toContain(
+      `## Compared with the last kept round\n\n${advice}\n`,
+    );
+
+    const decide = offline(h);
+    expect(await runEvals(['--round', '0', '--decision', 'keep'], decide.deps)).toMatchObject({
+      exitCode: 0,
+    });
+    expect(decide.out()).toBe('Round 0: keep. evals/ROUNDS.md updated.');
+    expect(h.files['evals/ROUNDS.md']).toMatch(/\n\| 0 \|.*\| keep \|\n$/);
+  });
+
+  it('M3.5 a recorded round is compared with the last kept one and gets a recommendation', async () => {
+    const base = harness();
+    await runEvals(['--yes', '--judge', '--round', '0', '--change', 'baseline'], base.deps);
+    const shared = { writeFile: base.deps.writeFile, readFile: base.deps.readFile };
+
+    // Before round 0 has a decision there is nothing to compare with.
+    const early = harness(shared);
+    await runEvals(['--yes', '--judge', '--round', '1', '--change', 'same output'], early.deps);
+    expect(early.lines.at(-1)).toBe(
+      'No recommendation for round 1: No earlier round is marked keep, so there is nothing to compare with.',
+    );
+    await runEvals(['--round', '0', '--decision', 'keep'], offline(base).deps);
+
+    // Same reports, same judge: the overall did not rise.
+    const same = harness(shared);
+    await runEvals(['--yes', '--judge', '--round', '1', '--change', 'same output'], same.deps);
+    expect(same.out()).toContain('Compared with round 0 (the last one kept):');
+    expect(same.out()).toContain('| Variant | Metric | Round 0 | Round 1 | Change |');
+    expect(same.out()).toMatch(/\| claude-opus-5-5 · high \| Overall \| (\d\.\d\d) \| \1 \| 0 \|/);
+    expect(same.out()).toContain('| claude-opus-5-5 · high | Alignment | 100% | 100% | 0 |');
+    expect(same.out()).toContain(
+      'Recommendation for round 1: REVERT. The dev overall did not rise. Record the decision with --round 1 --decision keep|revert.',
+    );
+    expect(base.files['evals/rounds/1/summary.md']).toContain('Recommendation for round 1: REVERT.');
+    // The recommendation is advice only: the recorded decision stays pending.
+    expect(base.files['evals/ROUNDS.md']).toMatch(/\n\| 1 \|.*\| pending \|\n$/);
+
+    // A judge that scores the real-PR report higher lifts the overall; nothing deterministic moved.
+    const better = harness({ ...shared, createRubricClient: () => fakeRubricClient(2) });
+    await runEvals(['--yes', '--judge', '--round', '2', '--change', 'better'], better.deps);
+    expect(better.out()).toMatch(
+      /\| claude-opus-5-5 · high \| Overall \| \d\.\d\d \| \d\.\d\d \| \+0\.\d\d \|/,
+    );
+    expect(better.out()).toContain(
+      'Recommendation for round 2: KEEP. The dev overall rose and no deterministic metric fell.',
+    );
+
+    // Higher overall, but one case now gets its findings wrong: revert.
+    const worse = harness({ ...shared, createRubricClient: () => fakeRubricClient(2) }, (c) => {
+      const report = oracleReport(
+        graded.find((g) => g.id === c.id) ?? (graded[0] as (typeof graded)[number]),
+      );
+      if (c.id !== 'coupon-expiry-missing') return report;
+      for (const f of report.prdAlignment.findings) f.status = 'covered';
+      report.prdAlignment.status = 'aligned';
+      return report;
+    });
+    await runEvals(['--yes', '--judge', '--round', '3', '--change', 'regression'], worse.deps);
+    expect(worse.out()).toMatch(/\| Alignment \| 100% \| \d\d% \| −\d+ pt \|/);
+    expect(worse.out()).toContain(
+      'Recommendation for round 3: REVERT. A deterministic metric fell: alignment, findings.',
+    );
+  });
+
+  it('M3.5 the baseline is the latest earlier round marked keep; pending and reverted rounds are skipped', () => {
+    const earlier = [
+      round(0, 'keep', { overall: 1.0 }),
+      round(1, 'keep', { overall: 1.4 }),
+      round(2, 'revert', { overall: 1.9 }),
+      round(3, 'pending', { overall: 1.9 }),
+      round(9, 'keep', { overall: 0.1 }), // a later round is never the baseline
+    ];
+    const result = advise(round(4, 'pending', { overall: 1.5 }), earlier);
+    expect(result).toMatchObject({ baseline: 1, recommendation: 'keep' });
+    expect(result.rows.map((r) => [r.metric, r.before, r.after, r.change])).toEqual([
+      ['Overall', 1.4, 1.5, 'up'],
+      ['Alignment', 0.8, 0.8, 'same'],
+      ['Findings', 0.9, 0.9, 'same'],
+      ['Injection', 0.5, 0.5, 'same'],
+    ]);
+    expect(advise(round(4, 'pending', { overall: 1.3 }), earlier)).toMatchObject({
+      baseline: 1,
+      recommendation: 'revert',
+      reason: 'The dev overall did not rise.',
+    });
+    expect(advise(round(4, 'pending'), [round(2, 'revert'), round(3, 'pending')])).toMatchObject({
+      baseline: null,
+      recommendation: 'none',
+    });
+  });
+
+  it('M3.5 any deterministic metric that falls means revert, however much the overall rose', () => {
+    const kept = [round(0, 'keep')];
+    for (const [fall, name] of [
+      [{ alignmentAccuracy: 0.79 }, 'alignment'],
+      [{ findingRecall: 0.5 }, 'findings'],
+      [{ injectionFlagged: '0/2' }, 'injection'],
+    ] as const) {
+      expect(advise(round(1, 'pending', { overall: 2, ...fall }), kept), name).toMatchObject({
+        recommendation: 'revert',
+        reason: `A deterministic metric fell: ${name}.`,
+      });
+    }
+    // Rising deterministic metrics are fine; the pass rate is not one of the three named metrics.
+    expect(
+      advise(
+        round(1, 'pending', { overall: 1.5, alignmentAccuracy: 1, injectionFlagged: '2/2', passRate: 0.1 }),
+        kept,
+      ),
+    ).toMatchObject({ recommendation: 'keep' });
+    // Float noise is not a fall.
+    expect(
+      advise(round(1, 'pending', { overall: 1.5, findingRecall: 0.9 - 1e-12 }), kept).recommendation,
+    ).toBe('keep');
+  });
+
+  it('M3.5 gives no recommendation when the rounds cannot be compared, and says why', () => {
+    const kept = [round(0, 'keep')];
+    expect(advise(round(1, 'pending', { overall: null }), kept)).toMatchObject({
+      recommendation: 'none',
+      reason:
+        'One of the two rounds has no rubric score (run with --judge), so the overall cannot be compared.',
+    });
+    expect(advise(round(1, 'pending', {}, { split: 'test' }), kept)).toMatchObject({
+      baseline: 0,
+      rows: [],
+      recommendation: 'none',
+      reason: 'Round 0 ran the "dev" split and this round ran "test", so the scores are not comparable.',
+    });
+    expect(advise(round(1, 'pending', { label: 'claude-opus-5-5 · medium' }), kept)).toMatchObject({
+      recommendation: 'none',
+      reason: 'Round 0 has no variant with the same model and effort.',
+    });
+    // A round with no graded case or no injection case shows "—" there and is not penalised for it.
+    const judgeOnly = advise(round(1, 'pending', { overall: 1.6, graded: 0, injectionFlagged: '0/0' }), kept);
+    expect(judgeOnly.recommendation).toBe('keep');
+    expect(judgeOnly.rows.filter((r) => r.change === 'n/a').map((r) => r.metric)).toEqual([
+      'Alignment',
+      'Findings',
+      'Injection',
+    ]);
+    expect(formatComparison(1, judgeOnly)).toEqual([
+      'Compared with round 0 (the last one kept):',
+      '',
+      '| Variant | Metric | Round 0 | Round 1 | Change |',
+      '| --- | --- | --- | --- | --- |',
+      '| claude-opus-5-5 · high | Overall | 1.40 | 1.60 | +0.20 |',
+      '| claude-opus-5-5 · high | Alignment | — | — | — |',
+      '| claude-opus-5-5 · high | Findings | — | — | — |',
+      '| claude-opus-5-5 · high | Injection | 50% | — | — |',
+      '',
+      'Recommendation for round 1: KEEP. The dev overall rose and no deterministic metric fell. Record the decision with --round 1 --decision keep|revert.',
+    ]);
   });
 });
 

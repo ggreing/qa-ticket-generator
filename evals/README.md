@@ -95,8 +95,15 @@ What a round leaves behind:
 | `evals/ROUNDS.md`                   | yes       | one row per round: change, dev scores, cost, keep/revert     |
 
 A round counts as an improvement only if the dev overall rises **and** no deterministic metric
-(alignment, findings, injection) falls. The runner records the numbers; the decision is made by a
-person and entered with `--decision`.
+(alignment, findings, injection) falls. After recording a round the runner compares it with the
+latest earlier round marked `keep`, prints the four numbers side by side and ends with
+`Recommendation for round <n>: KEEP` or `REVERT` and the reason; the same text is at the end of
+`summary.md`. That is advice. The decision is made by a person and entered with `--decision`.
+
+- Run the baseline as `--round 0` and mark it `--round 0 --decision keep`, or later rounds have
+  nothing to be compared with.
+- There is no recommendation when the two rounds ran different splits, share no variant (model
+  and effort), or one of them has no rubric score.
 
 **Review pack.** A JSON file with, per sampled report: the case id, the PRD title and acceptance
 criteria, a change summary (file list and the first lines of the largest patches), the ticket as

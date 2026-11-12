@@ -210,7 +210,8 @@ Run (prints the plan and the estimated cost; calls the API only with --yes):
   --judge               score every report with the rubric judge (docs/quality/RUBRIC.md)
   --judge-model <id>    rubric judge model (default: ${DEFAULT_RUBRIC_MODEL})
   --coverage-judge      also judge must-cover scenarios with ${JUDGE_MODEL} (cases with ground truth)
-  --round <n>           record this run as improvement round n (evals/rounds/<n>/, evals/ROUNDS.md)
+  --round <n>           record this run as improvement round n, 0 for the baseline
+                        (evals/rounds/<n>/, evals/ROUNDS.md); prints a keep/revert recommendation
   --change "<text>"     what changed in this round (required with --round)
   --yes                 actually call the API
 
@@ -257,10 +258,10 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
       .split(',')
       .map((v) => v.trim())
       .filter(Boolean);
-  const count = (flag: string, value: string, max = 20): number => {
+  const count = (flag: string, value: string, max = 20, min = 1): number => {
     const n = Number(value);
-    if (!Number.isInteger(n) || n < 1 || n > max)
-      throw new Error(`${flag} must be an integer from 1 to ${max}.`);
+    if (value.trim() === '' || !Number.isInteger(n) || n < min || n > max)
+      throw new Error(`${flag} must be an integer from ${min} to ${max}.`);
     return n;
   };
   for (let i = 0; i < argv.length; i++) {
@@ -286,7 +287,8 @@ export function parseArgs(argv: string[], defaults: { model: string; effort: Eff
     else if (flag === '--reps') options.reps = count(flag, value());
     else if (flag === '--concurrency') options.concurrency = count(flag, value());
     else if (flag === '--sample') options.sample = count(flag, value(), 50);
-    else if (flag === '--round') options.round = count(flag, value(), 99);
+    // Round 0 is the baseline, measured before anything is changed.
+    else if (flag === '--round') options.round = count(flag, value(), 99, 0);
     else if (flag === '--split') {
       const split = value();
       if (split !== 'dev' && split !== 'test' && split !== 'all')
@@ -701,12 +703,13 @@ export async function runEvals(argv: string[], deps: RunDeps): Promise<RunOutcom
       ? join(deps.resultsRoot, `${started.replace(/[:.]/g, '-')}.json`)
       : join(deps.evalsRoot, 'rounds', String(options.round), 'raw', 'results.json');
   deps.writeFile(resultsPath, json);
-  if (options.round !== null) recordRound(options.round, options.change, saved, table, deps);
 
   print('');
   print(table);
   print('');
   print(`Results written to ${resultsPath}`);
+  // Last, so the recommendation is the final thing on screen.
+  if (options.round !== null) recordRound(options.round, options.change, saved, table, deps);
   return { exitCode: 0, executed: true, estimateUsd, estimate, resultsPath, variants: results };
 }
 
