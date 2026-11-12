@@ -1,14 +1,29 @@
 import type { Strings } from './types';
 
 export const zhCN: Strings = {
-  title: 'AI QA 场景',
-  alignment: 'PRD 一致性',
+  title: 'AI QA',
   alignmentStatus: { aligned: '一致', partial: '部分一致', misaligned: '不一致', no_prd: '无 PRD' },
   noPrd: '未关联 PRD — 场景仅根据代码推断(可信度较低)',
   linked: '关联文档',
+  actionNeeded: (n) => `需要处理 (${n})`,
+  allCovered: (n) => `无需处理 — ${n} 项需求均已覆盖`,
+  needsCheck: (n) => `需要确认 (${n})`,
+  p0Checklist: (n) => `P0 检查清单 (${n})`,
+  noP0: '没有 P0 场景',
+  more: (n) => `另有 ${n} 项`,
+  card: {
+    given: '前置条件',
+    data: '数据',
+    steps: '步骤',
+    expected: '预期结果',
+    related: '相关',
+    why: '原因',
+  },
+  confidence: '可信度',
+  level: { high: '高', medium: '中', low: '低' },
+  otherTickets: (n) => `P1 · P2 工单 (${n})`,
+  requirementDetails: (n) => `逐项需求判定 (${n})`,
   sections: {
-    alignment: 'PRD 一致性',
-    scenarios: '场景',
     risks: '风险',
     assumptions: '假设',
     notes: '说明',
@@ -17,13 +32,8 @@ export const zhCN: Strings = {
   },
   table: { requirement: '需求', status: '状态', evidence: '依据' },
   requirementStatus: { covered: '已覆盖', missing: '缺失', contradicts: '冲突', unclear: '不明确' },
-  scenarioType: { happy_path: '正常', edge_case: '边界', negative: '异常', regression: '回归' },
-  level: { high: '高', medium: '中', low: '低' },
-  related: '相关',
-  why: '原因',
-  confidence: '可信度',
-  omittedScenarios: (n) =>
-    `受 GitHub 评论长度限制,省略了 ${n} 个优先级较低的场景。完整报告见工作流的 Job Summary 和 report.json。`,
+  omittedTickets: (n) =>
+    `受 GitHub 评论长度限制,省略了 ${n} 个优先级较低的工单。完整报告见工作流的 Job Summary 和 report.json。`,
   omittedFindings: (n) =>
     `受 GitHub 评论长度限制,省略了 ${n} 行需求。完整报告见工作流的 Job Summary 和 report.json。`,
   truncated: '为符合 GitHub 评论长度限制,内容已被截断。完整报告见工作流的 Job Summary 和 report.json。',
@@ -54,9 +64,7 @@ export const zhCN: Strings = {
   slack: {
     openPr: '打开 PR',
     viewReport: '查看完整报告',
-    scenarios: '场景',
-    topRisks: '主要风险',
-    findings: '需要关注的需求',
-    detailsInThread: '场景详情见消息串。',
+    tickets: '工单',
+    detailsInThread: '工单详情见消息串。',
   },
 };

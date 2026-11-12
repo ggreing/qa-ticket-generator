@@ -1,0 +1,11 @@
+{
+  "dev": [
+    "booking-hold-aligned",
+    "coupon-expiry-missing",
+    "login-throttle-no-prd",
+    "profile-injection",
+    "rbac-export-role",
+    "search-page-cap"
+  ],
+  "test": ["migration-split-name", "notification-retry-aligned", "report-timezone", "upload-size-scan"]
+}

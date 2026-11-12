@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const searchPageCap: AuthoredCase = {
   id: 'search-page-cap',
+  split: 'dev',
   pr: {
     number: 842,
     title: 'Cursor pagination for product search',

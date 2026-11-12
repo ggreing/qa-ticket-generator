@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const migrationSplitName: AuthoredCase = {
   id: 'migration-split-name',
+  split: 'test',
   pr: {
     number: 611,
     title: 'Split users.full_name into first and last name',

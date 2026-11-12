@@ -388,7 +388,7 @@ describe('normalizeReport (SPEC §7)', () => {
     ]);
   });
 
-  it('SPEC §7 sorts scenarios P0 → P2 (stable), cuts to max-scenarios and renumbers from S-01', () => {
+  it('SPEC §7 sorts scenarios P0 → P2 (stable), cuts to max-scenarios and renumbers from TC-01', () => {
     const input = fakeReport({
       scenarios: [
         scenario({ id: 'x', title: 'p2-a', priority: 'P2' }),
@@ -399,9 +399,9 @@ describe('normalizeReport (SPEC §7)', () => {
     });
     const { report } = normalizeReport(input, { ...base, maxScenarios: 3 });
     expect(report.scenarios.map((s) => [s.id, s.title])).toEqual([
-      ['S-01', 'p0-a'],
-      ['S-02', 'p0-b'],
-      ['S-03', 'p1-a'],
+      ['TC-01', 'p0-a'],
+      ['TC-02', 'p0-b'],
+      ['TC-03', 'p1-a'],
     ]);
   });
 

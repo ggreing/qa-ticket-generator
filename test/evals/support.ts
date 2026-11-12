@@ -1,15 +1,35 @@
 /** Helpers for eval tests: an oracle report, a null report and a stand-in preprocess engine. */
-import { resolve } from 'node:path';
-import type { EvalCase } from '../../evals/schema';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import type { RubricClientLike } from '../../evals/rubric';
+import { type EvalCase, type GradedCase, loadCases } from '../../evals/schema';
 import type { CreatePreprocessEngine, QaReport } from '../../src/core/contracts';
 
 export const CASES_ROOT = resolve('evals/cases');
+export const EVALS_ROOT = resolve('evals');
+
+/** The synthetic cases, all of which carry ground truth. */
+export function gradedCases(ids?: string[]): GradedCase[] {
+  return loadCases(CASES_ROOT, ids).map((c) => {
+    if (c.expected === null) throw new Error(`${c.id} has no expected.json`);
+    return { ...c, expected: c.expected };
+  });
+}
+
+/** A copy of a case with its ground truth removed, like a real-PR snapshot. */
+export const withoutGroundTruth = (c: EvalCase, id = `real-${c.id}`): EvalCase => ({
+  ...c,
+  id,
+  expected: null,
+  origin: 'real',
+});
 
 /**
  * The report a perfect reviewer would write for a case, built from its `expected.json`.
  * Running it through the grader checks the grader's wiring (it must pass everything).
  */
-export function oracleReport(evalCase: EvalCase): QaReport {
+export function oracleReport(evalCase: GradedCase): QaReport {
   const { expected } = evalCase;
   const file = evalCase.files.find((f) => !f.patchMissing)?.path ?? '';
   return {
@@ -25,7 +45,7 @@ export function oracleReport(evalCase: EvalCase): QaReport {
       })),
     },
     scenarios: expected.mustScenarios.map((m, i) => ({
-      id: `S-${String(i + 1).padStart(2, '0')}`,
+      id: `TC-${String(i + 1).padStart(2, '0')}`,
       title: m.risk,
       type: 'edge_case' as const,
       priority: 'P1' as const,
@@ -86,3 +106,90 @@ export const fakeEngine: CreatePreprocessEngine = async () => ({
     };
   },
 });
+
+/** Real-PR stand-ins used by the tests: id → the synthetic case its snapshot is copied from. */
+export const REAL_DEMO = {
+  'real-demo-1': { source: 'coupon-expiry-missing', split: 'dev', number: 9001 },
+  'real-demo-2': { source: 'report-timezone', split: 'test', number: 9002 },
+} as const;
+/** Listed in real-sources.json but not on disk, like a snapshot nobody has fetched yet. */
+export const REAL_ABSENT = 'real-absent-3';
+
+/**
+ * A throwaway `evals/` directory: the committed synthetic cases and splits, plus two real-PR
+ * snapshots (no expected.json; the first one with options.json) and one listed-but-absent one.
+ */
+export function makeEvalsRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), 'qtg-evals-'));
+  cpSync(CASES_ROOT, join(root, 'cases'), { recursive: true });
+  cpSync(join(EVALS_ROOT, 'splits.json'), join(root, 'splits.json'));
+  for (const [id, { source, number }] of Object.entries(REAL_DEMO)) {
+    const dir = join(root, 'real', id);
+    cpSync(join(CASES_ROOT, source), dir, { recursive: true });
+    rmSync(join(dir, 'expected.json'));
+    const pr = JSON.parse(readFileSync(join(dir, 'pr.json'), 'utf8')) as { number: number };
+    writeFileSync(join(dir, 'pr.json'), JSON.stringify({ ...pr, number }));
+  }
+  writeFileSync(join(root, 'real', 'real-demo-1', 'options.json'), JSON.stringify({ tokenBudget: 12_000 }));
+  mkdirSync(join(root, 'rounds'), { recursive: true });
+  writeFileSync(
+    join(root, 'real-sources.json'),
+    JSON.stringify([
+      ...Object.entries(REAL_DEMO).map(([id, { split }]) => ({ id, split, repo: 'acme/demo' })),
+      { id: REAL_ABSENT, split: 'dev', repo: 'acme/demo' },
+    ]),
+  );
+  return root;
+}
+
+export type RubricBody = Parameters<RubricClientLike['messages']['parse']>[0];
+
+/** The scenario ids in a rubric judge request, read back from its `<report_data>` block. */
+export function scenarioIdsIn(body: RubricBody): string[] {
+  const text = String(body.messages[0]?.content);
+  const json = text.slice(text.indexOf('<report_data>\n') + 14, text.lastIndexOf('\n</report_data>'));
+  return (JSON.parse(json) as { scenarios: { id: string }[] }).scenarios.map((s) => s.id);
+}
+
+/** Usage the rubric judge double reports for every call. */
+export const RUBRIC_USAGE = { input_tokens: 9_000, output_tokens: 2_000 };
+
+/**
+ * Rubric judge double: scores every scenario 1/2/1/2 (scenario score 1.5) and the report
+ * `alignment`/1/2. With ground truth the grade replaces `alignment`.
+ */
+export function fakeRubricClient(alignment = 0, seen: RubricBody[] = []): RubricClientLike {
+  return {
+    messages: {
+      parse: async (body) => {
+        seen.push(body);
+        return {
+          parsed_output: {
+            scenarios: scenarioIdsIn(body).map((id) => ({
+              id,
+              actionability: 1,
+              actionabilityWhy: 'no test data',
+              traceability: 2,
+              traceabilityWhy: 'cites the AC and the file',
+              riskRelevance: 1,
+              riskRelevanceWhy: 'plausible',
+              priority: 2,
+              priorityWhy: 'matches impact',
+            })),
+            report: {
+              alignmentCorrectness: alignment,
+              alignmentCorrectnessWhy: 'one status looks wrong',
+              concision: 1,
+              concisionWhy: 'some repetition',
+              honesty: 2,
+              honestyWhy: 'assumptions are labelled',
+            },
+          },
+          stop_reason: 'end_turn',
+          model: body.model,
+          usage: RUBRIC_USAGE,
+        };
+      },
+    },
+  };
+}

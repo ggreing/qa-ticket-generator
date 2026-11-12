@@ -9,7 +9,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { LlmUsage, QaReport } from '../src/core/contracts';
 import { estimateCostUsd } from '../src/llm/pricing';
-import type { EvalCase } from './schema';
+import type { GradedCase } from './schema';
 
 export const JUDGE_MODEL = 'claude-haiku-5-5';
 const JUDGE_MAX_TOKENS = 4_000;
@@ -65,7 +65,7 @@ export function createJudgeClient(apiKey: string): JudgeClientLike {
 /** Asks the judge which must-cover risks the report's scenarios cover. Never throws. */
 export async function judgeScenarios(
   client: JudgeClientLike,
-  evalCase: EvalCase,
+  evalCase: GradedCase,
   report: QaReport,
 ): Promise<JudgeResult> {
   const risks = evalCase.expected.mustScenarios.map((m) => `- ${m.id}: ${m.risk}`).join('\n');

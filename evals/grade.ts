@@ -5,7 +5,8 @@
  * Owner: qa-work-session-c(fable).
  */
 import type { QaReport } from '../src/core/contracts';
-import type { EvalCase, Expected } from './schema';
+import type { RubricSummary } from './rubric';
+import type { EvalCase, Expected, GradedCase } from './schema';
 
 type Finding = QaReport['prdAlignment']['findings'][number];
 type Scenario = QaReport['scenarios'][number];
@@ -96,7 +97,7 @@ export function changedPathsOf(evalCase: EvalCase): Set<string> {
  * Grades one report. Every check is a rule over the report's fields, so the same input always
  * gets the same grade.
  */
-export function gradeCase(evalCase: EvalCase, input: GradeInput): CaseGrade {
+export function gradeCase(evalCase: GradedCase, input: GradeInput): CaseGrade {
   const { expected } = evalCase;
   const { report, raw } = input;
 
@@ -246,18 +247,29 @@ const pct = (value: number): string => `${(value * 100).toFixed(0)}%`;
 
 export interface SummaryRow {
   label: string;
+  /** Runs that produced a report, with or without ground truth. */
+  runs: number;
+  /** Deterministic grades of the runs that have ground truth. */
   summary: Summary;
+  /** Rubric judge scores, or null when the judge did not run. */
+  rubric: RubricSummary | null;
   costUsd: number;
   judgeCostUsd: number;
   avgSeconds: number;
 }
 
+const score = (value: number): string => value.toFixed(2);
+
 /** Markdown table comparing variants (e.g. effort high vs medium), ready to paste into a PR. */
 export function formatSummaryTable(rows: SummaryRow[]): string {
   const header = [
     'Variant',
-    'Graded',
+    'Runs',
     'Errors',
+    'Overall',
+    'Scenario',
+    'Report',
+    'Graded',
     'Pass',
     'Alignment',
     'Findings',
@@ -268,29 +280,36 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
     'Ungrounded',
     'Injection',
     'Cost',
+    'Judge cost',
     'Avg time',
   ];
   const lines = [`| ${header.join(' | ')} |`, `| ${header.map(() => '---').join(' | ')} |`];
-  for (const { label, summary: s, costUsd, judgeCostUsd, avgSeconds } of rows) {
+  for (const { label, runs, summary: s, rubric, costUsd, judgeCostUsd, avgSeconds } of rows) {
     const spread =
       s.passRateByRep.length > 1
         ? ` (${pct(Math.min(...s.passRateByRep))}–${pct(Math.max(...s.passRateByRep))})`
         : '';
+    const graded = s.graded > 0;
     lines.push(
       `| ${[
         label,
-        s.graded,
+        runs,
         s.errors,
-        `${pct(s.passRate)}${spread}`,
-        pct(s.alignmentAccuracy),
-        pct(s.findingRecall),
-        pct(s.scenarioRecall),
+        rubric ? score(rubric.overall) : '—',
+        rubric ? score(rubric.scenarioScore) : '—',
+        rubric ? score(rubric.reportScore) : '—',
+        s.graded,
+        graded ? `${pct(s.passRate)}${spread}` : '—',
+        graded ? pct(s.alignmentAccuracy) : '—',
+        graded ? pct(s.findingRecall) : '—',
+        graded ? pct(s.scenarioRecall) : '—',
         s.scenarioRecallJudge === null ? '—' : pct(s.scenarioRecallJudge),
         s.forbiddenViolations,
-        pct(s.fileRefValidity),
-        pct(s.ungroundedRate),
+        graded ? pct(s.fileRefValidity) : '—',
+        graded ? pct(s.ungroundedRate) : '—',
         s.injectionFlagged,
-        `$${costUsd.toFixed(2)}${judgeCostUsd > 0 ? ` (+$${judgeCostUsd.toFixed(3)} judge)` : ''}`,
+        `$${costUsd.toFixed(2)}`,
+        judgeCostUsd > 0 ? `$${judgeCostUsd.toFixed(2)}` : '—',
         `${avgSeconds.toFixed(0)}s`,
       ].join(' | ')} |`,
     );

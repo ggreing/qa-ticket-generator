@@ -4,7 +4,7 @@
  * Owner: qa-work-session-c(fable).
  */
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import type { ChangedFile, PrdDocument, PullRequestInfo } from '../src/core/contracts';
@@ -117,15 +117,35 @@ export const ExpectedSchema = z
 
 export type Expected = z.infer<typeof ExpectedSchema>;
 
+/** Per-case overrides of the Action defaults, e.g. a small token budget that forces map-reduce. */
+export const CaseOptionsSchema = z.object({ tokenBudget: z.number().int().min(8_000).max(900_000) }).strict();
+export type CaseOptions = z.infer<typeof CaseOptionsSchema>;
+
+export const SplitsSchema = z.object({ dev: z.array(z.string()), test: z.array(z.string()) }).strict();
+export type Split = 'dev' | 'test';
+
+/** `evals/real-sources.json`: where each real-PR snapshot under `evals/real/` came from. */
+export const RealSourcesSchema = z.array(
+  z.object({ id: z.string().regex(/^[a-z0-9-]+$/), split: z.enum(['dev', 'test']) }).loose(),
+);
+
 export interface EvalCase {
   id: string;
   pr: PullRequestInfo;
   files: ChangedFile[];
   prdDocuments: PrdDocument[];
-  expected: Expected;
+  /** Ground truth. Null for real PRs, which are graded by the rubric judge and people only. */
+  expected: Expected | null;
+  options?: CaseOptions;
+  origin?: 'synthetic' | 'real';
+  split?: Split;
 }
 
+/** A case with ground truth, for code that only makes sense with one. */
+export type GradedCase = EvalCase & { expected: Expected };
+
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
+const readJsonIfPresent = (path: string): unknown => (existsSync(path) ? readJson(path) : undefined);
 
 /**
  * Fingerprint of everything the model is shown for a case (PR, files, PRD), not of the expected
@@ -156,8 +176,50 @@ export function loadCase(casesRoot: string, id: string): EvalCase {
       .min(1)
       .parse(readJson(join(dir, 'files.json'))),
     prdDocuments: prdFiles.map((f) => PrdDocumentSchema.parse(readJson(join(prdDir, f)))),
-    expected: ExpectedSchema.parse(readJson(join(dir, 'expected.json'))),
+    expected: existsSync(join(dir, 'expected.json'))
+      ? ExpectedSchema.parse(readJson(join(dir, 'expected.json')))
+      : null,
+    ...(existsSync(join(dir, 'options.json'))
+      ? { options: CaseOptionsSchema.parse(readJson(join(dir, 'options.json'))) }
+      : {}),
   };
+}
+
+export interface Dataset {
+  /** Every case found on disk, synthetic first, each tagged with its origin and split. */
+  cases: EvalCase[];
+  /** Real cases listed in real-sources.json whose snapshot is not on this machine. */
+  missingReal: string[];
+}
+
+/**
+ * Loads the whole eval set from the `evals/` directory: synthetic cases from `cases/` with their
+ * split from the generated `splits.json`, and real-PR snapshots from `real/` (not committed) with
+ * their split from `real-sources.json`. A synthetic case missing from `splits.json` is an error;
+ * a real case missing on disk is reported, not fatal.
+ */
+export function loadDataset(evalsRoot: string): Dataset {
+  const splits = SplitsSchema.parse(
+    readJsonIfPresent(join(evalsRoot, 'splits.json')) ?? { dev: [], test: [] },
+  );
+  const splitOf = (id: string): Split | undefined =>
+    splits.dev.includes(id) ? 'dev' : splits.test.includes(id) ? 'test' : undefined;
+
+  const synthetic = loadCases(join(evalsRoot, 'cases')).map((c): EvalCase => {
+    const split = splitOf(c.id);
+    if (!split) throw new Error(`Eval case ${c.id} is in neither split. Run "npm run eval:build-cases".`);
+    return { ...c, origin: 'synthetic', split };
+  });
+
+  const sources = RealSourcesSchema.parse(readJsonIfPresent(join(evalsRoot, 'real-sources.json')) ?? []);
+  const realRoot = join(evalsRoot, 'real');
+  const real: EvalCase[] = [];
+  const missingReal: string[] = [];
+  for (const source of sources) {
+    if (!existsSync(join(realRoot, source.id, 'pr.json'))) missingReal.push(source.id);
+    else real.push({ ...loadCase(realRoot, source.id), origin: 'real', split: source.split });
+  }
+  return { cases: [...synthetic, ...real], missingReal };
 }
 
 /** Loads every case under `casesRoot`, or only `ids` when given, in id order. */

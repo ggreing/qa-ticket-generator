@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const notificationRetryAligned: AuthoredCase = {
   id: 'notification-retry-aligned',
+  split: 'test',
   pr: {
     number: 733,
     title: 'Retry failed notification deliveries',

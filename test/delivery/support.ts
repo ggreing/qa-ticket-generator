@@ -46,10 +46,10 @@ export function richReport(overrides: Partial<QaReport> = {}): QaReport {
   return {
     ...base,
     scenarios: [
-      first,
+      { ...first, id: 'TC-01' },
       {
         ...first,
-        id: 'S-02',
+        id: 'TC-02',
         title: 'Apply the same coupon twice in parallel',
         type: 'negative',
         priority: 'P1',
@@ -61,7 +61,7 @@ export function richReport(overrides: Partial<QaReport> = {}): QaReport {
       },
       {
         ...first,
-        id: 'S-03',
+        id: 'TC-03',
         title: 'Checkout without a coupon still works',
         type: 'regression',
         priority: 'P2',

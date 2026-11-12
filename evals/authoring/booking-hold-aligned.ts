@@ -2,6 +2,7 @@ import type { AuthoredCase } from './build';
 
 export const bookingHoldAligned: AuthoredCase = {
   id: 'booking-hold-aligned',
+  split: 'dev',
   pr: {
     number: 318,
     title: 'Seat holds for the booking flow',

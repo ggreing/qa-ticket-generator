@@ -9,17 +9,23 @@
  * Owner: qa-work-session-c(fable).
  */
 import { type CaseGrade, formatSummaryTable, gradeCase, summarize, withJudgeVerdicts } from './grade';
+import { type RubricScore, summarizeRubric, withGrade } from './rubric';
 import type { RunDeps, RunOutcome, RunRecord, VariantResult } from './run';
 import { type EvalCase, inputHashOf } from './schema';
 
 export interface RegradedRun {
   caseId: string;
   rep: number;
-  /** `stale`: inputs changed since the run. `unknown_case`: the case no longer exists. */
-  status: 'regraded' | 'stale' | 'unknown_case';
-  before: boolean;
+  /**
+   * `stale`: inputs changed since the run. `unknown_case`: the case no longer exists.
+   * `no_ground_truth`: the case has no expected answers, so there is nothing to re-grade.
+   */
+  status: 'regraded' | 'stale' | 'unknown_case' | 'no_ground_truth';
+  before: boolean | null;
   after: boolean | null;
   grade: CaseGrade | null;
+  /** Rubric scores under the new grade, when the run was judged. */
+  rubric?: RubricScore;
 }
 
 export interface RegradedVariant {
@@ -32,19 +38,35 @@ interface SavedResults {
 }
 
 function regradeRun(run: RunRecord, evalCase: EvalCase | undefined, editedIds: string[]): RegradedRun {
-  const base = { caseId: run.caseId, rep: run.rep, before: run.grade.pass };
+  const base = { caseId: run.caseId, rep: run.rep, before: run.grade?.pass ?? null };
   if (!evalCase) return { ...base, status: 'unknown_case', after: null, grade: null };
   const hashChanged = run.inputHash !== undefined && run.inputHash !== inputHashOf(evalCase);
   if (hashChanged || editedIds.includes(run.caseId)) {
     return { ...base, status: 'stale', after: null, grade: null };
   }
-  let grade = gradeCase(evalCase, { report: run.report, raw: run.raw ?? run.report });
+  const { expected } = evalCase;
+  if (expected === null) {
+    return {
+      ...base,
+      status: 'no_ground_truth',
+      after: null,
+      grade: null,
+      ...(run.rubric ? { rubric: run.rubric } : {}),
+    };
+  }
+  let grade = gradeCase({ ...evalCase, expected }, { report: run.report, raw: run.raw ?? run.report });
   // Judge verdicts were paid for once; carry them over for the risks that still exist.
-  const judged = run.grade.scenarios.filter((s) => s.judgeHit !== undefined);
+  const judged = (run.grade?.scenarios ?? []).filter((s) => s.judgeHit !== undefined);
   if (judged.length > 0) {
     grade = withJudgeVerdicts(grade, Object.fromEntries(judged.map((s) => [s.id, s.judgeHit === true])));
   }
-  return { ...base, status: 'regraded', after: grade.pass, grade };
+  return {
+    ...base,
+    status: 'regraded',
+    after: grade.pass,
+    grade,
+    ...(run.rubric ? { rubric: withGrade(run.rubric, grade) } : {}),
+  };
 }
 
 /** Re-grades `path` against `cases` and prints what changed. Reads one file, writes nothing. */
@@ -85,6 +107,7 @@ export function regradeResults(
     const seconds =
       variant.runs.length > 0 ? variant.runs.reduce((n, r) => n + r.seconds, 0) / variant.runs.length : 0;
     const cost = { costUsd: variant.costUsd, judgeCostUsd: variant.judgeCostUsd, avgSeconds: seconds };
+    const present = <T>(values: (T | null | undefined)[]): T[] => values.flatMap((v) => (v ? [v] : []));
 
     print('');
     print(`${variant.label}`);
@@ -94,27 +117,33 @@ export function regradeResults(
       if (r.status === 'stale')
         print(`  ${name} stale: the case inputs changed after this run, not re-graded`);
       else if (r.status === 'unknown_case') print(`  ${name} skipped: no such case any more`);
+      else if (r.status === 'no_ground_truth') continue;
+      else if (r.before === null) print(`  ${name} (not graded before) → ${word(r.after === true)}`);
       else if (r.after !== r.before) print(`  ${name} ${word(r.before)} → ${word(r.after === true)}`);
     }
     const changed = runs.filter((r) => r.status === 'regraded' && r.after !== r.before).length;
-    const dropped = runs.length - kept.length;
-    print(`  ${changed} verdict(s) changed, ${kept.length - changed} unchanged, ${dropped} not re-graded`);
+    const judgeOnly = runs.filter((r) => r.status === 'no_ground_truth').length;
+    const dropped = runs.length - kept.length - judgeOnly;
+    print(
+      `  ${changed} verdict(s) changed, ${kept.length - changed} unchanged, ${dropped} not re-graded${judgeOnly > 0 ? `, ${judgeOnly} without ground truth` : ''}`,
+    );
 
     return [
       {
         label: `${variant.label} (as recorded)`,
-        summary: summarize(
-          variant.runs.map((r) => r.grade),
-          variant.errors.length,
-        ),
+        runs: variant.runs.length,
+        summary: summarize(present(variant.runs.map((r) => r.grade)), variant.errors.length),
+        rubric: summarizeRubric(present(variant.runs.map((r) => r.rubric))),
         ...cost,
       },
       {
         label: `${variant.label} (re-graded)`,
+        runs: kept.length + judgeOnly,
         summary: summarize(
           kept.map((r) => r.grade),
           variant.errors.length,
         ),
+        rubric: summarizeRubric(present(runs.map((r) => r.rubric))),
         ...cost,
       },
     ];

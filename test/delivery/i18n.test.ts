@@ -30,7 +30,18 @@ describe('UI string tables (ADR-0010)', () => {
 
   it.each(LANGUAGES)('ADR-0010 %s formatters include the values they are given', (language) => {
     const t = strings(language);
-    expect(t.omittedScenarios(7)).toContain('7');
+    expect(t.omittedTickets(7)).toContain('7');
+    for (const text of [
+      t.actionNeeded(7),
+      t.allCovered(7),
+      t.needsCheck(7),
+      t.p0Checklist(7),
+      t.more(7),
+      t.otherTickets(7),
+      t.requirementDetails(7),
+    ]) {
+      expect(text).toContain('7');
+    }
     expect(t.omittedFindings(7)).toContain('7');
     expect(t.footer.tokens('31.2K', '5.8K')).toMatch(/31\.2K.*5\.8K/);
     expect(t.footer.cache('20.0K', '10.0K')).toMatch(/20\.0K.*10\.0K/);
@@ -38,7 +49,7 @@ describe('UI string tables (ADR-0010)', () => {
     expect(t.footer.filesSkipped(7)).toContain('7');
     expect(t.footer.redactions(7)).toContain('7');
     // DLV-03: the notice must say where the full report is.
-    for (const notice of [t.omittedScenarios(1), t.omittedFindings(1), t.truncated]) {
+    for (const notice of [t.omittedTickets(1), t.omittedFindings(1), t.truncated]) {
       expect(notice).toContain('Job Summary');
       expect(notice).toContain('report.json');
     }
@@ -46,7 +57,9 @@ describe('UI string tables (ADR-0010)', () => {
 
   it.each(['ko', 'ja', 'zh-CN'] as Language[])('ADR-0010 %s is actually translated', (language) => {
     const table = flat(strings(language));
-    const same = Object.keys(english).filter((key) => table[key] === english[key]);
+    // The product name and the priority labels are the same in every language.
+    const shared = new Set(['title']);
+    const same = Object.keys(english).filter((key) => !shared.has(key) && table[key] === english[key]);
     expect(same).toEqual([]);
   });
 

@@ -7,7 +7,7 @@
  */
 import { createHash } from 'node:crypto';
 import type { ChangedFile, PrdDocument, PrdSource, PullRequestInfo } from '../../src/core/contracts';
-import type { Expected } from '../schema';
+import type { CaseOptions, Expected, Split } from '../schema';
 
 export interface AuthoredFile {
   path: string;
@@ -38,6 +38,10 @@ export interface AuthoredCase {
   prd: AuthoredPrd[];
   files: AuthoredFile[];
   expected: Expected;
+  /** `dev` cases are used while iterating on prompts; `test` cases are run once at the end. */
+  split: Split;
+  /** Per-case overrides, e.g. a small `tokenBudget` to force a map-reduce run. */
+  options?: CaseOptions;
 }
 
 export interface BuiltCase {
@@ -46,6 +50,8 @@ export interface BuiltCase {
   files: ChangedFile[];
   prd: { name: string; doc: PrdDocument }[];
   expected: Expected;
+  split: Split;
+  options?: CaseOptions;
 }
 
 type Tag = '+' | '-' | ' ';
@@ -166,5 +172,13 @@ export function buildCase(def: AuthoredCase): BuiltCase {
       meta: {},
     } satisfies PrdDocument,
   }));
-  return { id: def.id, pr, files: def.files.map(buildFile), prd, expected: def.expected };
+  return {
+    id: def.id,
+    pr,
+    files: def.files.map(buildFile),
+    prd,
+    expected: def.expected,
+    split: def.split,
+    ...(def.options ? { options: def.options } : {}),
+  };
 }

@@ -201,23 +201,16 @@ describe('createSlackDeliverer — bot mode (DLV-04)', () => {
 });
 
 describe('Slack blocks (SPEC §4.6)', () => {
-  it('SPEC §4.6 summary card shows PR, alignment badge, scenario counts, top three risks and both buttons', () => {
-    const report = richReport({
-      risks: [
-        { title: 'low one', severity: 'low', description: '', files: [] },
-        { title: 'high one', severity: 'high', description: '', files: [] },
-        { title: 'medium one', severity: 'medium', description: '', files: [] },
-        { title: 'another low', severity: 'low', description: '', files: [] },
-      ],
-    });
-    const card = buildSummaryCard(finalReport({ report }), 'https://github.com/acme/shop/actions/runs/1');
-    const text = json(card.blocks);
+  it('SPEC §4.6 summary card shows the verdict, what needs action, the P0 checklist and both buttons', () => {
+    const card = buildSummaryCard(finalReport(), 'https://github.com/acme/shop/actions/runs/1');
+    const texts = card.blocks.flatMap((b) => (b.type === 'section' && b.text ? [b.text.text] : []));
 
-    expect(text).toContain('<https://github.com/acme/shop/pull/42|#42 Apply coupon at checkout>');
-    expect(text).toContain('*PRD alignment*\\n⚠️ Partial');
-    expect(text).toContain('*Scenarios*\\n3 (P0 1 · P1 1 · P2 1)');
-    expect(text).toContain('*Top risks*\\n• 🔴 high one\\n• 🟠 medium one\\n• 🟡 low one');
-    expect(text).not.toContain('another low');
+    expect(texts).toEqual([
+      '🧪 *AI QA* — <https://github.com/acme/shop/pull/42|#42 Apply coupon at checkout>\n⚠️ *Partially aligned* · Tickets 3 (P0 1 · P1 1 · P2 1)',
+      '*Action needed (1)*\n• ❌ *AC3* expired coupons are rejected — No expiry comparison in coupon.ts `src/coupon.ts`',
+      '*P0 checklist (1)*\n☐ *TC-01* Apply a coupon one second before expiry → the discount is applied',
+    ]);
+    expect(card.blocks.map((b) => b.type)).toEqual(['section', 'section', 'section', 'actions', 'context']);
     const actions = card.blocks.find((b) => b.type === 'actions');
     expect(actions).toMatchObject({
       elements: [
@@ -234,8 +227,36 @@ describe('Slack blocks (SPEC §4.6)', () => {
       ],
     });
     expect(card.text).toBe(
-      'AI QA Scenarios — #42 Apply coupon at checkout: PRD alignment Partial, 3 Scenarios',
+      'AI QA — #42 Apply coupon at checkout: Partially aligned, Action needed (1), P0 checklist (1)',
     );
+  });
+
+  it('SPEC §4.6 summary card: aligned says no action, unclear findings are listed apart, long lists are capped', () => {
+    const template = fakeReport().prdAlignment.findings[0] as QaReport['prdAlignment']['findings'][number];
+    const aligned = richReport({ prdAlignment: { status: 'aligned', findings: [template, template] } });
+    expect(json(buildSummaryCard(finalReport({ report: aligned }), 'u').blocks)).toContain(
+      '✅ *No action needed — all 2 requirement(s) are covered*',
+    );
+
+    const many = richReport({
+      prdAlignment: {
+        status: 'partial',
+        findings: [
+          ...Array.from({ length: 12 }, (_, i) => ({
+            ...template,
+            requirement: `AC${i + 1}: r`,
+            status: 'missing' as const,
+          })),
+          { ...template, requirement: 'AC20: retention', status: 'unclear' as const, files: [] },
+        ],
+      },
+      scenarios: Array.from({ length: 14 }, (_, i) => scenario({ id: `TC-${i + 1}`, priority: 'P0' })),
+    });
+    const text = json(buildSummaryCard(finalReport({ report: many }), 'u').blocks);
+    expect(text).toContain('*Action needed (12)*');
+    expect(text).toContain('… and 4 more');
+    expect(text).toContain('*Needs a check (1)*\\n• ❓ *AC20* retention');
+    expect(text).toContain('*P0 checklist (14)*');
   });
 
   it('SPEC §4.6 the full-report button defaults to the PR and can be overridden', async () => {
@@ -263,9 +284,10 @@ describe('Slack blocks (SPEC §4.6)', () => {
     );
     const text = json(card.blocks);
     expect(text).toContain('연결된 PRD가 없습니다');
-    expect(text).toContain('*PRD 정합성*\\n➖ PRD 없음');
+    expect(text).toContain('➖ *PRD 없음* · 티켓 3 (P0 1 · P1 1 · P2 1)');
+    expect(text).toContain('*P0 체크리스트 (1)*');
     expect(text).toContain('"text":"PR 열기"');
-    expect(text).not.toContain('주요 리스크');
+    expect(text).not.toContain('조치 필요');
   });
 
   it('SPEC §4.6 status cards for skipped runs', () => {
@@ -284,33 +306,43 @@ describe('Slack blocks (SPEC §4.6)', () => {
     expect(json(bare.blocks)).toContain('❌ *Run failed*');
   });
 
-  it('DLV-04 thread lists open requirements, then one section per scenario with Given/When/Then', () => {
+  it('DLV-04 thread carries one ticket card per scenario, P0 first, then the top risks', () => {
     const [message, ...rest] = buildThreadMessages(finalReport());
     expect(rest).toEqual([]);
-    expect(message?.blocks).toHaveLength(4);
-    const text = json(message?.blocks);
-    expect(text).toContain(
-      '*Requirements needing attention*\\n• *missing* — AC3: expired coupons are rejected: No expiry comparison in coupon.ts',
+    const texts = (message?.blocks ?? []).flatMap((b) =>
+      b.type === 'section' && b.text ? [b.text.text] : [],
     );
-    expect(text).not.toContain('AC1: a coupon can be applied once: CouponService');
-    expect(text).toContain(
-      '*[P1][Negative] S-02 · Apply the same coupon twice in parallel*\\n*Given* a coupon that was never used\\n*And* two checkout tabs',
+    expect(texts).toHaveLength(4);
+    expect(texts[0]).toBe(
+      [
+        '*TC-01 Apply a coupon one second before expiry* [P0 · AC3]',
+        '*Preconditions*: a coupon that expires in 1 second',
+        '*Data*: `coupon.expiresAt = now + 1s` · `order.subtotal = 30000`',
+        '*Steps*: 1) the user applies it at checkout',
+        '*Expected*: the discount is applied',
+        '`src/coupon.ts`',
+      ].join('\n'),
     );
-    expect(text).toContain('_Related_: AC3: expired coupons are rejected · `src/coupon.ts`');
-    expect(message?.text).toBe('Scenarios (1/1)');
+    expect(texts[1]).toContain('*TC-02 Apply the same coupon twice in parallel* [P1 · AC1]');
+    expect(texts[1]).toContain(
+      '*Preconditions*: a coupon that was never used · two checkout tabs for the same cart',
+    );
+    expect(texts[2]).toContain('*TC-03 Checkout without a coupon still works* [P2]');
+    expect(texts[3]).toBe('*Risks*\n• 🔴 Missing expiry check\n• 🟡 No audit log');
+    expect(message?.text).toBe('Tickets (1/1)');
     expect(buildThreadMessages(finalReport({ status: 'error', report: null }))).toEqual([]);
-    const empty = richReport({ scenarios: [], prdAlignment: { status: 'aligned', findings: [] } });
+    const empty = richReport({ scenarios: [], risks: [], prdAlignment: { status: 'aligned', findings: [] } });
     expect(buildThreadMessages(finalReport({ report: empty }))).toEqual([]);
   });
 
   it('DLV-04 splits the thread into messages of at most 45 blocks and keeps each section under 3000 characters', async () => {
     const scenarios = Array.from({ length: 100 }, (_, i) =>
-      scenario({ id: `S-${i + 1}`, title: `scenario ${i + 1}`, given: ['g'.repeat(5_000)] }),
+      scenario({ id: `TC-${i + 1}`, title: `scenario ${i + 1}`, given: ['g'.repeat(5_000)] }),
     );
     const final = finalReport({ report: richReport({ scenarios }) });
     const messages = buildThreadMessages(final);
     expect(messages.map((m) => m.blocks.length)).toEqual([45, 45, 11]);
-    expect(messages.map((m) => m.text)).toEqual(['Scenarios (1/3)', 'Scenarios (2/3)', 'Scenarios (3/3)']);
+    expect(messages.map((m) => m.text)).toEqual(['Tickets (1/3)', 'Tickets (2/3)', 'Tickets (3/3)']);
     expect(MAX_BLOCKS_PER_MESSAGE).toBe(45);
     for (const m of messages) {
       for (const block of m.blocks) {
@@ -436,16 +468,9 @@ describe('createSlackDeliverer — webhook mode (DLV-05)', () => {
     expect(init?.method).toBe('POST');
     const sent = JSON.parse(init?.body ?? '{}') as { text: string; blocks: { type: string }[] };
     expect(sent.text).toContain('#42 Apply coupon at checkout');
-    expect(sent.blocks.map((b) => b.type)).toEqual([
-      'section',
-      'section',
-      'section',
-      'section',
-      'actions',
-      'context',
-    ]);
+    expect(sent.blocks.map((b) => b.type)).toEqual(['section', 'section', 'section', 'actions', 'context']);
     expect(sent).not.toHaveProperty('thread_ts');
-    expect(JSON.stringify(sent)).not.toContain('*Given*');
+    expect(JSON.stringify(sent)).not.toContain('*Preconditions*');
   });
 });
 
@@ -458,7 +483,7 @@ describe('Slack cost cap card (SPEC §10)', () => {
       error: { code: 'cost_cap', message: 'Estimated cost (~$3.41) exceeds max-cost-usd ($2.00).' },
     });
     const text = JSON.stringify(buildSummaryCard(failed, failed.pr.htmlUrl).blocks);
-    expect(text).toContain('❌ *실행 실패* — Estimated cost (~$3.41) exceeds max-cost-usd ($2.00).');
+    expect(text).toContain('❌ *실행 실패* — Estimated cost (\u223c$3.41) exceeds max-cost-usd ($2.00).');
     expect(text).toContain('💡 예상 비용이 `max-cost-usd` 상한을 넘어');
     const other = finalReport({ status: 'error', report: null, error: { code: 'llm_auth', message: 'x' } });
     expect(JSON.stringify(buildSummaryCard(other, other.pr.htmlUrl).blocks)).not.toContain('💡');
