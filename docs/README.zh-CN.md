@@ -2,142 +2,221 @@
 
 [English](../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | **简体中文**
 
-<!-- Badges (CI, release, license) are added when the repository is published. -->
+<!-- 徽章(CI、发布、许可证)会在仓库公开时加上。 -->
 
-> 🚧 **正在开发中(pre-v0.1),暂不可用。** input 和输出格式可能还会变化。
+> 🚧 pre-v0.1。在我们的测试仓库里已经能用了,但 input 名称和评论的样子可能还会变。
 
-这是一个 GitHub Action:用 Claude 将 Pull Request 的代码变更与关联的需求文档(GitHub Issues、Jira Cloud、Notion)
-进行交叉校验,并把 BDD(Given / When / Then)格式的 QA 场景和 PRD 一致性报告发布到 PR 和 Slack。
+一个 GitHub Action:把 pull request 和它要实现的需求单放在一起读,然后写出测试同学会写的那种 QA 备注。
+哪些需求已经实现、哪些漏掉了、合并前值得跑哪几条测试,都会以评论的形式留在 PR 上。
 
-## 工作原理
+## Why
 
-![架构:GitHub 事件 → 触发判定 → 上下文与 PRD 获取 → 预处理 → Claude → PR 评论、Slack、Job Summary](diagrams/architecture.png)
+小团队一般没有专职 QA,评审的人看 diff 的时候也很少会把 Jira 单子开在旁边。于是 PR 评审通过了,测试也全绿,
+过了一周才有人发现有一条验收标准压根没做。
 
-1. **触发。** 给 PR 添加 `needs-ai-qa` 标签即开始运行;标签保留期间,每次新的 push 都会重新运行(可配置)。
-   只改动噪声文件(lock 文件、构建产物、快照等)的 push 会被跳过。
-2. **获取与准备。** 通过 GitHub、Jira、Notion 的 API 读取 diff 和关联的 PRD,从不 checkout 你的代码。
-   去掉噪声文件,把上下文扩展到包含变更的函数或类(通过 tree-sitter 支持 TypeScript/TSX、JavaScript、Python、Java、Go),
-   对密钥脱敏,并按重要程度把文件装入 token 预算。大型 PR 会被拆成几部分分别审查,再合并结果。
-3. **生成与发布。** Claude 将代码与验收标准(AC)对比,返回正常路径、边界和异常场景,以及缺失或矛盾的需求。
-   报告以一条 PR 评论发布并在每次运行时更新,可选发送到 Slack,并始终写入 Job Summary。
+这个 Action 帮你做这一步核对。在 PR 描述里贴上需求单链接,打上 `needs-ai-qa` 标签,一两分钟后 Claude 会留下
+一条评论,对比代码和需求。它不是代码审查机器人,不管代码风格,只关心这次改动是不是按需求做了,以及要验证
+这一点该测什么。
 
-## 输出示例
+## What you get
 
-PR 评论的示意图(v0.1 之前实际格式可能变化)。输出语言由 `language` input 指定。
+评论大概长这样(v0.1 之前还在打磨):
 
 ```markdown
-## 🧪 AI QA Scenarios — `a1b2c3d` · ⚠️ PRD alignment: **Partial**
+## 🧪 AI QA — 4e2455c · ⚠️ 部分符合
 
-> Linked: PROJ-123 (Jira), #45 (GitHub)
+**需要处理 (2)**
 
-### PRD Alignment
+- ❌ AC2 过期的优惠券应被拒绝:没有代码把 `expiresAt` 和当前时间比较 (`src/coupon.ts`)
+- ❌ AC4 百分比折扣最多 10,000 韩元:没有加上限
 
-| Requirement            | Status     | Evidence                               |
-| ---------------------- | ---------- | -------------------------------------- |
-| AC1:优惠券只能使用一次 | ✅ covered | `CouponService.apply()` 检查是否已使用 |
-| AC3:拒绝过期优惠券     | ❌ missing | 没有比较有效期的逻辑 (`coupon.ts`)     |
+**P0 检查清单**
 
-### Scenarios (12)
+- [ ] TC-01 一秒前过期的优惠券 → 被拒绝,不留下使用记录
+- [ ] TC-02 同一用户同时使用同一张优惠券两次 → 只有一次成功
+- [ ] TC-03 200,000 韩元订单用 10% 优惠券 → 折扣 10,000,而不是 20,000
 
-<details><summary><b>[P0][Edge] 在过期前 1 秒使用优惠券</b></summary>
-
-- **Given** 有一张 1 秒后过期的优惠券
-- **When** 用户在结算页面使用该优惠券
-- **Then** 折扣生效
-- _Related_: AC3 · `src/coupon/coupon.ts`
+<details><summary>TC-01 拒绝过期优惠券 [P0 · AC2]</summary>
+前提:user-A 从未用过 EXP1,购物车小计 30,000 韩元
+数据:code = EXP1, expiresAt = 当前时间 - 1 秒
+步骤:1. 打开结算页 2. 使用 EXP1
+预期:抛出 "Coupon has expired" 的 CouponError,(user-A, EXP1) 没有使用记录
 </details>
 
-### Risks
-
-- …
-
-<sub>model · input / output tokens · estimated cost · duration · skipped files</sub>
+<details><summary>P1 / P2 用例 (9)</summary>…</details>
 ```
 
-在 Slack Bot 模式下,会发布一张摘要卡片(一致性徽章、场景数量、主要风险、PR 与完整报告的链接),
-场景详情以回复形式发在该消息的线程中。
+之后再 push 新提交时,它会修改同一条评论,而不是再发一条新的。只改了 lock 文件或构建产物的 push 会被忽略。
+如果接上 Slack,频道里会收到一条简短摘要,测试用例放在它的回复串里。
 
-## 快速开始
+想了解内部流程可以看这张图。
 
-1. 在仓库 Secret 中添加 `ANTHROPIC_API_KEY`。可选:`SLACK_BOT_TOKEN`、`JIRA_API_TOKEN`、`NOTION_TOKEN`。
-2. 在仓库中创建 `needs-ai-qa` 标签。
-3. 把 [`examples/workflow.yml`](examples/workflow.yml) 复制为 `.github/workflows/qa-ticket-generator.yml`,
-   并删除不使用的 Slack、Jira、Notion input。
+![架构图:GitHub 事件、触发判断、收集上下文和 PRD、预处理、Claude、PR 评论 / Slack / Job Summary](diagrams/architecture.png)
 
-之后给 PR 添加标签即可。**不要**添加 `actions/checkout`,该 Action 通过 API 读取所有内容。来自 fork 的 PR 默认跳过;
-如需启用及其注意事项,请参阅 [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml)。
+## Setup
 
-## Inputs 与 Outputs
+只需要一个 Anthropic API key,大概五分钟。
+
+1. 在仓库 secret 里添加名为 `ANTHROPIC_API_KEY` 的 key。
+2. 创建一个叫 `needs-ai-qa` 的标签。
+3. 把下面的 workflow 保存为 `.github/workflows/qa-ticket-generator.yml`。
+
+```yaml
+name: AI QA
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: qa-ticket-generator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    runs-on: ubuntu-latest
+    steps:
+      # 这里故意不加 actions/checkout,PR 内容通过 API 读取。
+      - uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+就这些。给 PR 打上标签,等评论出来就行。如果需求写在 Jira 或 Notion 里,或者想同时发到 Slack,
+[`examples/workflow.yml`](examples/workflow.yml) 里列出了所有额外的 input。想要中文输出的话,加一行
+`language: zh-CN` 就可以。
+
+来自 fork 的 PR 默认会跳过,因为 GitHub 不会把 secret 交给 fork 的 PR。确实需要的话可以用
+[`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml),但请先读完文件开头的警告。
+
+## Linking the spec
+
+Action 会在 PR 描述里找需求单链接:
+
+- GitHub issue:`#123`、`owner/repo#123`、issue 链接、`Closes #123`
+- Jira Cloud:`https://your-site.atlassian.net/browse/PROJ-123`;如果在 `jira-project-keys` 里写了
+  `PROJ`,只写 `PROJ-123` 也能识别
+- Notion:`notion.so` 或 `notion.site` 的页面链接
+
+验收标准从 "Acceptance Criteria"(或 "AC")标题下的列表,或者复选框列表里读取。没有这样的部分时,就根据整个
+需求单正文来判断。代码块和 HTML 注释里的链接会被忽略,所以在 PR 模板里放示例链接也没关系。我们也准备了一个
+可以直接用的模板:[`examples/pull_request_template.md`](examples/pull_request_template.md)。
+
+没有关联需求单?它照样会运行,只看代码,并在评论开头说明这一点。如果你宁愿让检查直接失败,用
+`require-prd: true`。
+
+## Running it locally
+
+同样的功能也可以当 CLI 用。默认只打印报告,不会发到任何地方:
+
+```bash
+export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator run --repo owner/repo --pr 123            # 试运行(默认)
+npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
+npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR 评论 / Slack 消息
+```
+
+所有 Action input 也都可以用大写环境变量传入(`JIRA_BASE_URL`、`MAX_SCENARIOS` 等)。
+`npx qa-ticket-generator --help` 可以查看全部参数。
+
+## What it costs
+
+在我们目前试过的小 PR(改动 1 到 3 个文件)上,用 Claude Opus 5.5 跑一次大约 $0.09 到 $0.19,平均 $0.13,
+耗时一分钟左右。这是用 10 个合成 PR 和 1 个沙盒 PR 测出来的,只能当个大致参考。
+
+大的 PR 会拆成几次调用,所以会更贵。因此每次运行都有上限:`max-cost-usd`,默认 $2。估计会超出时,会先去掉
+不太重要的文件,并在评论里列出去掉了哪些。每次运行的预估费用写在评论最底部。
+
+## Where your code goes
+
+这个 Action 不会 checkout 或运行 PR 里的代码。它通过 GitHub、Jira、Notion 的 API 读取 diff、改动的文件和
+关联的需求单,然后发给 Anthropic 的 API。不会发到别的地方,也没有遥测。
+
+发送之前,看起来像密钥的东西(API key、token、私钥、配置里的密码)都会被遮盖,PR 标题和描述也一样。遮盖了
+几处会写在评论里。日志里只有数量和大小,不会有文件内容。
+
+还有两点值得知道:
+
+- 仓库配置文件从 base 分支读取,所以 PR 没法改写用来审查它自己的指令。模型写的文字会先转义再发布,Slack 的
+  @ 提及会被禁用,链接只允许指向 PR、关联的需求单和你的仓库。
+- 两次运行之间的状态保存在它自己评论的隐藏区块里,而且只信任由自己的 token(`github-actions[bot]`,或你传入的
+  PAT 的所有者)写的评论。如果同一仓库里另一个 workflow 会以 `github-actions[bot]` 的身份原样转发 PR 作者写的
+  内容,这个状态就有可能被伪造。最坏的结果是某次重新运行被跳过,或者改错了一条 Slack 消息。
+
+发现安全问题请私下告诉我们,不要开公开 issue,详见 [`SECURITY.md`](../SECURITY.md)。
+
+## Known gaps
+
+- 在你添加 workflow *之前*就已经打开的 PR,打上标签可能没有任何反应。因为 GitHub 不会刷新那个 PR 的 merge
+  提交,它看不到新的 workflow。更新一下分支("Update branch" 按钮或 `gh pr update-branch <number>`),
+  之后的 push 就会触发运行。
+- Slack 的 incoming webhook 只能发消息,所以每次运行都会多一条新消息。想要原地更新和回复串,请用 bot token
+  (`slack-bot-token` 和 `slack-channel`)。
+- 默认的 `GITHUB_TOKEN` 读不了其他私有仓库里的 issue。如果需求写在别的仓库,请把 PAT 或 GitHub App 的 token
+  传给 `github-token`。
+- 目前 Jira 只支持 Cloud(不支持 Server 和 Data Center),GitHub 只支持 github.com(不支持 GHES)。
+- Notion 页面需要先分享给你的 integration(页面菜单 → 连接)。
+- 模型只看得到改动过的文件。如果某条需求是在 PR 没碰过的文件里处理的,可能会被判成"缺失";这类假设会集中
+  写在评论最后。
+
+## Configuration reference
 
 ### Inputs
 
 <!-- inputs:start -->
-| Input               | 必填 | 默认值                            | 说明                                                                            |
-| ------------------- | ---- | --------------------------------- | ------------------------------------------------------------------------------- |
-| `anthropic-api-key` | ✅   | —                                 | Anthropic API 密钥。                                                            |
-| `github-token`      |      | `${{ github.token }}`             | 用于读取 PR 和写入报告评论的 token。                                            |
-| `model`             |      | `claude-opus-5-5`                 | Claude 模型 ID。                                                                |
-| `effort`            |      | `high`                            | 推理深度:`low`、`medium`、`high`、`xhigh`、`max`。                              |
-| `language`          |      | `en`                              | 输出语言:`en`、`ko`、`ja`、`zh-CN`(别名 `kr`、`jp`、`cn`、`zh`)。               |
-| `trigger-label`     |      | `needs-ai-qa`                     | 请求运行的标签。                                                                |
-| `rerun-on-push`     |      | `true`                            | 标签保留期间,有新提交时重新运行。                                               |
-| `require-prd`       |      | `false`                           | 一个关联 PRD 都获取不到时判为失败。                                             |
-| `token-budget`      |      | `150000`                          | 每次 LLM 调用的输入 token 预算(估算);超出的 PR 用 Map-Reduce 拆分。             |
-| `max-cost-usd`      |      | `2.00`                            | 单次运行的估算成本上限(美元);超出时从优先级低的文件开始排除。                   |
-| `max-scenarios`     |      | `20`                              | 报告中的最大场景数。                                                            |
-| `comment-author`    |      | —                                 | 写报告评论的 login;仅在使用自定义 GitHub App token 时指定(例如 `my-app[bot]`)。 |
-| `pr-comment`        |      | `true`                            | 以 PR 评论发布报告(原地更新同一条评论)。                                        |
-| `slack-bot-token`   |      | —                                 | Slack Bot token(`xoxb-`)。设置后启用 Bot 模式(更新 + 线程)。                    |
-| `slack-channel`     |      | —                                 | Bot 模式的频道 ID 或 `#名称`。                                                  |
-| `slack-webhook-url` |      | —                                 | Slack Incoming Webhook URL,没有 Bot token 时使用。                              |
-| `jira-base-url`     |      | —                                 | Jira Cloud 站点 URL(例如 `https://acme.atlassian.net`)。                        |
-| `jira-email`        |      | —                                 | 用于 API token 认证的 Jira 账号邮箱。                                           |
-| `jira-api-token`    |      | —                                 | Jira API token。URL、邮箱和 token 都设置后才启用 Jira。                         |
-| `jira-project-keys` |      | —                                 | 在 PR 正文中只写键名也能识别的项目键,逗号分隔(例如 `PROJ,WEB`)。                |
-| `notion-token`      |      | —                                 | Notion integration token。                                                      |
-| `config-path`       |      | `.github/qa-ticket-generator.yml` | 仓库配置文件,从 base 分支读取。                                                 |
-| `fail-on`           |      | `none`                            | PRD 一致性未达标时让检查失败:`none`、`partial`、`misaligned`。                  |
-| `fail-on-error`     |      | `false`                           | 内部错误时让检查失败(默认只给出警告)。                                          |
-| `allow-fork-prs`    |      | `false`                           | 允许为 fork PR 运行(仅限 `pull_request_target` 的启用工作流)。                  |
-| `server-fallback`   |      | `true`                            | 启用 Anthropic 服务端的 refusal 回退。                                          |
-| `dry-run`           |      | `false`                           | 不发布,只把报告写入 Job Summary。                                               |
+| Input               | 必填 | 默认值                            | 说明                                                           |
+| ------------------- | ---- | --------------------------------- | -------------------------------------------------------------- |
+| `anthropic-api-key` | ✅   | —                                 | Anthropic API key。                                            |
+| `github-token`      |      | `${{ github.token }}`             | 用于读取 PR 和写评论。                                         |
+| `model`             |      | `claude-opus-5-5`                 | Claude 模型 ID。                                               |
+| `effort`            |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。越低越便宜越快。      |
+| `language`          |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` 也行)。       |
+| `trigger-label`     |      | `needs-ai-qa`                     | 触发运行的标签。                                               |
+| `rerun-on-push`     |      | `true`                            | 标签还在时,每次新提交都重新运行。                              |
+| `require-prd`       |      | `false`                           | 读不到关联需求单时让检查失败。                                 |
+| `token-budget`      |      | `150000`                          | 单次模型调用的输入 token。大的 PR 会拆成多次调用。             |
+| `max-cost-usd`      |      | `2.00`                            | 每次运行的费用上限。超出时先去掉不太重要的文件。               |
+| `max-scenarios`     |      | `20`                              | 评论里测试用例的最大数量。                                     |
+| `comment-author`    |      | —                                 | 只有用自定义 GitHub App token 时才需要,例如 `my-app[bot]`。    |
+| `pr-comment`        |      | `true`                            | 发布 PR 评论并持续更新。                                       |
+| `slack-bot-token`   |      | —                                 | Slack bot token(`xoxb-`),可以原地更新消息和使用回复串。        |
+| `slack-channel`     |      | —                                 | bot 发消息的频道 ID 或 `#名称`。                               |
+| `slack-webhook-url` |      | —                                 | 没有 bot token 时使用的 incoming webhook。                     |
+| `jira-base-url`     |      | —                                 | 例如 `https://acme.atlassian.net`。                            |
+| `jira-email`        |      | —                                 | Jira 账号邮箱。                                                |
+| `jira-api-token`    |      | —                                 | Jira API token。URL、邮箱和 token 都填了才会用 Jira。          |
+| `jira-project-keys` |      | —                                 | 用逗号分隔,写了的项目只写 `KEY-123` 也能识别,例如 `PROJ,WEB`。 |
+| `notion-token`      |      | —                                 | Notion integration token。                                     |
+| `config-path`       |      | `.github/qa-ticket-generator.yml` | 仓库配置文件,从 base 分支读取。                                |
+| `fail-on`           |      | `none`                            | 符合度为 `partial` 或 `misaligned` 时让检查失败。              |
+| `fail-on-error`     |      | `false`                           | 内部错误时让检查失败。默认只给出警告。                         |
+| `allow-fork-prs`    |      | `false`                           | 允许 fork 的 PR。只在 opt-in workflow 里使用。                 |
+| `server-fallback`   |      | `true`                            | Opus 拒绝请求时,由 Anthropic 换一个模型重试。                  |
+| `dry-run`           |      | `false`                           | 只把报告写到 Job Summary。                                     |
 <!-- inputs:end -->
-
-使用 `GITHUB_TOKEN` 或个人访问令牌(PAT)时会自动识别 `comment-author`。
 
 ### Outputs
 
 <!-- outputs:start -->
 | Output             | 说明                                             |
 | ------------------ | ------------------------------------------------ |
-| `report-path`      | `report.json` 的路径。                           |
-| `scenario-count`   | 生成的场景数量。                                 |
+| `report-path`      | 完整结果 `report.json` 的路径。                  |
+| `scenario-count`   | 写出的测试用例数量。                             |
 | `alignment-status` | `aligned`、`partial`、`misaligned` 或 `no_prd`。 |
-| `cost-usd`         | 本次运行的估算成本(美元)。                       |
-| `skipped-reason`   | 若被跳过,给出原因。                              |
+| `cost-usd`         | 本次运行的预估费用。                             |
+| `skipped-reason`   | 如果跳过了,原因是什么。                          |
 <!-- outputs:end -->
 
-## 关联 PRD
+### Repository config file
 
-在 PR 正文中写上需求文档的链接:
-
-| 来源         | 识别的格式                                                                                                 |
-| ------------ | ---------------------------------------------------------------------------------------------------------- |
-| GitHub Issue | `#123`、`owner/repo#123`、`https://github.com/owner/repo/issues/123`、`Closes #123` / `Fixes` / `Resolves` |
-| Jira Cloud   | `https://<site>.atlassian.net/browse/KEY-123`,以及 `KEY` 在 `jira-project-keys` 中时的 `KEY-123`           |
-| Notion       | `https://www.notion.so/…<32 位 hex ID>`、`https://<workspace>.notion.site/…<32 位 hex ID>`                 |
-
-- 最多使用 5 个文档(可配置),按在正文中出现的顺序,重复的会被忽略。
-- HTML 注释和代码块中的链接会被忽略,因此 PR 模板里的示例链接不会被误识别。
-  现成的模板:[`examples/pull_request_template.md`](examples/pull_request_template.md)。
-- 验收标准从 "Acceptance Criteria"(或 "AC")标题下的列表,或复选框列表中读取;找不到时由 Claude 从文档正文中理解需求。
-- 没有关联 PRD 时,会以仅基于代码的模式继续运行,并在报告中标注为低置信度。如需改为失败,请设置 `require-prd: true`。
-
-## 仓库配置文件
-
-可选的 `.github/qa-ticket-generator.yml` 用于调整过滤规则、PRD 设置、评分规则和提示词指令。
-该文件始终从 **base** 分支读取,因此 PR 无法修改针对自身的指令。
-优先级:action input > 此文件 > 默认值。示例:[`examples/qa-ticket-generator.yml`](examples/qa-ticket-generator.yml)。
+在仓库里放一个 `.github/qa-ticket-generator.yml`,可以设置要排除的路径、验收标准所在的 Jira 字段,或者补充几行
+业务背景。Action 的 input 优先于这个文件。完整示例见
+[`examples/qa-ticket-generator.yml`](examples/qa-ticket-generator.yml)。
 
 ```yaml
 filters:
@@ -150,63 +229,9 @@ prompt:
     Partial refunds are supported.
 ```
 
-## CLI
+## Contributing
 
-同一条流水线也可以在本地运行。默认是 dry-run:只打印报告,不发布任何内容。
+欢迎提 bug 和 PR。怎么跑测试写在 [`CONTRIBUTING.md`](../CONTRIBUTING.md) 里(测试不会调用真实 API)。设计文档在
+[`SPEC.ko.md`](SPEC.ko.md)(目前只有韩文)和 [`adr/`](adr/)。
 
-```bash
-export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
-npx qa-ticket-generator run --repo owner/repo --pr 123            # dry run (default)
-npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
-npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR comment / Slack message
-```
-
-其他设置使用与 action input 同名的大写环境变量(例如 `JIRA_BASE_URL`、`NOTION_TOKEN`、`MAX_SCENARIOS`)。
-运行 `npx qa-ticket-generator --help` 查看全部选项。
-
-## 成本
-
-- 每次运行都有估算成本上限 `max-cost-usd`(默认 **$2.00**)。调用 Claude 之前先估算成本,超出上限时从优先级低的文件
-  开始排除,并在报告中列出被排除的文件。
-- `token-budget` 限制单次 LLM 调用的输入(默认 150,000 token),更大的 PR 会被拆分处理。关联的 PRD
-  最多占用该预算的 30%。
-- 2026-11-12 使用 Claude Opus 5.5、`effort: high` 对**小型 PR**(10 个合成 PR 和 1 个沙箱 PR,每个 PR 改动 1–3 个文件,
-  每次运行调用 LLM 1 次)实测:单次运行约 **$0.09–$0.19,平均 $0.13**,耗时约 50–70 秒。大型 PR 会拆成多次调用,成本可能
-  更高;`max-cost-usd`(默认 $2.00)为每次运行设定上限。每次运行的估算成本显示在报告底部。
-- 只改动噪声文件的 push 不会调用 Claude。
-
-## 安全与数据流
-
-- **不 checkout。** 从不 checkout 或执行 PR 代码,所有内容都通过 API 读取。
-- **默认跳过 fork PR。** 文档中的 `pull_request_target` 启用方式只在维护者添加标签时运行。
-- **密钥脱敏。** 在发送给模型之前,对 diff、文件内容、PRD 以及 PR 标题和正文中的密钥进行脱敏,
-  并在报告中显示脱敏数量。
-  token 在日志中会被屏蔽,日志只记录大小和数量。
-- **代码和 PRD 只发送到 Anthropic API。** 没有遥测。
-- **配置从 base 分支读取**,模型输出只作为数据处理:转义 HTML,使 Slack 提及失效,链接仅限 PR、PRD 原文和本仓库。
-- **受信任的评论作者。** 只信任由 token 身份(`github-actions[bot]` 或 PAT 所有者)写的报告评论。同一仓库中的其他工作流
-  如果以 `github-actions[bot]` 身份原样评论 PR 作者的输入,可能伪造隐藏的 state,但影响仅限于 push 时的重新运行判定
-  和要更新哪条 Slack 消息。
-- 请使用示例中的最小权限:`contents: read`、`pull-requests: write`、`issues: read`。
-
-如发现漏洞,请按 [`SECURITY.md`](../SECURITY.md) 中的说明私下报告。
-
-## 常见问题与限制
-
-- **添加工作流后,给已有 PR 加标签却没有运行?** 在添加工作流文件之前打开的 PR,在 GitHub 更新其合并提交之前看不到
-  新的工作流。请用 base 分支更新 PR 分支(**Update branch** 按钮、`gh pr update-branch <number>`,或 merge/rebase
-  base 分支后 push);只要标签还在,这次 push 就会触发运行。添加工作流之后新打开的 PR 不受影响。
-- **Slack Webhook 模式**每次运行只新发一张摘要卡片。更新之前的消息和在线程中发送详情需要 Bot 模式
-  (`slack-bot-token` + `slack-channel`)。
-- **其他私有仓库中的 Issue** 无法用默认的 `GITHUB_TOKEN` 读取。请把个人访问令牌(PAT)或 GitHub App token 作为
-  `github-token` 传入;在此之前,报告中会显示权限警告。
-- **仅支持 Jira Cloud。** v1 不支持 Jira Server 和 Data Center。
-- **Notion 页面**必须共享给 integration(页面菜单 → 连接)。
-- 目前**仅支持 github.com**,暂不支持 GitHub Enterprise Server。
-
-## 贡献与许可证
-
-欢迎贡献,请参阅 [`CONTRIBUTING.md`](../CONTRIBUTING.md) 和[行为准则](../CODE_OF_CONDUCT.md)。
-设计文档:[`SPEC.ko.md`](SPEC.ko.md)(韩语) · [`adr/`](adr/) · [`DEVELOPMENT.md`](DEVELOPMENT.md)。
-
-采用 [Apache-2.0](../LICENSE) 许可证。
+许可证是 Apache-2.0,见 [LICENSE](../LICENSE)。

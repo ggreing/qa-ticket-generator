@@ -4,147 +4,231 @@
 
 <!-- Badges (CI, release, license) are added when the repository is published. -->
 
-> 🚧 **Under active development (pre-v0.1). Not ready for use yet.** Inputs and output may still change.
+> 🚧 pre-v0.1. It works on our test repos, but inputs and the comment layout can still change.
 
-A GitHub Action that cross-checks a pull request's code changes against its linked product requirements
-(GitHub Issues, Jira Cloud, Notion) with Claude, then publishes BDD (Given / When / Then) QA scenarios and a
-PRD-alignment report to the PR and Slack.
+A GitHub Action that reads a pull request together with the ticket it is supposed to implement, and writes
+the QA notes a tester would: which requirements are covered, which ones are missing, and a short list of
+test cases worth running before you merge.
 
-## How it works
+## Why
 
-![Architecture: GitHub event → trigger gate → context and PRD collection → preprocessing → Claude → PR comment, Slack and job summary](docs/diagrams/architecture.png)
+On small teams there is usually no dedicated QA person, and the reviewer rarely has the Jira ticket open
+next to the diff. So a PR gets approved, the tests pass, and a week later someone notices that one of the
+acceptance criteria never got built.
 
-1. **Trigger.** Adding the `needs-ai-qa` label to a PR starts a run; new pushes re-run it while the label stays
-   (configurable). Pushes that only touch noise files (lockfiles, build output, snapshots …) are skipped.
-2. **Collect and prepare.** The action reads the diff and the linked PRDs through the GitHub, Jira and Notion
-   APIs — it never checks out your code. It drops noise files, expands changes to the enclosing function or
-   class (TypeScript/TSX, JavaScript, Python, Java and Go, via tree-sitter), redacts secrets and packs the most
-   relevant files into the token budget, splitting large PRs into parts that are reviewed and then merged.
-3. **Generate and publish.** Claude compares the code with the acceptance criteria and returns happy-path,
-   edge-case and negative scenarios plus missing or contradicting requirements. The report is posted as
-   one PR comment that is updated on every run, optionally sent to Slack, and always written to the job summary.
+This action does that cross-check for you. Put the ticket link in the PR description, add the
+`needs-ai-qa` label, and a minute or two later the PR has a comment from Claude that compares the code with
+the requirements. It is not a code reviewer and it won't comment on style. It only cares whether the change
+does what the spec says, and what you should test to find out.
 
-## Example output
+## What you get
 
-An illustrative mock-up of the PR comment (the real layout may change before v0.1):
+Roughly what the comment looks like (the layout is still being polished for v0.1):
 
 ```markdown
-## 🧪 AI QA Scenarios — `a1b2c3d` · ⚠️ PRD alignment: **Partial**
+## 🧪 AI QA — 4e2455c · ⚠️ Partially aligned
 
-> Linked: PROJ-123 (Jira), #45 (GitHub)
+**Needs attention (2)**
 
-### PRD Alignment
+- ❌ AC2 Expired coupons are rejected: nothing compares `expiresAt` with the current time (`src/coupon.ts`)
+- ❌ AC4 Percent discounts are capped at 10,000 KRW: no cap is applied
 
-| Requirement                       | Status     | Evidence                                 |
-| --------------------------------- | ---------- | ---------------------------------------- |
-| AC1: a coupon applies once        | ✅ covered | `CouponService.apply()` checks prior use |
-| AC3: expired coupons are rejected | ❌ missing | no expiry comparison in `coupon.ts`      |
+**P0 checklist**
 
-### Scenarios (12)
+- [ ] TC-01 Coupon that expired one second ago → rejected, no usage recorded
+- [ ] TC-02 Same user applies the same coupon twice at once → only one succeeds
+- [ ] TC-03 10% coupon on a 200,000 KRW order → discount is 10,000, not 20,000
 
-<details><summary><b>[P0][Edge] Apply a coupon one second before it expires</b></summary>
-
-- **Given** a coupon that expires one second from now
-- **When** the shopper applies it at checkout
-- **Then** the discount is applied
-- _Related_: AC3 · `src/coupon/coupon.ts`
+<details><summary>TC-01 Reject an expired coupon [P0 · AC2]</summary>
+Setup: user-A has never used EXP1, cart subtotal is 30,000 KRW
+Data: code = EXP1, expiresAt = now - 1s
+Steps: 1. open checkout 2. apply EXP1
+Expected: CouponError "Coupon has expired", no usage record for (user-A, EXP1)
 </details>
 
-### Risks
-
-- …
-
-<sub>model · input / output tokens · estimated cost · duration · skipped files</sub>
+<details><summary>P1 / P2 cases (9)</summary>…</details>
 ```
 
-In Slack bot mode a summary card (alignment badge, scenario counts, top risks, links to the PR and the
-full report) is posted, with the scenario details in its thread.
+When you push more commits, the same comment is updated instead of a new one being added. Pushes that only
+touch lockfiles or build output are ignored. If you connect Slack, a short summary goes to a channel and the
+test cases go into its thread.
 
-## Quickstart
+Here is how a run flows, if you are curious:
 
-1. Add an `ANTHROPIC_API_KEY` repository secret. Optional: `SLACK_BOT_TOKEN`, `JIRA_API_TOKEN`, `NOTION_TOKEN`.
-2. Create the `needs-ai-qa` label in the repository.
-3. Copy [`docs/examples/workflow.yml`](docs/examples/workflow.yml) to `.github/workflows/qa-ticket-generator.yml`
-   and delete the Slack, Jira or Notion inputs you don't use.
+![Architecture: GitHub event, trigger gate, context and PRD collection, preprocessing, Claude, then PR comment, Slack and job summary](docs/diagrams/architecture.png)
 
-Then add the label to a pull request. Do **not** add `actions/checkout` — the action reads everything through
-the API. Fork PRs are skipped by default; see [`docs/examples/workflow-fork-opt-in.yml`](docs/examples/workflow-fork-opt-in.yml)
-for the opt-in and its warnings.
+## Setup
 
-## Inputs and outputs
+You need an Anthropic API key and about five minutes.
+
+1. Add the key as a repository secret named `ANTHROPIC_API_KEY`.
+2. Create a label called `needs-ai-qa`.
+3. Add this workflow as `.github/workflows/qa-ticket-generator.yml`:
+
+```yaml
+name: AI QA
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: qa-ticket-generator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    runs-on: ubuntu-latest
+    steps:
+      # No actions/checkout here on purpose: the action reads the PR through the API.
+      - uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+That's it. Label a PR and wait for the comment. If your specs live in Jira or Notion, or you want Slack
+messages, the full example in [`docs/examples/workflow.yml`](docs/examples/workflow.yml) shows the extra
+inputs. Output in Korean, Japanese or Chinese is one line: `language: ko` (or `ja`, `zh-CN`).
+
+Fork PRs are skipped by default, because GitHub doesn't give them your secrets. There is an opt-in
+workflow in [`docs/examples/workflow-fork-opt-in.yml`](docs/examples/workflow-fork-opt-in.yml); please read
+the warning at the top before using it.
+
+## Linking the spec
+
+The action looks for ticket links in the PR description:
+
+- GitHub issues: `#123`, `owner/repo#123`, a full issue URL, or `Closes #123`
+- Jira Cloud: `https://your-site.atlassian.net/browse/PROJ-123`, or just `PROJ-123` if you list `PROJ` in
+  `jira-project-keys`
+- Notion: a `notion.so` or `notion.site` page URL
+
+It reads acceptance criteria from a list under an "Acceptance Criteria" (or "AC") heading, or from a
+checklist. If there is no such section it works from the whole ticket body. Links inside code blocks and
+HTML comments are ignored, so the examples in a PR template won't be picked up. We ship one you can copy:
+[`docs/examples/pull_request_template.md`](docs/examples/pull_request_template.md).
+
+No ticket linked? It still runs, works from the code alone, and says so at the top of the comment. Set
+`require-prd: true` if you'd rather have the check fail.
+
+## Running it locally
+
+The same thing runs as a CLI. By default it only prints the report and doesn't post anything:
+
+```bash
+export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator run --repo owner/repo --pr 123            # dry run (default)
+npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
+npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR comment / Slack message
+```
+
+Any action input also works as an upper-case environment variable (`JIRA_BASE_URL`, `MAX_SCENARIOS`, …).
+`npx qa-ticket-generator --help` lists the flags.
+
+## What it costs
+
+On the small PRs we have tried so far (one to three changed files), a run with Claude Opus 5.5 costs about
+$0.09 to $0.19, $0.13 on average, and takes about a minute. That was measured on 10 synthetic PRs and one
+sandbox PR, so treat it as a ballpark.
+
+Bigger PRs are split into several calls and cost more, so every run has a ceiling: `max-cost-usd`, $2 by
+default. If a run would go over it, the least important files are left out and the comment lists them. The
+estimated cost of each run is printed at the bottom of the comment.
+
+## Where your code goes
+
+The action never checks out or runs the code in the PR. It reads the diff, the changed files and the linked
+tickets through the GitHub, Jira and Notion APIs, and sends them to Anthropic's API. Nothing goes anywhere
+else, and there is no telemetry.
+
+Before anything is sent, things that look like secrets (API keys, tokens, private keys, passwords in config)
+are masked, including in the PR title and description. The comment tells you how many were masked. Logs only
+contain counts and sizes, never file contents.
+
+Two more things worth knowing:
+
+- The repository config file is read from the base branch, so a PR can't change the instructions it is
+  reviewed with. Text written by the model is escaped before it is posted, Slack mentions are disabled, and
+  links are limited to the PR, the linked tickets and your repository.
+- Between runs the action keeps a little state in a hidden block of its own comment, and only trusts comments
+  written by its own token (`github-actions[bot]` or the owner of the PAT you passed). If another workflow in
+  your repository posts PR-author text as `github-actions[bot]`, that state could be faked. The worst outcome
+  is a skipped re-run or the wrong Slack message being edited.
+
+Found a security problem? Please report it privately, see [`SECURITY.md`](SECURITY.md).
+
+## Known gaps
+
+- Labeling a PR that was opened _before_ you added the workflow may do nothing. GitHub doesn't refresh that
+  PR's merge commit, so it never sees the new workflow. Update the branch (the "Update branch" button or
+  `gh pr update-branch <number>`) and the next push starts a run.
+- Slack incoming webhooks can only post, so each run adds a new message. For update-in-place and threads,
+  use a bot token (`slack-bot-token` and `slack-channel`).
+- The default `GITHUB_TOKEN` can't read issues in other private repositories. Pass a personal access token
+  or GitHub App token as `github-token` if your specs live elsewhere.
+- Jira Cloud only (no Server or Data Center), and github.com only (no GitHub Enterprise Server) for now.
+- Notion pages have to be shared with your integration (page menu → Connections).
+- The model only sees the changed files. If a requirement is handled in a file the PR doesn't touch, it may
+  be reported as missing; the comment lists that kind of assumption at the end.
+
+## Configuration reference
 
 ### Inputs
 
 <!-- inputs:start -->
-| Input               | Required | Default                           | Description                                                                                   |
-| ------------------- | -------- | --------------------------------- | --------------------------------------------------------------------------------------------- |
-| `anthropic-api-key` | ✅       | —                                 | Anthropic API key.                                                                            |
-| `github-token`      |          | `${{ github.token }}`             | Token for reading the PR and writing the report comment.                                      |
-| `model`             |          | `claude-opus-5-5`                 | Claude model id.                                                                              |
-| `effort`            |          | `high`                            | Reasoning effort: `low`, `medium`, `high`, `xhigh`, `max`.                                    |
-| `language`          |          | `en`                              | Output language: `en`, `ko`, `ja`, `zh-CN` (aliases `kr`, `jp`, `cn`, `zh`).                  |
-| `trigger-label`     |          | `needs-ai-qa`                     | Label that requests a QA run.                                                                 |
-| `rerun-on-push`     |          | `true`                            | Re-run on new commits while the label is present.                                             |
-| `require-prd`       |          | `false`                           | Fail when no linked PRD can be fetched.                                                       |
-| `token-budget`      |          | `150000`                          | Estimated input-token budget per LLM call; larger PRs are split (map-reduce).                 |
-| `max-cost-usd`      |          | `2.00`                            | Estimated cost ceiling per run in USD; lowest-priority files are dropped beyond it.           |
-| `max-scenarios`     |          | `20`                              | Maximum number of scenarios in the report.                                                    |
-| `comment-author`    |          | —                                 | Login that writes the report comment; only for custom GitHub App tokens (e.g. `my-app[bot]`). |
-| `pr-comment`        |          | `true`                            | Publish the report as a PR comment (updated in place).                                        |
-| `slack-bot-token`   |          | —                                 | Slack bot token (`xoxb-`). Enables bot mode (update + thread).                                |
-| `slack-channel`     |          | —                                 | Channel id or `#name` for bot mode.                                                           |
-| `slack-webhook-url` |          | —                                 | Slack incoming webhook URL, used when no bot token is set.                                    |
-| `jira-base-url`     |          | —                                 | Jira Cloud site URL, e.g. `https://acme.atlassian.net`.                                       |
-| `jira-email`        |          | —                                 | Jira account email for API-token auth.                                                        |
-| `jira-api-token`    |          | —                                 | Jira API token. Jira is enabled when the URL, email and token are all set.                    |
-| `jira-project-keys` |          | —                                 | Comma-separated project keys recognized as bare keys in PR bodies (e.g. `PROJ,WEB`).          |
-| `notion-token`      |          | —                                 | Notion integration token.                                                                     |
-| `config-path`       |          | `.github/qa-ticket-generator.yml` | Repository config file, read from the base branch.                                            |
-| `fail-on`           |          | `none`                            | Fail the check on PRD alignment: `none`, `partial`, `misaligned`.                             |
-| `fail-on-error`     |          | `false`                           | Fail the check on internal errors (by default they only warn).                                |
-| `allow-fork-prs`    |          | `false`                           | Allow runs for fork PRs (only with the `pull_request_target` opt-in workflow).                |
-| `server-fallback`   |          | `true`                            | Enable Anthropic's server-side refusal fallback.                                              |
-| `dry-run`           |          | `false`                           | Do not publish; write the report to the job summary only.                                     |
+| Input               | Required | Default                           | Description                                                                   |
+| ------------------- | -------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| `anthropic-api-key` | ✅       | —                                 | Anthropic API key.                                                            |
+| `github-token`      |          | `${{ github.token }}`             | Used to read the PR and write the comment.                                    |
+| `model`             |          | `claude-opus-5-5`                 | Claude model id.                                                              |
+| `effort`            |          | `high`                            | `low`, `medium`, `high`, `xhigh` or `max`. Lower is cheaper and faster.       |
+| `language`          |          | `en`                              | `en`, `ko`, `ja` or `zh-CN` (`kr`, `jp`, `cn`, `zh` work too).                |
+| `trigger-label`     |          | `needs-ai-qa`                     | The label that starts a run.                                                  |
+| `rerun-on-push`     |          | `true`                            | Run again on new commits while the label is on the PR.                        |
+| `require-prd`       |          | `false`                           | Fail the check when no linked ticket can be read.                             |
+| `token-budget`      |          | `150000`                          | Input tokens per model call. Bigger PRs are split into several calls.         |
+| `max-cost-usd`      |          | `2.00`                            | Cost ceiling per run. Less important files are dropped to stay under it.      |
+| `max-scenarios`     |          | `20`                              | Maximum number of test cases in the comment.                                  |
+| `comment-author`    |          | —                                 | Only needed with a custom GitHub App token, e.g. `my-app[bot]`.               |
+| `pr-comment`        |          | `true`                            | Post (and keep updating) the PR comment.                                      |
+| `slack-bot-token`   |          | —                                 | Slack bot token (`xoxb-`). Gives you update-in-place and threads.             |
+| `slack-channel`     |          | —                                 | Channel id or `#name` for the bot.                                            |
+| `slack-webhook-url` |          | —                                 | Incoming webhook, used when there is no bot token.                            |
+| `jira-base-url`     |          | —                                 | e.g. `https://acme.atlassian.net`.                                            |
+| `jira-email`        |          | —                                 | Jira account email.                                                           |
+| `jira-api-token`    |          | —                                 | Jira API token. Jira is used when URL, email and token are all set.           |
+| `jira-project-keys` |          | —                                 | Comma-separated keys to recognize bare `KEY-123` references, e.g. `PROJ,WEB`. |
+| `notion-token`      |          | —                                 | Notion integration token.                                                     |
+| `config-path`       |          | `.github/qa-ticket-generator.yml` | Repository config file, read from the base branch.                            |
+| `fail-on`           |          | `none`                            | Fail the check when alignment is `partial` or `misaligned`.                   |
+| `fail-on-error`     |          | `false`                           | Fail the check on internal errors. By default they only show as a warning.    |
+| `allow-fork-prs`    |          | `false`                           | Allow fork PRs. Only use this with the opt-in workflow.                       |
+| `server-fallback`   |          | `true`                            | Let Anthropic retry on another model if Opus declines a request.              |
+| `dry-run`           |          | `false`                           | Write the report to the job summary only.                                     |
 <!-- inputs:end -->
-
-`comment-author` is detected automatically for `GITHUB_TOKEN` and personal access tokens.
 
 ### Outputs
 
 <!-- outputs:start -->
 | Output             | Description                                     |
 | ------------------ | ----------------------------------------------- |
-| `report-path`      | Path to `report.json`.                          |
-| `scenario-count`   | Number of generated scenarios.                  |
+| `report-path`      | Path to `report.json` with the full result.     |
+| `scenario-count`   | How many test cases were written.               |
 | `alignment-status` | `aligned`, `partial`, `misaligned` or `no_prd`. |
-| `cost-usd`         | Estimated cost of this run in USD.              |
+| `cost-usd`         | Estimated cost of the run.                      |
 | `skipped-reason`   | Why the run was skipped, if it was.             |
 <!-- outputs:end -->
 
-## Linking PRDs
+### Repository config file
 
-Put links to the requirement documents in the PR body:
-
-| Source       | Recognized patterns                                                                                        |
-| ------------ | ---------------------------------------------------------------------------------------------------------- |
-| GitHub Issue | `#123`, `owner/repo#123`, `https://github.com/owner/repo/issues/123`, `Closes #123` / `Fixes` / `Resolves` |
-| Jira Cloud   | `https://<site>.atlassian.net/browse/KEY-123`, and bare `KEY-123` when `KEY` is in `jira-project-keys`     |
-| Notion       | `https://www.notion.so/…<32-hex id>`, `https://<workspace>.notion.site/…<32-hex id>`                       |
-
-- Up to 5 documents (configurable) are used, in the order they appear. Duplicates are ignored.
-- Links inside HTML comments and code blocks are ignored, so PR-template examples are safe.
-  A ready-made template: [`docs/examples/pull_request_template.md`](docs/examples/pull_request_template.md).
-- Acceptance criteria are read from lists under an "Acceptance Criteria" (or "AC") heading, or from checkbox
-  lists. Without them, Claude infers the requirements from the document body.
-- Without any linked PRD the run continues in code-only mode and the report is marked as low confidence.
-  Set `require-prd: true` to fail instead.
-
-## Repository config
-
-An optional `.github/qa-ticket-generator.yml` tunes filters, PRD settings, scoring and prompt instructions.
-It is always read from the **base** branch, so a pull request cannot change its own instructions.
-Precedence: action input > this file > defaults. Example:
-[`docs/examples/qa-ticket-generator.yml`](docs/examples/qa-ticket-generator.yml).
+You can put `.github/qa-ticket-generator.yml` in your repository to exclude paths, tell it which Jira field
+holds your acceptance criteria, or add a few lines of domain context. Action inputs win over this file. The
+full example is in [`docs/examples/qa-ticket-generator.yml`](docs/examples/qa-ticket-generator.yml).
 
 ```yaml
 filters:
@@ -157,71 +241,10 @@ prompt:
     Partial refunds are supported.
 ```
 
-## CLI
+## Contributing
 
-The same pipeline runs locally. It is a dry run by default: the report is printed and nothing is published.
+Bug reports and PRs are welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains how to run the tests (they
+never call real APIs). The design notes are in [`docs/SPEC.ko.md`](docs/SPEC.ko.md) (Korean for now) and
+[`docs/adr/`](docs/adr/).
 
-```bash
-export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
-npx qa-ticket-generator run --repo owner/repo --pr 123            # dry run (default)
-npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
-npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR comment / Slack message
-```
-
-Optional settings use the same names as the action inputs, as upper-case environment variables
-(e.g. `JIRA_BASE_URL`, `NOTION_TOKEN`, `MAX_SCENARIOS`). Run `npx qa-ticket-generator --help` for all flags.
-
-## Cost
-
-- Every run has an estimated cost ceiling, `max-cost-usd` (default **$2.00**). The action estimates the cost
-  before calling Claude and drops the lowest-priority files when the estimate is over the ceiling; the
-  report lists what was dropped.
-- `token-budget` caps the input of a single LLM call (default 150,000 tokens); larger PRs are split. Linked
-  PRDs use at most 30% of that budget.
-- Measured on 2026-11-12 with Claude Opus 5.5 at `effort: high` on **small PRs** (10 synthetic PRs and 1 sandbox
-  PR, 1–3 changed files each, one LLM call per run): about **$0.09–$0.19 per run, $0.13 on average**, taking about
-  50–70 seconds. Larger PRs are split into several calls and can cost more; `max-cost-usd` (default $2.00) caps
-  every run. The report footer shows the estimated cost of each run.
-- Pushes that only change noise files do not call Claude at all.
-
-## Security and data flow
-
-- **No checkout.** The action never checks out or executes pull-request code; it reads everything through APIs.
-- **Fork PRs are skipped by default.** The documented `pull_request_target` opt-in runs only when a maintainer
-  adds the label.
-- **Secrets are redacted** from diffs, file contents, PRDs and the PR title and body before anything reaches the
-  model, and the number of redactions is shown in the report. Tokens are masked in logs; logs contain sizes
-  and counts only.
-- **Code and PRD content go only to the Anthropic API.** No telemetry.
-- **Config from the base branch** and model output treated as data: HTML is escaped, Slack mentions are
-  neutralized and links are restricted to the PR, the PRD sources and the repository.
-- **Trusted comment author.** Only report comments written by the token's identity (`github-actions[bot]` or the
-  PAT owner) are trusted. Another workflow in the same repository that posts PR-author input verbatim as
-  `github-actions[bot]` could forge the hidden state, but the impact is limited to the re-run decision on push
-  and to which Slack message is updated.
-- Use the minimal permissions from the examples: `contents: read`, `pull-requests: write`, `issues: read`.
-
-Please report vulnerabilities privately as described in [`SECURITY.md`](SECURITY.md).
-
-## FAQ and limitations
-
-- **Labeling an existing PR does nothing after you added the workflow?** Pull requests opened before the workflow
-  file was added do not see the new workflow until GitHub refreshes their merge commit. Update the PR branch with
-  its base (the **Update branch** button, `gh pr update-branch <number>`, or merge/rebase the base branch and
-  push); with the label still on the PR, that push starts a run. Pull requests opened after the workflow was added
-  are not affected.
-- **Slack webhook mode** posts one new summary card per run. Updating the previous message and threaded
-  details need bot mode (`slack-bot-token` + `slack-channel`).
-- **Issues in other private repositories** cannot be read with the default `GITHUB_TOKEN`. Pass a personal access
-  token or a GitHub App token as `github-token`; until then the report shows a permission warning.
-- **Jira Cloud only.** Jira Server and Data Center are not supported in v1.
-- **Notion pages** must be shared with the integration (page menu → Connections).
-- **github.com only** for now; GitHub Enterprise Server is not supported yet.
-
-## Contributing and license
-
-Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
-Design documents: [`docs/SPEC.ko.md`](docs/SPEC.ko.md) (Korean) · [`docs/adr/`](docs/adr/) ·
-[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
-
-Licensed under [Apache-2.0](LICENSE).
+Apache-2.0, see [LICENSE](LICENSE).

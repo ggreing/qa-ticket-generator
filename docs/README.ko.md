@@ -2,147 +2,226 @@
 
 [English](../README.md) | **한국어** | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
-<!-- Badges (CI, release, license) are added when the repository is published. -->
+<!-- 배지(CI, 릴리스, 라이선스)는 레포를 공개할 때 추가합니다. -->
 
-> 🚧 **개발 중입니다(pre-v0.1). 아직 사용할 수 없습니다.** input과 출력 형식은 바뀔 수 있습니다.
+> 🚧 pre-v0.1입니다. 테스트 레포에서는 잘 돌아가지만, input 이름이나 코멘트 모양은 아직 바뀔 수 있어요.
 
-PR의 코드 변경을 연결된 요구사항 문서(GitHub Issues, Jira Cloud, Notion)와 Claude로 교차 검증하고,
-BDD(Given / When / Then) QA 시나리오와 PRD 정합성 리포트를 PR과 Slack에 발행하는 GitHub Action입니다.
+PR과 그 PR이 구현해야 할 티켓을 같이 읽고, QA 담당자가 남길 법한 메모를 써 주는 GitHub Action입니다.
+어떤 요구사항이 구현됐고 어떤 게 빠졌는지, 머지 전에 어떤 테스트를 돌려 보면 좋을지를 PR에 남겨 줍니다.
 
-## 동작 방식
+## Why
 
-![아키텍처: GitHub 이벤트 → 트리거 게이트 → 컨텍스트·PRD 수집 → 전처리 → Claude → PR 코멘트, Slack, Job Summary](diagrams/architecture.png)
+작은 팀에는 보통 QA 전담자가 없고, 리뷰어도 diff를 보면서 Jira 티켓을 옆에 띄워 두는 경우가 드뭅니다.
+그러다 보니 리뷰 승인 나고 테스트도 다 통과했는데, 일주일 뒤에야 인수 조건 하나가 아예 구현이 안 됐다는 걸
+알게 되는 일이 생깁니다.
 
-1. **트리거.** PR에 `needs-ai-qa` 라벨을 붙이면 실행됩니다. 라벨이 붙어 있는 동안 새 push가 오면 다시 실행합니다
-   (설정 가능). 노이즈 파일(lock 파일, 빌드 산출물, 스냅샷 등)만 바뀐 push는 건너뜁니다.
-2. **수집과 준비.** diff와 연결된 PRD를 GitHub, Jira, Notion API로 읽습니다. 코드를 checkout하지 않습니다.
-   노이즈 파일을 빼고, 변경을 감싸는 함수나 클래스까지 컨텍스트를 넓히고(tree-sitter로 TypeScript/TSX, JavaScript,
-   Python, Java, Go 지원), 비밀값을 마스킹한 뒤, 중요한 파일부터 토큰 예산에 맞춰 담습니다. 큰 PR은 여러 부분으로 나눠
-   검토한 뒤 결과를 합칩니다.
-3. **생성과 발행.** Claude가 코드와 인수 조건(AC)을 비교해 정상 경로·경계·부정 시나리오와 누락되거나 충돌하는
-   요구사항을 돌려줍니다. 리포트는 실행할 때마다 갱신되는 PR 코멘트 1개로 게시되고, 설정하면 Slack에도 보내며,
-   Job Summary에는 항상 기록합니다.
+이 액션이 그 대조 작업을 대신합니다. PR 본문에 티켓 링크를 넣고 `needs-ai-qa` 라벨을 붙이면, 1~2분 뒤
+Claude가 코드와 요구사항을 비교한 코멘트를 남깁니다. 코드 리뷰 봇은 아니라서 스타일 같은 건 보지 않습니다.
+이 변경이 기획서대로 동작하는지, 그걸 확인하려면 뭘 테스트해야 하는지만 봅니다.
 
-## 출력 예시
+## What you get
 
-PR 코멘트의 예시 목업입니다(v0.1 전까지 실제 형식은 바뀔 수 있습니다). 결과물 언어는 `language` input으로 정합니다.
+코멘트는 대략 이런 모양입니다(v0.1 전까지 다듬는 중이에요):
 
 ```markdown
-## 🧪 AI QA Scenarios — `a1b2c3d` · ⚠️ PRD alignment: **Partial**
+## 🧪 AI QA — 4e2455c · ⚠️ 부분 일치
 
-> Linked: PROJ-123 (Jira), #45 (GitHub)
+**조치 필요 (2)**
 
-### PRD Alignment
+- ❌ AC2 만료된 쿠폰은 거부한다: `expiresAt`을 현재 시각과 비교하는 코드가 없음 (`src/coupon.ts`)
+- ❌ AC4 정률 할인은 최대 10,000원: 상한이 적용되지 않음
 
-| Requirement            | Status     | Evidence                                   |
-| ---------------------- | ---------- | ------------------------------------------ |
-| AC1: 쿠폰은 1회만 적용 | ✅ covered | `CouponService.apply()`에서 사용 여부 검사 |
-| AC3: 만료 쿠폰 거부    | ❌ missing | 만료일 비교 로직 없음 (`coupon.ts`)        |
+**P0 체크리스트**
 
-### Scenarios (12)
+- [ ] TC-01 1초 전에 만료된 쿠폰 → 거부, 사용 기록 남지 않음
+- [ ] TC-02 같은 사용자가 같은 쿠폰을 동시에 두 번 적용 → 한 번만 성공
+- [ ] TC-03 200,000원 주문에 10% 쿠폰 → 할인액 10,000원 (20,000원 아님)
 
-<details><summary><b>[P0][Edge] 만료 1초 전 쿠폰 적용</b></summary>
-
-- **Given** 만료 시각이 현재 +1초인 쿠폰이 있다
-- **When** 사용자가 결제 화면에서 쿠폰을 적용한다
-- **Then** 쿠폰이 적용된다
-- _Related_: AC3 · `src/coupon/coupon.ts`
+<details><summary>TC-01 만료된 쿠폰 거부 [P0 · AC2]</summary>
+전제: user-A는 EXP1을 쓴 적 없음, 장바구니 소계 30,000원
+데이터: code = EXP1, expiresAt = 현재 - 1초
+단계: 1. 결제 화면 열기 2. EXP1 적용
+기대: "Coupon has expired" CouponError, (user-A, EXP1) 사용 기록 없음
 </details>
 
-### Risks
-
-- …
-
-<sub>model · input / output tokens · estimated cost · duration · skipped files</sub>
+<details><summary>P1 / P2 케이스 (9)</summary>…</details>
 ```
 
-Slack Bot 모드에서는 요약 카드(정합성 배지, 시나리오 수, 상위 리스크, PR과 전체 리포트 링크)를 게시하고,
-시나리오 상세는 스레드에 답글로 보냅니다.
+커밋을 더 push하면 새 코멘트를 다는 대신 같은 코멘트를 고칩니다. lock 파일이나 빌드 결과물만 바뀐 push는
+무시합니다. Slack을 연결하면 채널에는 짧은 요약이, 그 스레드에는 테스트 케이스가 올라갑니다.
 
-## 빠른 시작
+내부 흐름이 궁금하면 아래 그림을 보세요.
 
-1. 레포 Secret에 `ANTHROPIC_API_KEY`를 등록합니다. 선택: `SLACK_BOT_TOKEN`, `JIRA_API_TOKEN`, `NOTION_TOKEN`.
-2. 레포에 `needs-ai-qa` 라벨을 만듭니다.
-3. [`examples/workflow.yml`](examples/workflow.yml)을 `.github/workflows/qa-ticket-generator.yml`로 복사하고,
-   쓰지 않는 Slack, Jira, Notion input은 지웁니다.
+![구성도: GitHub 이벤트, 트리거 판정, 컨텍스트와 PRD 수집, 전처리, Claude, PR 코멘트·Slack·Job Summary](diagrams/architecture.png)
 
-이제 PR에 라벨을 붙이면 됩니다. `actions/checkout`은 **추가하지 마세요**. 액션은 모든 데이터를 API로 읽습니다.
-fork PR은 기본으로 건너뜁니다. 옵트인 방법과 주의 사항은 [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml)을
-참고하세요.
+## Setup
 
-## Inputs와 Outputs
+Anthropic API 키 하나와 5분 정도면 됩니다.
+
+1. 레포 secret에 `ANTHROPIC_API_KEY`라는 이름으로 키를 넣습니다.
+2. `needs-ai-qa` 라벨을 만듭니다.
+3. 아래 워크플로를 `.github/workflows/qa-ticket-generator.yml`로 추가합니다.
+
+```yaml
+name: AI QA
+on:
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: qa-ticket-generator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    runs-on: ubuntu-latest
+    steps:
+      # 일부러 actions/checkout을 넣지 않습니다. PR 내용은 API로 읽습니다.
+      - uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+이게 전부입니다. PR에 라벨을 붙이고 코멘트를 기다리면 돼요. 기획서가 Jira나 Notion에 있거나 Slack으로도
+받고 싶다면 [`examples/workflow.yml`](examples/workflow.yml)에 추가 input이 다 나와 있습니다. 결과를
+한국어로 받으려면 `language: ko` 한 줄만 넣으면 됩니다.
+
+fork에서 온 PR은 기본적으로 건너뜁니다. GitHub가 fork PR에는 secret을 넘겨주지 않기 때문입니다. 꼭 필요하면
+[`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml)을 쓰면 되는데, 맨 위 경고는
+꼭 읽고 쓰세요.
+
+## Linking the spec
+
+액션은 PR 본문에서 티켓 링크를 찾습니다.
+
+- GitHub 이슈: `#123`, `owner/repo#123`, 이슈 URL, `Closes #123`
+- Jira Cloud: `https://your-site.atlassian.net/browse/PROJ-123`, 또는 `jira-project-keys`에 `PROJ`를
+  넣어 두면 `PROJ-123`만 써도 됩니다
+- Notion: `notion.so`나 `notion.site` 페이지 URL
+
+인수 조건은 "Acceptance Criteria"(또는 "AC") 헤딩 아래 목록이나 체크리스트에서 읽습니다. 그런 섹션이 없으면
+티켓 본문 전체를 보고 판단합니다. 코드 블록과 HTML 주석 안의 링크는 무시하니까 PR 템플릿에 예시 링크를
+넣어 둬도 괜찮습니다. 바로 쓸 수 있는 템플릿도 있어요:
+[`examples/pull_request_template.md`](examples/pull_request_template.md).
+
+티켓을 안 걸었다면? 그래도 코드만 보고 돌아가고, 코멘트 맨 위에 그 사실을 표시합니다. 차라리 체크를 실패시키고
+싶다면 `require-prd: true`를 쓰세요.
+
+## Running it locally
+
+같은 기능을 CLI로도 쓸 수 있습니다. 기본은 리포트를 출력만 하고 아무 데도 올리지 않습니다.
+
+```bash
+export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator run --repo owner/repo --pr 123            # 드라이런(기본)
+npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
+npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR 코멘트 / Slack에 게시
+```
+
+액션 input은 전부 대문자 환경 변수로도 넘길 수 있습니다(`JIRA_BASE_URL`, `MAX_SCENARIOS` 등).
+플래그 목록은 `npx qa-ticket-generator --help`로 볼 수 있어요.
+
+## What it costs
+
+지금까지 돌려 본 작은 PR(변경 파일 1~3개)에서는 Claude Opus 5.5 기준으로 한 번에 $0.09~0.19, 평균 $0.13
+정도 들었고 1분쯤 걸렸습니다. 합성 PR 10개와 샌드박스 PR 1개로 잰 값이라 대략적인 감으로만 봐 주세요.
+
+큰 PR은 여러 번에 나눠 호출하니까 비용이 더 듭니다. 그래서 실행마다 상한이 있습니다. `max-cost-usd`이고
+기본값은 $2예요. 넘을 것 같으면 덜 중요한 파일부터 빼고, 뭘 뺐는지 코멘트에 적습니다. 매 실행의 예상 비용은
+코멘트 맨 아래에 나옵니다.
+
+## Where your code goes
+
+이 액션은 PR의 코드를 checkout하거나 실행하지 않습니다. diff, 변경된 파일, 연결된 티켓을 GitHub, Jira,
+Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 보내지 않고, 텔레메트리도 없습니다.
+
+보내기 전에 비밀값처럼 보이는 것(API 키, 토큰, 개인 키, 설정 파일 속 비밀번호)은 가립니다. PR 제목과 본문도
+마찬가지입니다. 몇 개를 가렸는지는 코멘트에 나옵니다. 로그에는 개수와 크기만 남고 파일 내용은 남지 않아요.
+
+알아 두면 좋은 것 두 가지:
+
+- 레포 설정 파일은 base 브랜치에서 읽습니다. 그래서 PR이 자기를 검토할 지시를 바꿀 수 없습니다. 모델이 쓴
+  텍스트는 이스케이프해서 올리고, Slack 멘션은 막고, 링크는 PR·연결된 티켓·우리 레포로만 제한합니다.
+- 실행과 실행 사이의 상태를 자기 코멘트 안 숨김 블록에 저장하는데, 자기 토큰(`github-actions[bot]`이나
+  넘겨준 PAT의 주인)이 쓴 코멘트만 믿습니다. 같은 레포의 다른 워크플로가 PR 작성자의 글을
+  `github-actions[bot]` 이름으로 그대로 올린다면 이 상태가 위조될 수 있습니다. 최악의 경우는 재실행이
+  건너뛰어지거나 엉뚱한 Slack 메시지가 수정되는 정도입니다.
+
+보안 문제를 발견하셨다면 공개 이슈 말고 비공개로 알려 주세요. [`SECURITY.md`](../SECURITY.md)를 참고하세요.
+
+## Known gaps
+
+- 워크플로를 추가하기 _전에_ 열린 PR은 라벨을 붙여도 아무 일이 없을 수 있습니다. GitHub가 그 PR의 merge
+  커밋을 갱신하지 않아서 새 워크플로를 못 보기 때문이에요. 브랜치를 갱신하면("Update branch" 버튼이나
+  `gh pr update-branch <number>`) 다음 push부터 실행됩니다.
+- Slack incoming webhook은 게시만 할 수 있어서 실행할 때마다 새 메시지가 쌓입니다. 같은 메시지를 고치고
+  스레드를 쓰려면 bot 토큰(`slack-bot-token`, `slack-channel`)을 쓰세요.
+- 기본 `GITHUB_TOKEN`으로는 다른 private 레포의 이슈를 읽지 못합니다. 기획서가 다른 레포에 있다면 PAT나
+  GitHub App 토큰을 `github-token`으로 넘기세요.
+- 아직 Jira는 Cloud만(Server, Data Center 미지원), GitHub는 github.com만(GHES 미지원) 됩니다.
+- Notion 페이지는 integration에 공유해야 읽을 수 있습니다(페이지 메뉴 → 연결).
+- 모델은 바뀐 파일만 봅니다. PR이 건드리지 않은 파일에서 처리하는 요구사항은 "누락"으로 나올 수 있고,
+  그런 가정은 코멘트 끝에 따로 적습니다.
+
+## Configuration reference
 
 ### Inputs
 
 <!-- inputs:start -->
-| Input               | 필수 | 기본값                            | 설명                                                                               |
-| ------------------- | ---- | --------------------------------- | ---------------------------------------------------------------------------------- |
-| `anthropic-api-key` | ✅   | —                                 | Anthropic API 키.                                                                  |
-| `github-token`      |      | `${{ github.token }}`             | PR 조회와 리포트 코멘트 작성에 쓰는 토큰.                                          |
-| `model`             |      | `claude-opus-5-5`                 | Claude 모델 ID.                                                                    |
-| `effort`            |      | `high`                            | 추론 깊이: `low`, `medium`, `high`, `xhigh`, `max`.                                |
-| `language`          |      | `en`                              | 결과물 언어: `en`, `ko`, `ja`, `zh-CN`(별칭 `kr`, `jp`, `cn`, `zh`).               |
-| `trigger-label`     |      | `needs-ai-qa`                     | 실행을 요청하는 라벨.                                                              |
-| `rerun-on-push`     |      | `true`                            | 라벨이 붙어 있는 동안 새 커밋이 오면 다시 실행.                                    |
-| `require-prd`       |      | `false`                           | 연결된 PRD를 하나도 가져오지 못하면 실패.                                          |
-| `token-budget`      |      | `150000`                          | LLM 호출 1회당 입력 토큰 예산(추정). 넘으면 Map-Reduce로 나눔.                     |
-| `max-cost-usd`      |      | `2.00`                            | 실행 1번의 추정 비용 상한(USD). 넘으면 우선순위가 낮은 파일부터 제외.              |
-| `max-scenarios`     |      | `20`                              | 리포트의 최대 시나리오 수.                                                         |
-| `comment-author`    |      | —                                 | 리포트 코멘트 작성자 login. 커스텀 GitHub App 토큰일 때만 지정(예: `my-app[bot]`). |
-| `pr-comment`        |      | `true`                            | 리포트를 PR 코멘트로 발행(같은 코멘트를 갱신).                                     |
-| `slack-bot-token`   |      | —                                 | Slack Bot 토큰(`xoxb-`). 있으면 Bot 모드(갱신 + 스레드).                           |
-| `slack-channel`     |      | —                                 | Bot 모드 채널 ID 또는 `#이름`.                                                     |
-| `slack-webhook-url` |      | —                                 | Slack Incoming Webhook URL. Bot 토큰이 없을 때 사용.                               |
-| `jira-base-url`     |      | —                                 | Jira Cloud 사이트 URL(예: `https://acme.atlassian.net`).                           |
-| `jira-email`        |      | —                                 | API 토큰 인증에 쓰는 Jira 계정 이메일.                                             |
-| `jira-api-token`    |      | —                                 | Jira API 토큰. URL, 이메일, 토큰이 모두 있어야 Jira가 활성화됨.                    |
-| `jira-project-keys` |      | —                                 | PR 본문에서 키만 적어도 인식할 프로젝트 키 목록, 쉼표 구분(예: `PROJ,WEB`).        |
-| `notion-token`      |      | —                                 | Notion integration 토큰.                                                           |
-| `config-path`       |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일 경로. base 브랜치에서 읽음.                                         |
-| `fail-on`           |      | `none`                            | PRD 정합성이 기준에 못 미치면 체크 실패: `none`, `partial`, `misaligned`.          |
-| `fail-on-error`     |      | `false`                           | 내부 오류 시 체크 실패(기본은 경고만 남김).                                        |
-| `allow-fork-prs`    |      | `false`                           | fork PR 실행 허용(`pull_request_target` 옵트인 워크플로 전용).                     |
-| `server-fallback`   |      | `true`                            | Anthropic 서버 측 refusal fallback 사용.                                           |
-| `dry-run`           |      | `false`                           | 발행하지 않고 Job Summary에만 리포트를 기록.                                       |
+| Input               | 필수 | 기본값                            | 설명                                                             |
+| ------------------- | ---- | --------------------------------- | ---------------------------------------------------------------- |
+| `anthropic-api-key` | ✅   | —                                 | Anthropic API 키.                                                |
+| `github-token`      |      | `${{ github.token }}`             | PR을 읽고 코멘트를 쓸 때 사용.                                   |
+| `model`             |      | `claude-opus-5-5`                 | Claude 모델 ID.                                                  |
+| `effort`            |      | `high`                            | `low`, `medium`, `high`, `xhigh`, `max`. 낮을수록 싸고 빠릅니다. |
+| `language`          |      | `en`                              | `en`, `ko`, `ja`, `zh-CN` (`kr`, `jp`, `cn`, `zh`도 됨).         |
+| `trigger-label`     |      | `needs-ai-qa`                     | 실행을 시작하는 라벨.                                            |
+| `rerun-on-push`     |      | `true`                            | 라벨이 붙어 있는 동안 새 커밋마다 다시 실행.                     |
+| `require-prd`       |      | `false`                           | 연결된 티켓을 못 읽으면 체크 실패.                               |
+| `token-budget`      |      | `150000`                          | 모델 호출 1번의 입력 토큰. 큰 PR은 여러 번으로 나눔.             |
+| `max-cost-usd`      |      | `2.00`                            | 실행당 비용 상한. 넘으면 덜 중요한 파일부터 뺌.                  |
+| `max-scenarios`     |      | `20`                              | 코멘트에 넣을 테스트 케이스 최대 개수.                           |
+| `comment-author`    |      | —                                 | 커스텀 GitHub App 토큰을 쓸 때만 지정. 예: `my-app[bot]`.        |
+| `pr-comment`        |      | `true`                            | PR 코멘트를 남기고 계속 갱신.                                    |
+| `slack-bot-token`   |      | —                                 | Slack bot 토큰(`xoxb-`). 메시지 수정과 스레드를 쓸 수 있음.      |
+| `slack-channel`     |      | —                                 | bot이 쓸 채널 ID나 `#이름`.                                      |
+| `slack-webhook-url` |      | —                                 | bot 토큰이 없을 때 쓰는 incoming webhook.                        |
+| `jira-base-url`     |      | —                                 | 예: `https://acme.atlassian.net`.                                |
+| `jira-email`        |      | —                                 | Jira 계정 이메일.                                                |
+| `jira-api-token`    |      | —                                 | Jira API 토큰. URL, 이메일, 토큰이 다 있어야 Jira를 씀.          |
+| `jira-project-keys` |      | —                                 | `KEY-123`만 써도 인식할 프로젝트 키를 쉼표로. 예: `PROJ,WEB`.    |
+| `notion-token`      |      | —                                 | Notion integration 토큰.                                         |
+| `config-path`       |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일. base 브랜치에서 읽음.                            |
+| `fail-on`           |      | `none`                            | 정합성이 `partial`이나 `misaligned`면 체크 실패.                 |
+| `fail-on-error`     |      | `false`                           | 내부 오류 시 체크 실패. 기본은 경고만 남김.                      |
+| `allow-fork-prs`    |      | `false`                           | fork PR 허용. 옵트인 워크플로에서만 쓰세요.                      |
+| `server-fallback`   |      | `true`                            | Opus가 요청을 거절하면 Anthropic이 다른 모델로 재시도.           |
+| `dry-run`           |      | `false`                           | Job Summary에만 리포트를 씀.                                     |
 <!-- inputs:end -->
-
-`comment-author`는 `GITHUB_TOKEN`과 개인 액세스 토큰(PAT)이면 자동으로 감지합니다.
 
 ### Outputs
 
 <!-- outputs:start -->
-| Output             | 설명                                                  |
-| ------------------ | ----------------------------------------------------- |
-| `report-path`      | `report.json` 경로.                                   |
-| `scenario-count`   | 생성된 시나리오 수.                                   |
-| `alignment-status` | `aligned`, `partial`, `misaligned`, `no_prd` 중 하나. |
-| `cost-usd`         | 이번 실행의 추정 비용(USD).                           |
-| `skipped-reason`   | 건너뛴 경우 그 사유.                                  |
+| Output             | 설명                                          |
+| ------------------ | --------------------------------------------- |
+| `report-path`      | 전체 결과가 담긴 `report.json` 경로.          |
+| `scenario-count`   | 작성한 테스트 케이스 수.                      |
+| `alignment-status` | `aligned`, `partial`, `misaligned`, `no_prd`. |
+| `cost-usd`         | 이번 실행의 예상 비용.                        |
+| `skipped-reason`   | 건너뛰었다면 그 이유.                         |
 <!-- outputs:end -->
 
-## PRD 연결 방법
+### Repository config file
 
-PR 본문에 요구사항 문서 링크를 적습니다.
-
-| 소스         | 인식 패턴                                                                                                  |
-| ------------ | ---------------------------------------------------------------------------------------------------------- |
-| GitHub Issue | `#123`, `owner/repo#123`, `https://github.com/owner/repo/issues/123`, `Closes #123` / `Fixes` / `Resolves` |
-| Jira Cloud   | `https://<site>.atlassian.net/browse/KEY-123`, 그리고 `KEY`가 `jira-project-keys`에 있을 때의 `KEY-123`    |
-| Notion       | `https://www.notion.so/…<32자리 hex ID>`, `https://<workspace>.notion.site/…<32자리 hex ID>`               |
-
-- 문서는 최대 5개(설정 가능)까지 본문에 나온 순서대로 사용하고, 중복은 무시합니다.
-- HTML 주석과 코드 블록 안의 링크는 무시하므로, PR 템플릿의 예시 링크가 잘못 인식되지 않습니다.
-  바로 쓸 수 있는 템플릿: [`examples/pull_request_template.md`](examples/pull_request_template.md).
-- 인수 조건은 "Acceptance Criteria"(또는 "인수 조건", "AC") 헤딩 아래의 목록이나 체크박스 목록에서 읽습니다.
-  없으면 Claude가 문서 본문에서 요구사항을 해석합니다.
-- 연결된 PRD가 없으면 코드만으로 분석하는 모드로 계속하고, 리포트에 신뢰도가 낮다는 표시를 붙입니다.
-  대신 실패시키려면 `require-prd: true`로 설정하세요.
-
-## 레포 설정 파일
-
-선택 사항인 `.github/qa-ticket-generator.yml`로 필터, PRD 설정, 점수 규칙, 프롬프트 지시를 조정합니다.
-이 파일은 항상 **base** 브랜치에서 읽으므로, PR이 자기 지시를 바꿀 수 없습니다.
-우선순위: action input > 이 파일 > 기본값. 예시: [`examples/qa-ticket-generator.yml`](examples/qa-ticket-generator.yml).
+레포에 `.github/qa-ticket-generator.yml`을 두면 제외할 경로, 인수 조건이 들어 있는 Jira 필드, 도메인 설명
+몇 줄 같은 걸 지정할 수 있습니다. 액션 input이 이 파일보다 우선합니다. 전체 예시는
+[`examples/qa-ticket-generator.yml`](examples/qa-ticket-generator.yml)에 있어요.
 
 ```yaml
 filters:
@@ -155,65 +234,9 @@ prompt:
     Partial refunds are supported.
 ```
 
-## CLI
+## Contributing
 
-같은 파이프라인을 로컬에서 실행할 수 있습니다. 기본은 dry-run이라서 리포트를 출력만 하고 아무것도 발행하지 않습니다.
+버그 제보와 PR 모두 환영합니다. 테스트 돌리는 법은 [`CONTRIBUTING.md`](../CONTRIBUTING.md)에 있어요(테스트는
+실제 API를 호출하지 않습니다). 설계 문서는 [`SPEC.ko.md`](SPEC.ko.md)와 [`adr/`](adr/)에 있습니다.
 
-```bash
-export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
-npx qa-ticket-generator run --repo owner/repo --pr 123            # dry run (default)
-npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
-npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR comment / Slack message
-```
-
-나머지 설정은 action input과 같은 이름을 대문자 환경변수로 지정합니다(예: `JIRA_BASE_URL`, `NOTION_TOKEN`,
-`MAX_SCENARIOS`). 전체 옵션은 `npx qa-ticket-generator --help`로 확인하세요.
-
-## 비용
-
-- 실행마다 추정 비용 상한 `max-cost-usd`(기본 **$2.00**)가 있습니다. Claude를 호출하기 전에 비용을 추정하고,
-  상한을 넘으면 우선순위가 낮은 파일부터 제외합니다. 제외한 파일은 리포트에 표시합니다.
-- `token-budget`은 LLM 호출 1회의 입력을 제한합니다(기본 150,000 토큰). 이보다 큰 PR은 나눠서 처리합니다. 연결된
-  PRD는 이 예산의 최대 30%까지 사용합니다.
-- 2026-11-12에 Claude Opus 5.5, `effort: high`로 **작은 PR**(합성 PR 10건과 샌드박스 PR 1건, PR당 변경 파일 1~3개,
-  실행당 LLM 호출 1회)을 측정한 결과, 실행 1회에 약 **$0.09~$0.19, 평균 $0.13**이 들었고 소요 시간은 약 50~70초였습니다.
-  큰 PR은 호출이 여러 번으로 나뉘어 비용이 더 들 수 있으며, `max-cost-usd`(기본 $2.00)가 모든 실행의 상한입니다.
-  실행별 추정 비용은 리포트 하단에 표시됩니다.
-- 노이즈 파일만 바뀐 push는 Claude를 호출하지 않습니다.
-
-## 보안과 데이터 흐름
-
-- **checkout 없음.** PR 코드를 checkout하거나 실행하지 않고, 모든 데이터를 API로 읽습니다.
-- **fork PR은 기본으로 건너뜁니다.** 문서화된 `pull_request_target` 옵트인은 관리자가 라벨을 붙였을 때만 실행됩니다.
-- **비밀값을 마스킹합니다.** 모델에 보내기 전에 diff, 파일 원문, PRD, PR 제목과 본문에서 비밀값을 가리고,
-  마스킹 건수를 리포트에 표시합니다. 토큰은 로그에서 가려지고, 로그에는 크기와 개수만 남습니다.
-- **코드와 PRD는 Anthropic API로만 전송합니다.** 텔레메트리는 없습니다.
-- **설정은 base 브랜치에서 읽고**, 모델 출력은 데이터로만 다룹니다. HTML을 이스케이프하고, Slack 멘션을 무력화하고,
-  링크는 PR, PRD 원본, 레포로 제한합니다.
-- **신뢰하는 코멘트 작성자.** 토큰 작성자(`github-actions[bot]` 또는 PAT 소유자)가 쓴 리포트 코멘트만 신뢰합니다.
-  같은 레포의 다른 워크플로가 `github-actions[bot]` 명의로 PR 작성자 입력을 그대로 코멘트하면 숨김 state를 위조할 수
-  있지만, 영향은 push 재실행 판정과 갱신할 Slack 메시지 선택에 한정됩니다.
-- 예시의 최소 권한을 사용하세요: `contents: read`, `pull-requests: write`, `issues: read`.
-
-취약점은 [`SECURITY.md`](../SECURITY.md)에 안내된 방법으로 비공개 제보해 주세요.
-
-## FAQ와 제약
-
-- **워크플로를 추가했는데 기존 PR에 라벨을 붙여도 실행되지 않나요?** 워크플로 파일을 추가하기 전에 열린 PR은 GitHub가
-  merge 커밋을 갱신하기 전까지 새 워크플로를 보지 못합니다. PR 브랜치를 base로 갱신하세요(**Update branch** 버튼,
-  `gh pr update-branch <number>`, 또는 base를 merge/rebase한 뒤 push). 라벨이 붙어 있으면 그 push로 실행됩니다.
-  워크플로를 추가한 뒤에 연 PR에는 해당하지 않습니다.
-- **Slack Webhook 모드**는 실행마다 요약 카드 1개를 새로 보냅니다. 이전 메시지 갱신과 스레드 상세는 Bot 모드
-  (`slack-bot-token` + `slack-channel`)가 필요합니다.
-- **다른 private 레포의 Issue**는 기본 `GITHUB_TOKEN`으로 읽을 수 없습니다. 개인 액세스 토큰(PAT)이나 GitHub App
-  토큰을 `github-token`으로 넘기세요. 그 전까지는 리포트에 권한 경고가 표시됩니다.
-- **Jira Cloud만 지원합니다.** v1은 Jira Server와 Data Center를 지원하지 않습니다.
-- **Notion 페이지**는 integration에 공유해야 합니다(페이지 메뉴 → 연결).
-- 현재는 **github.com만** 지원합니다. GitHub Enterprise Server는 아직 지원하지 않습니다.
-
-## 기여와 라이선스
-
-기여를 환영합니다. [`CONTRIBUTING.md`](../CONTRIBUTING.md)와 [행동 강령](../CODE_OF_CONDUCT.md)을 참고하세요.
-설계 문서: [`SPEC.ko.md`](SPEC.ko.md) · [`adr/`](adr/) · [`DEVELOPMENT.md`](DEVELOPMENT.md).
-
-[Apache-2.0](../LICENSE) 라이선스를 따릅니다.
+라이선스는 Apache-2.0입니다. [LICENSE](../LICENSE)를 보세요.
