@@ -32,6 +32,7 @@ export function oracleReport(evalCase: EvalCase): QaReport {
       given: [m.keywords.map((group) => group[0]).join(' ')],
       when: ['the tester performs the step'],
       then: ['the expected result is observed'],
+      testData: [],
       relatedRequirements: [],
       relatedFiles: [file],
       rationale: 'Planted risk.',

@@ -68,6 +68,7 @@ export function fakeReport(overrides: Partial<QaReport> = {}): QaReport {
         given: ['a coupon that expires in 1 second'],
         when: ['the user applies it at checkout'],
         then: ['the discount is applied'],
+        testData: ['coupon.expiresAt = now + 1s', 'order.subtotal = 30000'],
         relatedRequirements: ['AC3: expired coupons are rejected'],
         relatedFiles: ['src/coupon.ts'],
         rationale: 'Boundary of the expiry rule.',

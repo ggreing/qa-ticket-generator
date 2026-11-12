@@ -227,6 +227,8 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 [--publish] [--format md|
 
 ### 4.6 출력물 형태
 
+> **M3.5 결정(2026-11-12): 'QA 티켓' 형식으로 개편한다.** 맨 위에 판정 배지와 **조치 필요**(누락·상충 요구사항), **P0 체크리스트**(체크박스, TC-ID)를 둔다. 시나리오는 **티켓 카드**(전제 = Given, 데이터 = testData, 단계 = When, 기대 = Then, 관련 AC와 파일)로 접어 두고, P1/P2는 한 접힘에 묶는다. 시나리오 ID는 `TC-01` 형식이다. 아래 목업은 v2 원안이고, 품질 기준은 `docs/quality/RUBRIC.md`를 따른다.
+
 **PR 코멘트** (PR당 1개, 재실행 시 갱신)
 
 ```markdown
@@ -504,6 +506,7 @@ QaReport = {
     type: 'happy_path' | 'edge_case' | 'negative' | 'regression'
     priority: 'P0' | 'P1' | 'P2'
     given: string[]; when: string[]; then: string[]
+    testData: string[]                 // "name = value" 형태의 구체적 테스트 데이터(티켓 카드의 '데이터')
     relatedRequirements: string[]       // findings.requirement 참조
     relatedFiles: string[]
     rationale: string                   // 이 시나리오가 필요한 이유
@@ -623,13 +626,14 @@ RunMeta = { model, effort, mode, sha, tokens:{input,output,cacheRead,cacheWrite}
 
 ## 14. 마일스톤
 
-| 단계                  | 내용                                                                                                                                                                                   | 담당                             | 완료 기준                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------- |
-| **M0** 기반           | 레포 스캐폴드, 공용 계약(`src/core`), CI, 픽스처 포맷, ADR                                                                                                                             | control                          | `npm run check`(lint + type + test) 통과, 계약 동결 |
-| **M1** 모듈 병렬 개발 | A: trigger + context + PRD / B: preprocess / C: llm + delivery                                                                                                                         | a, b, c                          | 모듈별 단위 테스트 통과, 커버리지 ≥ 80%             |
-| **M2** 통합           | 파이프라인 연결, Action·CLI 어댑터, 통합 테스트, dry-run                                                                                                                               | control (+ 리뷰 세션)            | 실제 공개 레포 PR로 CLI dry-run 성공                |
-| **M3** 강화           | 보안 점검, 평가 세트 1회 실행 및 튜닝(effort high vs medium 비교 포함), README 4개 언어, 예제, 오픈소스 운영 문서(CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, 이슈/PR 템플릿, Dependabot) | c(평가·프롬프트), a·b(문서·예제) | 평가 목표(G2) 충족, 문서 완비                       |
-| **M4** v0.1.0         | GitHub 공개(사전 확인), 샌드박스 E2E, 릴리스 워크플로(태그 → 빌드 → dist 커밋 → `v0` 태그 이동 → npm provenance 게시), 태그 `v0`·`v0.1.0`                                              | control                          | E2E 체크리스트 통과                                 |
+| 단계                  | 내용                                                                                                                                                                                   | 담당                                                                                  | 완료 기준                                                                 |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **M0** 기반           | 레포 스캐폴드, 공용 계약(`src/core`), CI, 픽스처 포맷, ADR                                                                                                                             | control                                                                               | `npm run check`(lint + type + test) 통과, 계약 동결                       |
+| **M1** 모듈 병렬 개발 | A: trigger + context + PRD / B: preprocess / C: llm + delivery                                                                                                                         | a, b, c                                                                               | 모듈별 단위 테스트 통과, 커버리지 ≥ 80%                                   |
+| **M2** 통합           | 파이프라인 연결, Action·CLI 어댑터, 통합 테스트, dry-run                                                                                                                               | control (+ 리뷰 세션)                                                                 | 실제 공개 레포 PR로 CLI dry-run 성공                                      |
+| **M3** 강화           | 보안 점검, 평가 세트 1회 실행 및 튜닝(effort high vs medium 비교 포함), README 4개 언어, 예제, 오픈소스 운영 문서(CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, 이슈/PR 템플릿, Dependabot) | c(평가·프롬프트), a·b(문서·예제)                                                      | 평가 목표(G2) 충족, 문서 완비                                             |
+| **M3.5** 품질         | 루브릭 합의, QA 티켓 형식 개편, 하네스 v2(dev/test 분리, 루브릭 judge, 사용자 평가 화면), 평가 세트 확장(합성 25 + 실제 공개 PR 5~10), 5라운드 반복 개선(예산 약 $30)                  | c(하네스·프롬프트·렌더러), b(합성 케이스), a(실제 PR 스냅샷), control(실행·평가 화면) | dev 전체 점수 상승 + 결정적 지표 무회귀, test 세트 최종 확인, 사용자 승인 |
+| **M4** v0.1.0         | GitHub 공개(사전 확인), 샌드박스 E2E, 릴리스 워크플로(태그 → 빌드 → dist 커밋 → `v0` 태그 이동 → npm provenance 게시), 태그 `v0`·`v0.1.0`                                              | control                                                                               | E2E 체크리스트 통과                                                       |
 
 **로드맵**: v1.1 — 티켓 생성(Jira/GitHub Issue), `/qa` 코멘트 명령, Linear·Confluence, OpenAI Provider, GHES. v2 — Rust 전처리 모듈, 테스트 코드 생성 제안.
 

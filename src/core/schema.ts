@@ -40,6 +40,11 @@ export const QaReportSchema = z.object({
       given: z.array(z.string()),
       when: z.array(z.string()),
       then: z.array(z.string()),
+      testData: z
+        .array(z.string())
+        .describe(
+          'Concrete test data as "name = value" lines (accounts, amounts, timestamps, payloads); empty only when none is needed.',
+        ),
       relatedRequirements: z.array(z.string()),
       relatedFiles: z.array(z.string()),
       rationale: z.string().describe('Why this scenario matters for this change.'),
