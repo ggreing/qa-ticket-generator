@@ -6,7 +6,6 @@
 # publishing), creates the GitHub Release and moves the major tag (v0) to it.
 #
 # Action pins: every `uses:` must be a full commit SHA with the version in a comment.
-# Lines marked TODO(pin) still need their SHA filled in before the first release.
 name: Release
 
 on:
