@@ -1,8 +1,10 @@
 /**
  * Token estimation and budget split (PRE-08).
  *
- * - Estimate: `ceil(chars / 3.2)` where chars = UTF-16 code units (`String.length`). Computed with
- *   integer math (`ceil(5·chars / 16)`) so every implementation gets bit-identical results.
+ * - Estimate: CJK characters (see {@link isCjk}) count 1 token each; all other characters are
+ *   `ceil(chars / 3.2)` where chars = UTF-16 code units. Integer math (`ceil(5·chars / 16)`) so
+ *   every implementation gets bit-identical results:
+ *   `tokens = cjk + floor((5·(length − cjk) + 15) / 16)`.
  * - Safety margin: 10% of `tokenBudget` is never allocated.
  * - Budget: reservedTokens (system prompt) + PRD (≤ 30% of the budget, ≤ 20K per document)
  *   + code (the rest). Unused PRD share flows to code.
@@ -15,19 +17,61 @@ export const PRD_BUDGET_SHARE = 0.3;
 export const PRD_MAX_TOKENS_PER_DOCUMENT = 20_000;
 export const TRUNCATION_MARKER = '\n\n[truncated: PRD exceeded its token budget]';
 
-/** `ceil(chars / 3.2)` for a character count. */
+/** `ceil(chars / 3.2)` for a count of non-CJK characters. */
 export function tokensForChars(chars: number): number {
   return Math.floor((chars * 5 + 15) / 16);
 }
 
-/** `ceil(text.length / 3.2)`. */
-export function estimateTokens(text: string): number {
-  return tokensForChars(text.length);
+/**
+ * CJK code points that the estimate counts as one token each (all in the BMP, so one UTF-16 unit):
+ * Hangul Jamo, CJK Symbols & Punctuation, Hiragana, Katakana, Hangul Compatibility Jamo,
+ * CJK Unified Ideographs Extension A, CJK Unified Ideographs, Hangul Syllables and
+ * Halfwidth & Fullwidth Forms.
+ */
+export function isCjk(code: number): boolean {
+  return (
+    (code >= 0x1100 && code <= 0x11ff) ||
+    (code >= 0x3000 && code <= 0x30ff) ||
+    (code >= 0x3130 && code <= 0x318f) ||
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xac00 && code <= 0xd7af) ||
+    (code >= 0xff00 && code <= 0xffef)
+  );
 }
 
-/** Largest character count whose estimate is ≤ `tokens`. */
+const CJK_ANY =
+  /[\u1100-\u11ff\u3000-\u30ff\u3130-\u318f\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
+
+/** Number of CJK characters in `text` (fast path for text without any). */
+export function countCjk(text: string): number {
+  if (!CJK_ANY.test(text)) return 0;
+  let n = 0;
+  for (let i = 0; i < text.length; i++) if (isCjk(text.charCodeAt(i))) n++;
+  return n;
+}
+
+/** PRE-08 token estimate: CJK characters 1 token each, everything else `ceil(chars / 3.2)`. */
+export function estimateTokens(text: string): number {
+  const cjk = countCjk(text);
+  return cjk + tokensForChars(text.length - cjk);
+}
+
+/** Largest non-CJK character count whose estimate is ≤ `tokens`. */
 export function charsForTokens(tokens: number): number {
   return tokens <= 0 ? 0 : Math.floor((tokens * 16) / 5);
+}
+
+/** Length of the longest prefix of `text` whose estimate is ≤ `tokens`. */
+export function fitPrefix(text: string, tokens: number): number {
+  if (tokens <= 0) return 0;
+  if (!CJK_ANY.test(text)) return Math.min(text.length, charsForTokens(tokens));
+  let cjk = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (isCjk(text.charCodeAt(i))) cjk++;
+    if (cjk + tokensForChars(i + 1 - cjk) > tokens) return i;
+  }
+  return text.length;
 }
 
 /** Usable budget after the safety margin. */
@@ -71,7 +115,7 @@ export function allocatePrdBudget(sizes: readonly number[], total: number): numb
   return out;
 }
 
-/** Cuts `text` so it fits `maxChars`, preferring a line break in the last 20% of the window. */
+/** Cuts `text` to at most `maxChars`, preferring a line break in the last 20% of the window. */
 export function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   let cut = safeCut(text, maxChars);
@@ -98,11 +142,11 @@ export function truncatePrdDocument(doc: PrdDocument, allowance: number): PrdDoc
   const bodyBudget = allowance - titleTokens - acTokens - markerTokens;
   const body =
     bodyBudget > 0
-      ? truncateText(doc.bodyMarkdown, charsForTokens(bodyBudget)) + TRUNCATION_MARKER
+      ? truncateText(doc.bodyMarkdown, fitPrefix(doc.bodyMarkdown, bodyBudget)) + TRUNCATION_MARKER
       : TRUNCATION_MARKER;
   let title = doc.title;
   if (titleTokens + acTokens + estimateTokens(body) > allowance) {
-    title = truncateText(doc.title, charsForTokens(Math.max(0, allowance - acTokens - estimateTokens(body))));
+    title = truncateText(doc.title, fitPrefix(doc.title, allowance - acTokens - estimateTokens(body)));
   }
   return { ...doc, title, bodyMarkdown: body, acceptanceCriteria: acs };
 }
