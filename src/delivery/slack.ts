@@ -34,6 +34,9 @@ export interface SlackDelivererDeps {
 type SlackState = NonNullable<DeliveryState['slack']>;
 
 const CHANNEL_ID = /^[CGD][A-Z0-9]{6,}$/;
+/** Slack is a side channel: fail fast instead of the SDK default of ten retries over ~30 minutes. */
+const REQUEST_TIMEOUT_MS = 15_000;
+const RETRIES = 2;
 
 /** Short, content-free description of a failure for the log (never a URL, token or message body). */
 function describeError(err: unknown): string {
@@ -81,6 +84,7 @@ export function createSlackDeliverer(
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: card.text, blocks: card.blocks }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           });
           if (!res.ok) {
             logger.warn(`Slack webhook responded with HTTP ${res.status}.`);
@@ -96,7 +100,13 @@ export function createSlackDeliverer(
     };
   }
 
-  const client: SlackChatClient = deps.client ?? new WebClient(slack.token);
+  const client: SlackChatClient =
+    deps.client ??
+    new WebClient(slack.token, {
+      timeout: REQUEST_TIMEOUT_MS,
+      retryConfig: { retries: RETRIES, factor: 2, minTimeout: 500 },
+      rejectRateLimitedCalls: false,
+    });
   const postMessage = async (channel: string, message: SlackMessage, threadTs?: string) => {
     const res = await client.chat.postMessage({
       channel,
