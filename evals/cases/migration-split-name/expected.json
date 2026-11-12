@@ -1,0 +1,76 @@
+{
+  "expectedAlignment": "partial",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "New columns with backfill",
+      "labels": ["AC1"],
+      "keywords": ["backfilled", "first_name and last_name"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "full_name kept and still written",
+      "labels": ["AC2"],
+      "keywords": ["full_name stays", "one more release"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Down script exists",
+      "labels": ["AC3"],
+      "keywords": ["down script", "restores the previous"],
+      "accept": ["missing"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "single-word",
+      "risk": "A full_name without a space becomes first_name with an empty last_name",
+      "keywords": [
+        [
+          "without a space",
+          "no space",
+          "single word",
+          "single-word",
+          "one word",
+          "mononym",
+          "single name",
+          "only one"
+        ]
+      ]
+    },
+    {
+      "id": "multi-word",
+      "risk": "A name with several spaces keeps everything after the first space as the last name",
+      "keywords": [
+        ["middle", "multiple", "several", "three", "more than one space", "two spaces", "compound"]
+      ]
+    },
+    {
+      "id": "rollback",
+      "risk": "Rolling the migration back is not possible because there is no down script",
+      "keywords": [["rollback", "roll back", "rolled back", "down script", "down migration", "revert"]]
+    },
+    {
+      "id": "old-reader",
+      "risk": "Code that still reads full_name gets a correct value for users created after the change",
+      "keywords": [["full_name"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "claims-column-dropped",
+      "description": "The change does not drop full_name; saying it does is a misreading",
+      "patterns": [
+        "drops full_name",
+        "full_name is dropped",
+        "full_name column is removed",
+        "removes the full_name column"
+      ],
+      "fields": ["summary", "findings"]
+    }
+  ],
+  "tags": ["migration", "sql", "typescript", "missing"],
+  "notes": "AC3 is missing: only an .up.sql file is added, there is no down script."
+}

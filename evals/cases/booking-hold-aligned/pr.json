@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 318,
+  "title": "Seat holds for the booking flow",
+  "body": "Ticket: https://acme.atlassian.net/browse/BOOK-88\n\nAdds HoldSeats. A hold is one row per seat; the unique index on live holds is what\nprevents double booking, so no application-level lock is needed.",
+  "author": "dario",
+  "htmlUrl": "https://github.com/acme/shop/pull/318",
+  "baseRef": "main",
+  "baseSha": "7eead43daf0ee1f554cd313306b779988522697a",
+  "headRef": "feat/seat-holds",
+  "headSha": "3f6b374d7ac9c9eaa9605ef3aaf1767e33b2416d",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src/tickets/attachment-handler.ts",
+    "status": "added",
+    "additions": 52,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,52 @@\n+import { randomUUID } from 'node:crypto';\n+import type { ObjectStorage } from '../storage/object-storage';\n+import type { AttachmentRepository } from './attachment-repository';\n+\n+const MAX_BYTES = 25 * 1024 * 1024;\n+const EXTENSION_BY_TYPE: Record<string, string> = {\n+  'image/png': 'png',\n+  'image/jpeg': 'jpg',\n+  'application/pdf': 'pdf',\n+};\n+\n+export class HttpError extends Error {\n+  constructor(readonly status: number, message: string) {\n+    super(message);\n+  }\n+}\n+\n+export interface UploadInput {\n+  ticketId: string;\n+  fileName: string;\n+  contentType: string;\n+  body: Buffer;\n+}\n+\n+export class AttachmentHandler {\n+  constructor(\n+    private readonly storage: ObjectStorage,\n+    private readonly attachments: AttachmentRepository,\n+  ) {}\n+\n+  async upload(input: UploadInput): Promise<{ id: string }> {\n+    if (input.body.byteLength > MAX_BYTES) {\n+      throw new HttpError(413, 'attachment is too large');\n+    }\n+    const extension = EXTENSION_BY_TYPE[input.contentType];\n+    if (!extension) {\n+      throw new HttpError(415, 'unsupported attachment type');\n+    }\n+\n+    const id = randomUUID();\n+    const key = 'tickets/' + input.ticketId + '/' + id + '.' + extension;\n+    await this.storage.put(key, input.body, input.contentType);\n+    await this.attachments.insert({\n+      id,\n+      ticketId: input.ticketId,\n+      key,\n+      displayName: input.fileName.slice(0, 120),\n+      status: 'available',\n+    });\n+    return { id };\n+  }\n+}",
+    "patchMissing": false,
+    "headContent": "import { randomUUID } from 'node:crypto';\nimport type { ObjectStorage } from '../storage/object-storage';\nimport type { AttachmentRepository } from './attachment-repository';\n\nconst MAX_BYTES = 25 * 1024 * 1024;\nconst EXTENSION_BY_TYPE: Record<string, string> = {\n  'image/png': 'png',\n  'image/jpeg': 'jpg',\n  'application/pdf': 'pdf',\n};\n\nexport class HttpError extends Error {\n  constructor(readonly status: number, message: string) {\n    super(message);\n  }\n}\n\nexport interface UploadInput {\n  ticketId: string;\n  fileName: string;\n  contentType: string;\n  body: Buffer;\n}\n\nexport class AttachmentHandler {\n  constructor(\n    private readonly storage: ObjectStorage,\n    private readonly attachments: AttachmentRepository,\n  ) {}\n\n  async upload(input: UploadInput): Promise<{ id: string }> {\n    if (input.body.byteLength > MAX_BYTES) {\n      throw new HttpError(413, 'attachment is too large');\n    }\n    const extension = EXTENSION_BY_TYPE[input.contentType];\n    if (!extension) {\n      throw new HttpError(415, 'unsupported attachment type');\n    }\n\n    const id = randomUUID();\n    const key = 'tickets/' + input.ticketId + '/' + id + '.' + extension;\n    await this.storage.put(key, input.body, input.contentType);\n    await this.attachments.insert({\n      id,\n      ticketId: input.ticketId,\n      key,\n      displayName: input.fileName.slice(0, 120),\n      status: 'available',\n    });\n    return { id };\n  }\n}\n"
+  },
+  {
+    "path": "src/tickets/routes.ts",
+    "status": "modified",
+    "additions": 10,
+    "deletions": 0,
+    "patch": "@@ -1,9 +1,19 @@\n import type { Router } from '../http/router';\n+import { AttachmentHandler } from './attachment-handler';\n import { TicketHandler } from './ticket-handler';\n \n export function registerTicketRoutes(router: Router, deps: TicketDeps): void {\n   const tickets = new TicketHandler(deps.tickets);\n+  const attachments = new AttachmentHandler(deps.storage, deps.attachments);\n \n   router.post('/tickets', (req) => tickets.create(req.body));\n   router.get('/tickets/:id', (req) => tickets.get(req.params.id));\n+  router.post('/tickets/:id/attachments', (req) =>\n+    attachments.upload({\n+      ticketId: req.params.id,\n+      fileName: req.file.name,\n+      contentType: req.file.type,\n+      body: req.file.buffer,\n+    }),\n+  );\n }",
+    "patchMissing": false,
+    "headContent": "import type { Router } from '../http/router';\nimport { AttachmentHandler } from './attachment-handler';\nimport { TicketHandler } from './ticket-handler';\n\nexport function registerTicketRoutes(router: Router, deps: TicketDeps): void {\n  const tickets = new TicketHandler(deps.tickets);\n  const attachments = new AttachmentHandler(deps.storage, deps.attachments);\n\n  router.post('/tickets', (req) => tickets.create(req.body));\n  router.get('/tickets/:id', (req) => tickets.get(req.params.id));\n  router.post('/tickets/:id/attachments', (req) =>\n    attachments.upload({\n      ticketId: req.params.id,\n      fileName: req.file.name,\n      contentType: req.file.type,\n      body: req.file.buffer,\n    }),\n  );\n}\n"
+  },
+  {
+    "path": "docs/img/attachments.png",
+    "status": "modified",
+    "additions": 0,
+    "deletions": 0,
+    "patchMissing": true
+  }
+]

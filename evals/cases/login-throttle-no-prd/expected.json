@@ -1,0 +1,44 @@
+{
+  "expectedAlignment": "no_prd",
+  "mustFindings": [],
+  "mustScenarios": [
+    {
+      "id": "lock-after-five",
+      "risk": "The fifth failed login locks the username; the next attempt is refused even with the right password",
+      "keywords": [
+        ["5 failed", "5 consecutive", "5 times", "5 wrong", "5 incorrect", "five", "fifth", "5th"],
+        ["lock"]
+      ]
+    },
+    {
+      "id": "lock-expires",
+      "risk": "The lock lifts after 15 minutes",
+      "keywords": [["15 min", "15-min", "fifteen", "900", "lockout_seconds"], ["lock"]]
+    },
+    {
+      "id": "success-resets",
+      "risk": "A successful login clears the failure counter",
+      "keywords": [["success"], ["reset", "clear", "counter", "count"]]
+    },
+    {
+      "id": "window",
+      "risk": "Failures spread over more than the 10 minute window do not add up to a lock",
+      "keywords": [["10 min", "10-min", "ten min", "window", "600"]]
+    },
+    {
+      "id": "unknown-user",
+      "risk": "Failed logins for a username that does not exist are counted too, so the response does not reveal which usernames exist",
+      "keywords": [["unknown", "non-existent", "nonexistent", "does not exist", "not exist", "enumerat"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "CAPTCHA, per-IP limits and e-mail alerts are not in the code and there is no PRD",
+      "patterns": ["captcha", "email alert", "e-mail alert", "notification email"],
+      "fields": ["scenarios"]
+    }
+  ],
+  "tags": ["auth", "python", "no_prd"],
+  "notes": "No PRD is linked. Alignment must be no_prd with no findings; scenarios come from the code alone."
+}

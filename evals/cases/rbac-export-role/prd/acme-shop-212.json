@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#212",
+    "url": "https://github.com/acme/shop/issues/212",
+    "raw": "acme/shop#212"
+  },
+  "title": "Lock down the user data export",
+  "bodyMarkdown": "Support found that any signed-in back-office user can download the full customer list.\n\n### Acceptance Criteria\n- AC1: Only users with the role admin can export user data. Every other role gets HTTP 403.\n- AC2: Every export writes an audit log entry with the actor id and the number of exported rows.\n- AC3: A user can run at most 5 exports per hour. Further requests get HTTP 429.\n\nRoles in the back office today: admin, manager, support, viewer.",
+  "acceptanceCriteria": [
+    "AC1: Only users with the role admin can export user data. Every other role gets HTTP 403.",
+    "AC2: Every export writes an audit log entry with the actor id and the number of exported rows.",
+    "AC3: A user can run at most 5 exports per hour. Further requests get HTTP 429."
+  ],
+  "url": "https://github.com/acme/shop/issues/212",
+  "meta": {}
+}

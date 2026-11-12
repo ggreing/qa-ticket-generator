@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 733,
+  "title": "Retry failed notification deliveries",
+  "body": "Closes #330\n\nsendWithRetry() replaces the single-shot send. The sleep function is injected so the\nworker can pass its own timer.",
+  "author": "sofia",
+  "htmlUrl": "https://github.com/acme/shop/pull/733",
+  "baseRef": "main",
+  "baseSha": "dedf595bf5174ff21fd17c3278707d5d7f5b66d0",
+  "headRef": "feat/notification-retries",
+  "headSha": "3a69f643191cf4cd9e2db462958fa78ad6c94feb",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

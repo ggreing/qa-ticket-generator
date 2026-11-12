@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 402,
+  "title": "Attachment uploads for support tickets",
+  "body": "Ticket: https://acme.atlassian.net/browse/MEDIA-40\n\nCustomers can attach screenshots and invoices to a support ticket. Files go to object\nstorage under a server-generated key.",
+  "author": "priya",
+  "htmlUrl": "https://github.com/acme/shop/pull/402",
+  "baseRef": "main",
+  "baseSha": "8992a1b8ca7512f2e53fd6ac9147aec9252503a3",
+  "headRef": "feat/ticket-attachments",
+  "headSha": "068e797a4f6e0f0130700b834b633945c602c93d",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}

@@ -1,0 +1,56 @@
+{
+  "expectedAlignment": "misaligned",
+  "mustFindings": [
+    {
+      "id": "AC1",
+      "requirement": "Day boundaries in the store's time zone",
+      "labels": ["AC1"],
+      "keywords": ["time zone", "store.timezone"],
+      "accept": ["contradicts"]
+    },
+    {
+      "id": "AC2",
+      "requirement": "paid and refunded included, cancelled excluded",
+      "labels": ["AC2"],
+      "keywords": ["refunded", "Cancelled"],
+      "accept": ["covered"]
+    },
+    {
+      "id": "AC3",
+      "requirement": "Total formatted with the store's locale",
+      "labels": ["AC3"],
+      "keywords": ["locale"],
+      "accept": ["covered"]
+    }
+  ],
+  "mustScenarios": [
+    {
+      "id": "local-midnight",
+      "risk": "An order placed shortly after local midnight in a non-UTC store (e.g. Seoul 00:30) must count for the local day, but UTC boundaries put it on the previous day",
+      "keywords": [
+        ["time zone", "timezone", "utc", "local"],
+        ["midnight", "00:", "23:", "boundar", "previous day", "next day", "wrong day"]
+      ]
+    },
+    {
+      "id": "cancelled",
+      "risk": "Cancelled orders are left out of count and total",
+      "keywords": [["cancel"]]
+    },
+    {
+      "id": "locale-format",
+      "risk": "The total uses the store's locale formatting (e.g. de_DE vs en_US separators)",
+      "keywords": [["locale", "de_de", "separator", "format"]]
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "invented-features",
+      "description": "E-mail delivery, CSV export and multi-currency conversion are not in this change",
+      "patterns": ["csv export", "exchange rate", "currency conversion"],
+      "fields": ["scenarios", "findings"]
+    }
+  ],
+  "tags": ["timezone", "python", "contradicts"],
+  "notes": "AC1 is contradicted: day_bounds() uses UTC midnight and never reads store.timezone."
+}

@@ -1,0 +1,17 @@
+{
+  "ref": {
+    "source": "github",
+    "id": "acme/shop#330",
+    "url": "https://github.com/acme/shop/issues/330",
+    "raw": "acme/shop#330"
+  },
+  "title": "Order notifications get lost when the provider hiccups",
+  "bodyMarkdown": "About 0.4% of order confirmations never arrive because the provider answers 503 for a few\nseconds during their deploys.\n\n### Acceptance Criteria\n- AC1: A failed delivery is retried up to 3 times, waiting 1s, 2s and 4s before the retries.\n- AC2: Responses with a 4xx status are not retried, except 429.\n- AC3: Every attempt for one notification sends the same Idempotency-Key header, so a retry cannot create a duplicate.\n\nNetwork errors (no response at all) count as failed deliveries.",
+  "acceptanceCriteria": [
+    "AC1: A failed delivery is retried up to 3 times, waiting 1s, 2s and 4s before the retries.",
+    "AC2: Responses with a 4xx status are not retried, except 429.",
+    "AC3: Every attempt for one notification sends the same Idempotency-Key header, so a retry cannot create a duplicate."
+  ],
+  "url": "https://github.com/acme/shop/issues/330",
+  "meta": {}
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "path": "db/migrations/0042_split_user_name.up.sql",
+    "status": "added",
+    "additions": 10,
+    "deletions": 0,
+    "patch": "@@ -0,0 +1,10 @@\n+ALTER TABLE users\n+    ADD COLUMN first_name TEXT NOT NULL DEFAULT '',\n+    ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';\n+\n+UPDATE users\n+SET first_name = split_part(full_name, ' ', 1),\n+    last_name  = CASE\n+        WHEN position(' ' IN full_name) = 0 THEN ''\n+        ELSE substring(full_name FROM position(' ' IN full_name) + 1)\n+    END;",
+    "patchMissing": false,
+    "headContent": "ALTER TABLE users\n    ADD COLUMN first_name TEXT NOT NULL DEFAULT '',\n    ADD COLUMN last_name  TEXT NOT NULL DEFAULT '';\n\nUPDATE users\nSET first_name = split_part(full_name, ' ', 1),\n    last_name  = CASE\n        WHEN position(' ' IN full_name) = 0 THEN ''\n        ELSE substring(full_name FROM position(' ' IN full_name) + 1)\n    END;\n"
+  },
+  {
+    "path": "src/users/user-repository.ts",
+    "status": "modified",
+    "additions": 5,
+    "deletions": 3,
+    "patch": "@@ -2,16 +2,18 @@\n \n export interface UserInput {\n   email: string;\n-  fullName: string;\n+  firstName: string;\n+  lastName: string;\n }\n \n export class UserRepository {\n   constructor(private readonly db: Db) {}\n \n   async create(input: UserInput): Promise<string> {\n+    const fullName = [input.firstName, input.lastName].filter(Boolean).join(' ');\n     const row = await this.db.one(\n-      'INSERT INTO users (email, full_name) VALUES ($1, $2) RETURNING id',\n-      [input.email, input.fullName],\n+      'INSERT INTO users (email, first_name, last_name, full_name) VALUES ($1, $2, $3, $4) RETURNING id',\n+      [input.email, input.firstName, input.lastName, fullName],\n     );\n     return row.id;\n   }",
+    "patchMissing": false,
+    "headContent": "import type { Db } from '../db';\n\nexport interface UserInput {\n  email: string;\n  firstName: string;\n  lastName: string;\n}\n\nexport class UserRepository {\n  constructor(private readonly db: Db) {}\n\n  async create(input: UserInput): Promise<string> {\n    const fullName = [input.firstName, input.lastName].filter(Boolean).join(' ');\n    const row = await this.db.one(\n      'INSERT INTO users (email, first_name, last_name, full_name) VALUES ($1, $2, $3, $4) RETURNING id',\n      [input.email, input.firstName, input.lastName, fullName],\n    );\n    return row.id;\n  }\n}\n"
+  }
+]

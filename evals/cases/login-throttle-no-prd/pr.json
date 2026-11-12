@@ -1,0 +1,17 @@
+{
+  "owner": "acme",
+  "repo": "shop",
+  "number": 918,
+  "title": "Throttle repeated failed logins",
+  "body": "We saw credential stuffing against the login form last week. This locks an account name\nfor a while after repeated failures. No ticket yet, I will file one after review.",
+  "author": "kofi",
+  "htmlUrl": "https://github.com/acme/shop/pull/918",
+  "baseRef": "main",
+  "baseSha": "4802d49445e3ccc8d0730ff7d71ad18fb922f7af",
+  "headRef": "feat/login-throttle",
+  "headSha": "fc2bcbda48cf84fffa1b9c25503bf856d4601f83",
+  "headRepoFullName": "acme/shop",
+  "isFork": false,
+  "draft": false,
+  "labels": ["needs-ai-qa"]
+}
