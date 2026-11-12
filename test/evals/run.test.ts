@@ -112,7 +112,10 @@ describe('runEvals — cost confirmation gate', () => {
       ['--cases', 'nope'],
       ['--split', 'train'],
       ['--round', '1'], // a round needs --change
-      ['--round', '0', '--change', 'x'],
+      ['--round', '-1', '--change', 'x'],
+      ['--round', '100', '--change', 'x'],
+      ['--round', '1.5', '--change', 'x'],
+      ['--round', '0'], // the baseline needs --change too
       ['--decision', 'keep'], // a decision needs --round
       ['--round', '1', '--decision', 'maybe'],
       ['--calibrate', 'ratings.json'], // needs the results file too
