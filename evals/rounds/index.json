@@ -1,0 +1,28 @@
+[
+  {
+    "round": 0,
+    "date": "2026-11-12T07:51:40.275Z",
+    "promptVersion": "2026-11-12.3",
+    "change": "baseline: ticket format + prompt 2026-11-12.3",
+    "split": "dev",
+    "judgeModel": "claude-sonnet-5-5",
+    "decision": "keep",
+    "variants": [
+      {
+        "label": "claude-opus-5-5 · high",
+        "runs": 19,
+        "errors": 0,
+        "overall": 1.6482218460933633,
+        "scenarioScore": 1.6999524641165509,
+        "reportScore": 1.5964912280701755,
+        "graded": 15,
+        "passRate": 0.8666666666666667,
+        "alignmentAccuracy": 0.9333333333333333,
+        "findingRecall": 0.9591836734693877,
+        "injectionFlagged": "1/1",
+        "costUsd": 4.273990599999999,
+        "judgeCostUsd": 1.189494
+      }
+    ]
+  }
+]
