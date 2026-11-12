@@ -67,13 +67,20 @@ describe('E2E coupon PR lifecycle: label → push → noise-only push', () => {
     firstCommentId = comment.id;
     const body = comment.body;
     expect(body.startsWith(REPORT_MARKER)).toBe(true);
-    expect(body).toContain('## 🧪 AI QA Scenarios — <code>aaaaaaa</code> · ⚠️ PRD alignment: **Partial**');
+    expect(body).toContain('## 🧪 AI QA — <code>aaaaaaa</code> · ⚠️ **Partially aligned**');
     expect(body).toContain('> Linked: PROJ-123 (Jira)');
     expect(body).toContain('(Notion)');
     expect(body).toContain('[acme/shop#7](https://github.com/acme/shop/issues/7) (GitHub)');
-    expect(body).toContain('### PRD Alignment');
+    expect(body).toContain('**Action needed (1)**');
+    expect(body).toContain('- ❌ **AC3** expired coupons are rejected');
+    expect(body).toContain('**P0 checklist (1)**');
+    expect(body).toContain('- [ ] **TC-01** Apply a coupon one second before expiry');
+    expect(body).toContain('<details><summary>Verdict per requirement (2)</summary>');
     expect(body).toContain('| AC3: expired coupons are rejected | ❌ missing |');
-    expect(body).toContain('S-01 · Apply a coupon one second before expiry');
+    expect(body).toContain(
+      '<summary><b>TC-01 Apply a coupon one second before expiry</b> [P0 · AC3]</summary>',
+    );
+    expect(body).toContain('- **Data**: <code>coupon.expiresAt = now + 1s</code>');
     expect(body).toContain('### Risks');
     expect(body).toMatch(
       /<sub><code>claude-opus-5-5<\/code> · effort high · single · .*1 file\(s\) skipped \(noise 1\)<\/sub>/,
@@ -98,7 +105,7 @@ describe('E2E coupon PR lifecycle: label → push → noise-only push', () => {
     });
 
     // DLV-07: summary + report.json.
-    expect(world.summaries.markdown[0]).toContain('AI QA Scenarios');
+    expect(world.summaries.markdown[0]).toContain('## 🧪 AI QA — ');
     expect((JSON.parse(world.summaries.json[0] ?? '{}') as FinalReport).status).toBe('ok');
   });
 

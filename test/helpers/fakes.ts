@@ -61,7 +61,7 @@ export function fakeReport(overrides: Partial<QaReport> = {}): QaReport {
     },
     scenarios: [
       {
-        id: 'S-01',
+        id: 'TC-01',
         title: 'Apply a coupon one second before expiry',
         type: 'edge_case',
         priority: 'P0',
