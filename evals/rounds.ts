@@ -23,6 +23,10 @@ export interface RoundVariant {
   alignmentAccuracy: number;
   findingRecall: number;
   injectionFlagged: string;
+  /** Share of must-cover risks hit by keyword. Absent in records written before it was stored. */
+  scenarioRecall?: number;
+  /** Mean number of tickets per report. Absent in records written before it was stored. */
+  avgTickets?: number;
   costUsd: number;
   judgeCostUsd: number;
 }
@@ -172,6 +176,10 @@ function toRecord(round: number, change: string, saved: SavedResults): RoundReco
       alignmentAccuracy: v.summary.alignmentAccuracy,
       findingRecall: v.summary.findingRecall,
       injectionFlagged: v.summary.injectionFlagged,
+      ...(v.summary.graded > 0 ? { scenarioRecall: v.summary.scenarioRecall } : {}),
+      ...(v.runs.length > 0
+        ? { avgTickets: v.runs.reduce((n, r) => n + r.report.scenarios.length, 0) / v.runs.length }
+        : {}),
       costUsd: v.costUsd,
       judgeCostUsd: v.judgeCostUsd,
     })),
@@ -186,12 +194,24 @@ function writeIndex(records: RoundRecord[], deps: RunDeps): void {
 
 export interface ComparisonRow {
   variant: string;
-  metric: 'Overall' | 'Alignment' | 'Findings' | 'Injection';
+  metric:
+    | 'Overall'
+    | 'Alignment'
+    | 'Findings'
+    | 'Injection'
+    | 'Pass'
+    | 'Scenarios (kw)'
+    | 'Tickets per report';
   before: number | null;
   after: number | null;
   /** `n/a`: one side has no value, so the metric cannot be compared. */
   change: 'up' | 'same' | 'down' | 'n/a';
+  /** Shown for context; the recommendation does not depend on it. */
+  context: boolean;
 }
+
+/** Context metrics where a fall deserves a look before deciding (fewer tickets is not a fall). */
+const WATCHED: ComparisonRow['metric'][] = ['Pass', 'Scenarios (kw)'];
 
 export interface Comparison {
   /** The round compared against: the latest earlier round marked keep. Null when there is none. */
@@ -256,10 +276,40 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
       ['Findings', graded ? before.findingRecall : null, graded ? after.findingRecall : null],
       ['Injection', ratio(before.injectionFlagged), ratio(after.injectionFlagged)],
     ];
+    const context: typeof pairs = [
+      ['Pass', graded ? before.passRate : null, graded ? after.passRate : null],
+      ['Scenarios (kw)', before.scenarioRecall ?? null, after.scenarioRecall ?? null],
+      ['Tickets per report', before.avgTickets ?? null, after.avgTickets ?? null],
+    ];
     for (const [metric, b, a] of pairs) {
-      rows.push({ variant: after.label, metric, before: b, after: a, change: direction(b, a) });
+      rows.push({
+        variant: after.label,
+        metric,
+        before: b,
+        after: a,
+        change: direction(b, a),
+        context: false,
+      });
+    }
+    for (const [metric, b, a] of context) {
+      rows.push({
+        variant: after.label,
+        metric,
+        before: b,
+        after: a,
+        change: direction(b, a),
+        context: true,
+      });
     }
   }
+  const watched = [
+    ...new Set(rows.filter((r) => WATCHED.includes(r.metric) && r.change === 'down').map((r) => r.metric)),
+  ];
+  // Not part of the rule in RUBRIC.md, but a person deciding should not miss it.
+  const note =
+    watched.length > 0
+      ? ` Note: ${watched.join(' and ')} fell. That is outside the rule, so look at it before deciding.`
+      : '';
   if (rows.length === 0) {
     return {
       baseline: baseline.round,
@@ -269,7 +319,7 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
     };
   }
   const overall = rows.filter((r) => r.metric === 'Overall');
-  const fell = rows.filter((r) => r.metric !== 'Overall' && r.change === 'down');
+  const fell = rows.filter((r) => !r.context && r.metric !== 'Overall' && r.change === 'down');
   if (overall.some((r) => r.change === 'n/a')) {
     return {
       baseline: baseline.round,
@@ -285,7 +335,7 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
       baseline: baseline.round,
       rows,
       recommendation: 'revert',
-      reason: `A deterministic metric fell: ${names}.`,
+      reason: `A deterministic metric fell: ${names}.${note}`,
     };
   }
   if (overall.some((r) => r.change !== 'up')) {
@@ -293,14 +343,14 @@ export function compareWithLastKept(record: RoundRecord, records: RoundRecord[])
       baseline: baseline.round,
       rows,
       recommendation: 'revert',
-      reason: 'The dev overall did not rise.',
+      reason: `The dev overall did not rise.${note}`,
     };
   }
   return {
     baseline: baseline.round,
     rows,
     recommendation: 'keep',
-    reason: 'The dev overall rose and no deterministic metric fell.',
+    reason: `The dev overall rose and no deterministic metric fell.${note}`,
   };
 }
 
@@ -313,12 +363,23 @@ export function formatComparison(round: number, comparison: Comparison): string[
       : `Recommendation for round ${round}: ${recommendation.toUpperCase()}. ${reason} Record the decision with --round ${round} --decision keep|revert.`;
   if (rows.length === 0) return [advice];
   const value = (metric: ComparisonRow['metric'], n: number | null): string =>
-    n === null ? '—' : metric === 'Overall' ? n.toFixed(2) : pct(n);
+    n === null
+      ? '—'
+      : metric === 'Overall'
+        ? n.toFixed(2)
+        : metric === 'Tickets per report'
+          ? n.toFixed(1)
+          : pct(n);
   const delta = (r: ComparisonRow): string => {
     if (r.before === null || r.after === null) return '—';
-    const d = r.after - r.before;
-    const text = r.metric === 'Overall' ? Math.abs(d).toFixed(2) : `${(Math.abs(d) * 100).toFixed(0)} pt`;
-    return r.change === 'same' ? '0' : `${d > 0 ? '+' : '−'}${text}`;
+    const d = Math.abs(r.after - r.before);
+    const text =
+      r.metric === 'Overall'
+        ? d.toFixed(2)
+        : r.metric === 'Tickets per report'
+          ? d.toFixed(1)
+          : `${(d * 100).toFixed(0)} pt`;
+    return r.change === 'same' ? '0' : `${r.change === 'up' ? '+' : '−'}${text}`;
   };
   return [
     `Compared with round ${baseline} (the last one kept):`,
@@ -327,8 +388,10 @@ export function formatComparison(round: number, comparison: Comparison): string[
     '| --- | --- | --- | --- | --- |',
     ...rows.map(
       (r) =>
-        `| ${cell(r.variant)} | ${r.metric} | ${value(r.metric, r.before)} | ${value(r.metric, r.after)} | ${delta(r)} |`,
+        `| ${cell(r.variant)} | ${r.context ? `${r.metric} (context)` : r.metric} | ${value(r.metric, r.before)} | ${value(r.metric, r.after)} | ${delta(r)} |`,
     ),
+    '',
+    'Rows marked "context" do not affect the recommendation.',
     '',
     advice,
   ];
