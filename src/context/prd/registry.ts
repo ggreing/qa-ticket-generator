@@ -45,7 +45,8 @@ function failureWarning(ref: PrdRef, err: unknown, timedOut: boolean, timeoutMs:
  * parallel, each under `AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])`.
  *
  * - No provider, or `isConfigured()` false → `prd_source_unconfigured` (one warning per source).
- * - `PrdFetchError` of kind `permission` (GitHub 403/404) → `prd_permission` (PRD-10).
+ * - `PrdFetchError` of kind `permission` (GitHub 403/404, Jira 401/403, Notion 404) →
+ *   `prd_permission` (PRD-10).
  * - Any other failure or timeout → `prd_fetch_failed`; the run continues.
  *
  * Documents keep the order of `refs`. Warning messages never contain document text.

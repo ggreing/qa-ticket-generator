@@ -53,9 +53,10 @@ function toFetchError(err: unknown, id: string): unknown {
     if (status === 401)
       return new PrdFetchError('auth', 'Notion rejected the integration token (HTTP 401).', { status });
     if (status === 404) {
+      // PRD-10 — Notion answers 404 for pages the integration was not invited to.
       return new PrdFetchError(
-        'not_found',
-        `Notion page ${id} was not found or is not shared with the integration (HTTP 404).`,
+        'permission',
+        `Notion page ${id} is not shared with the integration (HTTP 404); add the integration under the page's "Connections".`,
         { status },
       );
     }

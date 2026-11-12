@@ -222,12 +222,12 @@ describe('createNotionProvider', () => {
     expect(doc.title).toBe('T');
   });
 
-  it('PRD-08 maps 401/403/404/5xx to safe errors', async () => {
+  it('PRD-08/PRD-10 maps 404 (not shared) to permission and 401/403/400 to safe errors', async () => {
     const data = fixture<NotionFixture>('notion/page-coupon.json');
     const cases: [number, string, PrdFetchError['kind']][] = [
       [401, 'unauthorized', 'auth'],
       [403, 'restricted_resource', 'http'],
-      [404, 'object_not_found', 'not_found'],
+      [404, 'object_not_found', 'permission'],
       [400, 'validation_error', 'http'],
     ];
     for (const [status, code, kind] of cases) {

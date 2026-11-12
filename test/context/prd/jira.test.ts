@@ -154,11 +154,11 @@ describe('createJiraProvider', () => {
     expect(doc.acceptanceCriteria).toEqual([]);
   });
 
-  it('PRD-08 maps 401/403/404/500 to safe PrdFetchErrors without response bodies', async () => {
+  it('PRD-08/PRD-10 maps 401/403 to permission and 404 to not_found, without response bodies', async () => {
     const p = createJiraProvider(options, deps());
     const cases: [number, PrdFetchError['kind']][] = [
-      [401, 'auth'],
-      [403, 'http'],
+      [401, 'permission'],
+      [403, 'permission'],
       [404, 'not_found'],
     ];
     for (const [status, kind] of cases) {

@@ -1,9 +1,10 @@
 /** Typed PRD fetch failures. Owner: qa-work-session-a. */
 
 /**
- * - `auth`: credentials rejected (401)
- * - `permission`: token lacks access (GitHub 403/404 → PRD-10)
- * - `not_found`: document does not exist or is not shared with the integration
+ * - `permission`: fixable by the user's credentials/permissions → `prd_permission` (PRD-10):
+ *   GitHub 403/404, Jira 401/403, Notion 404 (page not shared with the integration)
+ * - `auth`: credentials rejected where PRD-10 does not apply (Notion 401)
+ * - `not_found`: document does not exist (Jira 404, GitHub 410)
  * - `invalid_ref`: the reference cannot be fetched by this provider
  * - `http`: any other failed response
  */
