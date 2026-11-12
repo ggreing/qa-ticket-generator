@@ -34,7 +34,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "eval": "node evals/cli.mjs run",
+    "eval:build-cases": "node evals/cli.mjs build-cases"
   },
   "dependencies": {
     "@actions/core": "^3.0.1",

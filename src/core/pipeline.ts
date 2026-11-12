@@ -34,6 +34,7 @@ import type {
   Warning,
 } from './contracts';
 import { QtgError, toQtgError } from './errors';
+import { EXPECTED_OUTPUT_TOKENS, MAP_CONCURRENCY, PRD_TIMEOUT_MS } from './limits';
 
 export interface PipelineDeps {
   logger: Logger;
@@ -71,10 +72,6 @@ export interface PipelineOutcome {
 }
 
 const ZERO_USAGE: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
-const PRD_TIMEOUT_MS = 15_000;
-/** Pre-call output estimate for the cost guard (LLM-10): ~6K visible JSON + adaptive thinking at high effort. */
-const EXPECTED_OUTPUT_TOKENS = 12_000;
-const MAP_CONCURRENCY = 3;
 
 export async function runPipeline(
   deps: PipelineDeps,

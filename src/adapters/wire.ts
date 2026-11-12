@@ -13,6 +13,7 @@ import { collectPrdDocuments } from '../context/prd/registry';
 import { type InputReader, parseRepoConfig, type QtgConfig, resolveConfig } from '../core/config';
 import type { FinalReport, Logger, TriggerEvent, TriggerSkipReason } from '../core/contracts';
 import { astExtensionsFor } from '../core/languages';
+import { MAX_OUTPUT_TOKENS } from '../core/limits';
 import type { Octokit } from '../core/octokit';
 import { type PipelineOutcome, runPipeline } from '../core/pipeline';
 import { createPrCommentStore } from '../delivery/comment-store';
@@ -25,8 +26,6 @@ import { createPreprocessEngine, isNoisePath } from '../preprocess';
 import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
 import { decideTrigger } from '../trigger/gate';
 import { prNumberOf } from './event';
-
-const MAX_OUTPUT_TOKENS = 32_000;
 
 export interface ExecuteRequest {
   input: InputReader;
