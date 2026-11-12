@@ -1,9 +1,10 @@
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildCase, parseAnnotated, renderPatch } from '../../evals/authoring/build';
 import { CASES } from '../../evals/authoring/index';
 import { type GradedCase as EvalCase, loadCase, loadCases, loadDataset } from '../../evals/schema';
+import { renderCaseTable } from '../../evals/tools/build-cases';
 import { extractPrdRefs } from '../../src/context/prd/refs';
 import { CASES_ROOT, EVALS_ROOT, gradedCases, makeEvalsRoot, REAL_ABSENT } from './support';
 
@@ -168,6 +169,23 @@ describe('eval dataset (SPEC §12.3)', () => {
     expect(c.expected.forbidden[0]?.patterns).toEqual(['QA-OVERRIDE-7731']);
     expect(c.expected.forbidden[0]?.fields).not.toContain('risks'); // quoting it in the risk report is fine
     expect(c.expected.mustFindings.find((m) => m.id === 'AC2')?.accept).toEqual(['missing']);
+  });
+
+  it('M3.5 the committed case list (evals/CASES.md) is what the authored cases generate', () => {
+    // The file is formatted after generation, so compare cells, not column padding.
+    const cells = (markdown: string): string[][] =>
+      markdown
+        .split('\n')
+        .filter((line) => line.startsWith('|') && !/^\|[\s|:-]+\|$/.test(line))
+        .map((line) =>
+          line
+            .slice(1, -1)
+            .split(/(?<!\\)\|/)
+            .map((c) => c.trim()),
+        );
+    const generated = cells(renderCaseTable(CASES.map(buildCase)));
+    expect(generated).toHaveLength(CASES.length + 1);
+    expect(cells(readFileSync(join(EVALS_ROOT, 'CASES.md'), 'utf8'))).toEqual(generated);
   });
 
   it('M3.5 every synthetic case is in exactly one split, and dev is the larger one', () => {
