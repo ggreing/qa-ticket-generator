@@ -1,0 +1,102 @@
+{
+  "name": "PRE-08 CJK characters count as one token each in mixed-language text",
+  "input": {
+    "files": [
+      {
+        "path": "src/coupons/expiry.ts",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "patch": "@@ -3,3 +3,3 @@ export function expiryLabel(coupon: Coupon, now: number) {\n   // 쿠폰 만료 처리 (クーポンの有効期限 / 优惠券过期)\n-  if (now > coupon.expiresAt) return '만료됨';\n+  if (now >= coupon.expiresAt) return '만료된 쿠폰입니다';\n   return null;",
+        "patchMissing": false
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#11",
+          "raw": "#11"
+        },
+        "title": "쿠폰 만료 (Coupon expiry)",
+        "bodyMarkdown": "## 배경\n만료된 쿠폰이 결제에 적용되는 버그가 있었다。全角テキスト：ＡＢＣ１２３、「引用」。\n中文说明：优惠券在过期后不能使用。\nEnglish text keeps the chars / 3.2 estimate.",
+        "acceptanceCriteria": [
+          "만료된 쿠폰은 적용되지 않는다",
+          "Expired coupons are rejected"
+        ],
+        "url": "https://github.com/acme/shop/issues/11",
+        "meta": {}
+      }
+    ],
+    "options": {
+      "tokenBudget": 150000,
+      "exclude": [],
+      "include": [],
+      "scoring": {
+        "prdKeyword": 3,
+        "changeSize": 1,
+        "domainPath": 2,
+        "testOrConfigPenalty": 2,
+        "boostPaths": [],
+        "penalizePaths": []
+      },
+      "astLanguages": [
+        "typescript",
+        "tsx",
+        "javascript",
+        "python",
+        "java",
+        "go"
+      ],
+      "reservedTokens": 6000
+    }
+  },
+  "expected": {
+    "mode": "single",
+    "chunks": [
+      {
+        "id": "c1",
+        "files": [
+          {
+            "path": "src/coupons/expiry.ts",
+            "status": "modified",
+            "score": 8.599,
+            "hunks": [
+              {
+                "header": "@@ -3,3 +3,3 @@ export function expiryLabel(coupon: Coupon, now: number) {",
+                "oldStart": 3,
+                "oldLines": 3,
+                "newStart": 3,
+                "newLines": 3,
+                "text": "   // 쿠폰 만료 처리 (クーポンの有効期限 / 优惠券过期)\n-  if (now > coupon.expiresAt) return '만료됨';\n+  if (now >= coupon.expiresAt) return '만료된 쿠폰입니다';\n   return null;"
+              }
+            ],
+            "contexts": [],
+            "estimatedTokens": 115
+          }
+        ],
+        "estimatedTokens": 115
+      }
+    ],
+    "prdDocuments": [
+      {
+        "ref": {
+          "source": "github",
+          "id": "acme/shop#11",
+          "raw": "#11"
+        },
+        "title": "쿠폰 만료 (Coupon expiry)",
+        "bodyMarkdown": "## 배경\n만료된 쿠폰이 결제에 적용되는 버그가 있었다。全角テキスト：ＡＢＣ１２３、「引用」。\n中文说明：优惠券在过期后不能使用。\nEnglish text keeps the chars / 3.2 estimate.",
+        "acceptanceCriteria": [
+          "만료된 쿠폰은 적용되지 않는다",
+          "Expired coupons are rejected"
+        ],
+        "url": "https://github.com/acme/shop/issues/11",
+        "meta": {}
+      }
+    ],
+    "skipped": [],
+    "redactions": [],
+    "estimatedTokens": 6224
+  }
+}
