@@ -170,8 +170,9 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR
   开始排除,并在报告中列出被排除的文件。
 - `token-budget` 限制单次 LLM 调用的输入(默认 150,000 token),更大的 PR 会被拆分处理。关联的 PRD
   最多占用该预算的 30%。
-- 对于一般的 PR,使用 Claude Opus 5.5、`effort: high` 时,单次运行**估计**约为 $0.15–$0.40。
-  这是设计阶段的估算,并非实测;每次运行的估算成本显示在报告底部。
+- 2026-11-12 使用 Claude Opus 5.5、`effort: high` 对**小型 PR**(10 个合成 PR 和 1 个沙箱 PR,每个 PR 改动 1–3 个文件,
+  每次运行调用 LLM 1 次)实测:单次运行约 **$0.09–$0.19,平均 $0.13**,耗时约 50–70 秒。大型 PR 会拆成多次调用,成本可能
+  更高;`max-cost-usd`(默认 $2.00)为每次运行设定上限。每次运行的估算成本显示在报告底部。
 - 只改动噪声文件的 push 不会调用 Claude。
 
 ## 安全与数据流

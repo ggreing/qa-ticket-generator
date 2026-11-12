@@ -178,8 +178,10 @@ Optional settings use the same names as the action inputs, as upper-case environ
   report lists what was dropped.
 - `token-budget` caps the input of a single LLM call (default 150,000 tokens); larger PRs are split. Linked
   PRDs use at most 30% of that budget.
-- For a typical PR with Claude Opus 5.5 at `effort: high`, a run is **estimated** at roughly $0.15–$0.40.
-  This is a design estimate, not a measurement; the report footer shows the estimate for each run.
+- Measured on 2026-11-12 with Claude Opus 5.5 at `effort: high` on **small PRs** (10 synthetic PRs and 1 sandbox
+  PR, 1–3 changed files each, one LLM call per run): about **$0.09–$0.19 per run, $0.13 on average**, taking about
+  50–70 seconds. Larger PRs are split into several calls and can cost more; `max-cost-usd` (default $2.00) caps
+  every run. The report footer shows the estimated cost of each run.
 - Pushes that only change noise files do not call Claude at all.
 
 ## Security and data flow
