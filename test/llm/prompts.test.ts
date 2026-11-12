@@ -47,6 +47,28 @@ describe('system prompt (SPEC §8)', () => {
     expect(PROMPT_VERSION).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/);
   });
 
+  it('SPEC §8 separates missing from contradicts: absent is missing, present but different is contradicts', () => {
+    expect(SYSTEM_PROMPT).toContain(
+      '- missing: the check, limit or behavior the requirement asks for is not in the change at all.',
+    );
+    expect(SYSTEM_PROMPT).toMatch(
+      /- contradicts: the change implements the same thing with a different value or rule .* a cap of 500 where the requirement says 100\./,
+    );
+    expect(SYSTEM_PROMPT).toContain('- unclear: you cannot tell from what you were shown whether it exists.');
+    expect(SYSTEM_PROMPT).toContain('absent is missing, present but different is contradicts');
+    // The rule sits inside the alignment section, ahead of the status roll-up it feeds.
+    const section = SYSTEM_PROMPT.slice(
+      SYSTEM_PROMPT.indexOf('# PRD alignment'),
+      SYSTEM_PROMPT.indexOf('# Scenarios'),
+    );
+    expect(section.indexOf('absent is missing')).toBeLessThan(
+      section.indexOf('The overall `status` follows'),
+    );
+    expect(section.indexOf('absent is missing')).toBeGreaterThan(0);
+    // Wording changes ship under a new version so result files can be told apart.
+    expect(PROMPT_VERSION).toBe('2026-11-12.2');
+  });
+
   it.each([
     ['en', 'English'],
     ['ko', 'Korean'],
