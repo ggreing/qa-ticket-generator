@@ -1,0 +1,58 @@
+import type { Strings } from './types';
+
+export const zhCN: Strings = {
+  title: 'AI QA 场景',
+  alignment: 'PRD 一致性',
+  alignmentStatus: { aligned: '一致', partial: '部分一致', misaligned: '不一致', no_prd: '无 PRD' },
+  noPrd: '未关联 PRD — 场景仅根据代码推断(可信度较低)',
+  linked: '关联文档',
+  sections: {
+    alignment: 'PRD 一致性',
+    scenarios: '场景',
+    risks: '风险',
+    assumptions: '假设',
+    notes: '说明',
+    skippedFiles: '已排除的文件',
+    redactions: '已脱敏的密钥',
+  },
+  table: { requirement: '需求', status: '状态', evidence: '依据' },
+  requirementStatus: { covered: '已覆盖', missing: '缺失', contradicts: '冲突', unclear: '不明确' },
+  scenarioType: { happy_path: '正常', edge_case: '边界', negative: '异常', regression: '回归' },
+  level: { high: '高', medium: '中', low: '低' },
+  related: '相关',
+  why: '原因',
+  confidence: '可信度',
+  omittedScenarios: (n) =>
+    `受 GitHub 评论长度限制,省略了 ${n} 个优先级较低的场景。完整报告见工作流的 Job Summary 和 report.json。`,
+  omittedFindings: (n) =>
+    `受 GitHub 评论长度限制,省略了 ${n} 行需求。完整报告见工作流的 Job Summary 和 report.json。`,
+  truncated: '为符合 GitHub 评论长度限制,内容已被截断。完整报告见工作流的 Job Summary 和 report.json。',
+  runFailed: '运行失败',
+  errorCode: '错误代码',
+  noFiles: '没有需要分析的逻辑变更 — 所有变更文件均被过滤(lock 文件、自动生成的代码、二进制文件等)。',
+  skipped: '已跳过分析',
+  dryRun: '试运行',
+  footer: {
+    tokens: (i, o) => `输入 ${i} / 输出 ${o} tokens`,
+    cache: (r, w) => `缓存读取 ${r},写入 ${w}`,
+    calls: (n) => `LLM 调用 ${n} 次`,
+    filesSkipped: (n) => `排除 ${n} 个文件`,
+    redactions: (n) => `脱敏 ${n} 个密钥`,
+  },
+  skipReason: {
+    noise: '噪声',
+    binary: '二进制',
+    too_large: '文件过大',
+    patch_missing: '无 diff',
+    budget: 'token 预算',
+    cost_cap: '成本上限',
+  },
+  slack: {
+    openPr: '打开 PR',
+    viewReport: '查看完整报告',
+    scenarios: '场景',
+    topRisks: '主要风险',
+    findings: '需要关注的需求',
+    detailsInThread: '场景详情见消息串。',
+  },
+};

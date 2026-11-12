@@ -1,0 +1,56 @@
+## 🧪 AI QA Scenarios — <code>a1b2c3d</code> · ⚠️ PRD alignment: **Partial**
+
+> Linked: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+Adds coupon application to checkout.
+
+### PRD Alignment
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| AC1: a coupon can be applied once | ✅ covered | CouponService.apply() checks usage <code>src/coupon.ts</code> |
+| AC3: expired coupons are rejected | ❌ missing | No expiry comparison in coupon.ts <code>src/coupon.ts</code> |
+
+### Scenarios (3)
+
+<details><summary><b>[P0][Edge] S-01 · Apply a coupon one second before expiry</b></summary>
+
+- **Given** a coupon that expires in 1 second
+- **When** the user applies it at checkout
+- **Then** the discount is applied
+- _Related_: AC3: expired coupons are rejected · <code>src/coupon.ts</code>
+- _Why_: Boundary of the expiry rule. · _Confidence_: high
+
+</details>
+
+<details><summary><b>[P1][Negative] S-02 · Apply the same coupon twice in parallel</b></summary>
+
+- **Given** a coupon that was never used
+- **And** two checkout tabs for the same cart
+- **When** both tabs apply the coupon at the same moment
+- **Then** exactly one request succeeds
+- **And** the other one gets a <code>COUPON&#95;ALREADY&#95;USED</code> error
+- _Related_: AC1: a coupon can be applied once · <code>src/coupon.ts</code>
+- _Why_: Boundary of the expiry rule. · _Confidence_: medium
+
+</details>
+
+<details><summary><b>[P2][Regression] S-03 · Checkout without a coupon still works</b></summary>
+
+- **Given** a cart without a coupon
+- **When** the user pays
+- **Then** the total is unchanged
+- _Confidence_: low
+
+</details>
+
+### Risks
+
+- 🔴 **Missing expiry check** — AC3 not implemented <code>src/coupon.ts</code>
+- 🟡 **No audit log** — Coupon use is not logged.
+
+### Assumptions
+
+- Coupon codes are case-insensitive.
+
+<sub><code>claude-opus-5-5</code> · effort high · single · in 31.2K / out 5.8K tokens · ~$0.24 · 74s · 3 file(s) skipped (noise 2, binary 1) · 2 secret(s) redacted</sub>

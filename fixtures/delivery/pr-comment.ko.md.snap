@@ -1,0 +1,56 @@
+## 🧪 AI QA 시나리오 — <code>a1b2c3d</code> · ⚠️ PRD 정합성: **부분 일치**
+
+> 연결된 문서: [PROJ-123](https://acme.atlassian.net/browse/PROJ-123) (Jira), [acme/shop#45](https://github.com/acme/shop/issues/45) (GitHub)
+
+Adds coupon application to checkout.
+
+### PRD 정합성
+
+| 요구사항 | 상태 | 근거 |
+| --- | --- | --- |
+| AC1: a coupon can be applied once | ✅ 충족 | CouponService.apply() checks usage <code>src/coupon.ts</code> |
+| AC3: expired coupons are rejected | ❌ 누락 | No expiry comparison in coupon.ts <code>src/coupon.ts</code> |
+
+### 시나리오 (3)
+
+<details><summary><b>[P0][엣지] S-01 · Apply a coupon one second before expiry</b></summary>
+
+- **Given** a coupon that expires in 1 second
+- **When** the user applies it at checkout
+- **Then** the discount is applied
+- _관련_: AC3: expired coupons are rejected · <code>src/coupon.ts</code>
+- _이유_: Boundary of the expiry rule. · _신뢰도_: 높음
+
+</details>
+
+<details><summary><b>[P1][예외] S-02 · Apply the same coupon twice in parallel</b></summary>
+
+- **Given** a coupon that was never used
+- **And** two checkout tabs for the same cart
+- **When** both tabs apply the coupon at the same moment
+- **Then** exactly one request succeeds
+- **And** the other one gets a <code>COUPON&#95;ALREADY&#95;USED</code> error
+- _관련_: AC1: a coupon can be applied once · <code>src/coupon.ts</code>
+- _이유_: Boundary of the expiry rule. · _신뢰도_: 보통
+
+</details>
+
+<details><summary><b>[P2][회귀] S-03 · Checkout without a coupon still works</b></summary>
+
+- **Given** a cart without a coupon
+- **When** the user pays
+- **Then** the total is unchanged
+- _신뢰도_: 낮음
+
+</details>
+
+### 리스크
+
+- 🔴 **Missing expiry check** — AC3 not implemented <code>src/coupon.ts</code>
+- 🟡 **No audit log** — Coupon use is not logged.
+
+### 가정
+
+- Coupon codes are case-insensitive.
+
+<sub><code>claude-opus-5-5</code> · effort high · single · 입력 31.2K / 출력 5.8K 토큰 · ~$0.24 · 74s · 파일 3개 제외 (노이즈 2, 바이너리 1) · 비밀값 2건 마스킹</sub>
