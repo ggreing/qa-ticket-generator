@@ -26,29 +26,31 @@ const TITLES = [
 
 /** A planner that, like the real prompt asks, reuses the id of an existing case with the same title. */
 function scriptedPlanner() {
-  vi.mocked(generatePlan).mockImplementation(async (req: PlanRequest): Promise<PlanResult> => {
-    const cases: PlannedCase[] = TITLES.map((title, i) => ({
-      title,
-      acLabels: [`AC${i + 1}`],
-      technique: 'boundary',
-      priority: i === 0 ? 'P0' : 'P1',
-      preconditions: ['로그인 상태'],
-      testData: ['쿠폰 EXP1'],
-      steps: ['결제 화면 진입', '쿠폰 EXP1 입력 후 적용'],
-      expected: ['"만료된 쿠폰입니다" 토스트 노출'],
-      whyEasyToMiss: '기획서에 만료 시각 포함 여부 정의 없음',
-      origin: 'spec',
-      reuseCaseId: req.existing.find((e) => e.title === title)?.caseId ?? null,
-    }));
-    return {
-      cases,
-      usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
-      costUsd: 0,
-      calls: 1,
-      warnings: [],
-      dropped: 0,
-    };
-  });
+  vi.mocked(generatePlan as unknown as (req: PlanRequest) => Promise<PlanResult>).mockImplementation(
+    async (req: PlanRequest): Promise<PlanResult> => {
+      const cases: PlannedCase[] = TITLES.map((title, i) => ({
+        title,
+        acLabels: [`AC${i + 1}`],
+        technique: 'boundary',
+        priority: i === 0 ? 'P0' : 'P1',
+        preconditions: ['로그인 상태'],
+        testData: ['쿠폰 EXP1'],
+        steps: ['결제 화면 진입', '쿠폰 EXP1 입력 후 적용'],
+        expected: ['"만료된 쿠폰입니다" 토스트 노출'],
+        whyEasyToMiss: '기획서에 만료 시각 포함 여부 정의 없음',
+        origin: 'spec',
+        reuseCaseId: req.existing.find((e) => e.title === title)?.caseId ?? null,
+      }));
+      return {
+        cases,
+        usage: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        costUsd: 0,
+        calls: 1,
+        warnings: [],
+        dropped: 0,
+      };
+    },
+  );
 }
 
 function fakeOctokit(): Octokit {
