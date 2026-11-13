@@ -215,14 +215,14 @@ export async function runPlan(
   return outcome;
 }
 
-async function syncSink(
+export async function syncSink(
   sink: CaseSink,
   known: ExistingCaseTicket[] | null,
   cases: QaCase[],
   render: (c: QaCase) => RenderedCase,
   spec: PrdRef,
   urls: Map<string, string>,
-  deps: PlanDeps,
+  deps: Pick<PlanDeps, 'logger' | 'planSync'>,
   signal: AbortSignal,
 ): Promise<SinkOutcome> {
   const out: SinkOutcome = {
