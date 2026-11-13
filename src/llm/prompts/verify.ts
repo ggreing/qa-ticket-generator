@@ -13,7 +13,7 @@ import { guardSpec, type Requirement } from './plan';
 import { STYLE_GUIDE } from './style';
 import { attr, buildCodeSection, buildSkippedSection } from './user';
 
-export const VERIFY_PROMPT_VERSION = '2026-11-13.1';
+export const VERIFY_PROMPT_VERSION = '2026-11-13.2';
 
 export const VERIFY_SYSTEM = `You are a senior QA engineer. A spec already has a sheet of test cases, and a pull request that implements the spec has arrived. You read the code change and do three things: say for each case whether the code makes it pass, add the cases that only the code reveals, and say for each requirement whether the change meets it. A program reads your answer, so it is a single JSON object that follows the provided schema.
 

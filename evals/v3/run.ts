@@ -674,7 +674,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   const mergedAway = runs.flatMap((r) =>
     (r.merge?.mergedAway ?? [])
       .filter((x) => x.by === 'merge')
-      .map((x) => `${r.caseId}: "${x.title}" -> "${x.keptTitle}"`),
+      .map((x) => `${r.caseId}: "${x.title}" -> "${x.keptTitle}"${x.reason ? ` (${x.reason})` : ''}`),
   );
   if (mergedAway.length > 0) {
     print(

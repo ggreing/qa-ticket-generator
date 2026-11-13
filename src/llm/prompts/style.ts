@@ -25,6 +25,7 @@ Write the way a QA engineer fills in a test case sheet for teammates who will ru
 - Steps: one short action per line, in the order they are done. Start with the action. No "first", "then", "the user should".
 - Expected: facts someone can see or query, such as the message shown, the status code, the stored value, the count. The first line is the one that decides pass or fail. Do not write that something "works", "is handled" or "behaves correctly"; say what appears.
 - Why it is easy to miss: one sentence of fact about the spec, usually what it does not define. Leave it empty when the spec states the case outright.
+- Text that is itself input or UI copy, such as an emoji typed into a field or a greeting stored in a profile, goes in test data as "name = value" or inside quotation marks, so it reads as data and not as your wording.
 
 Words that mark a text as written about testing instead of for testing stay out of every field: phrases like "ensure that", "verify that", "should be able to", "this test", and adverbs like "properly", "correctly", "appropriately", "seamlessly". The same goes for emoji, for a dash followed by an afterthought, and for a colon that sets up a contrast.`;
 
@@ -82,9 +83,8 @@ const STYLES: Readonly<Record<Language, LanguageStyle>> = {
         testData: ['post = P-100'],
         steps: ['Tap the bookmark icon twice within one second', 'Open My bookmarks'],
         expected: [
-          'P-100 listed once',
-          'Bookmark count increased by 1',
-          'Spec decision needed: whether the second tap removes the bookmark',
+          'P-100 not listed twice',
+          'Spec decision needed: whether the second tap keeps the bookmark (1 listed) or removes it (0 listed)',
         ],
         whyEasyToMiss: 'The spec describes adding a bookmark and does not say what a repeated tap does.',
         origin: 'spec',
@@ -132,7 +132,10 @@ const STYLES: Readonly<Record<Language, LanguageStyle>> = {
         preconditions: ['로그인 상태', '게시글 P-100 북마크 안 된 상태'],
         testData: ['게시글 = P-100'],
         steps: ['북마크 아이콘 1초 안에 2회 탭', '내 북마크 목록 진입'],
-        expected: ['P-100 1건만 노출', '북마크 개수 1 증가', '기획 확인 필요: 두 번째 탭의 북마크 해제 여부'],
+        expected: [
+          'P-100 2건 이상 노출 없음',
+          '기획 확인 필요: 두 번째 탭 시 북마크 유지(1건) 또는 해제(0건)',
+        ],
         whyEasyToMiss: '기획서에 북마크 추가만 있고 반복 탭 동작 정의 없음',
         origin: 'spec',
       },
@@ -177,11 +180,7 @@ const STYLES: Readonly<Record<Language, LanguageStyle>> = {
         preconditions: ['ログイン済み', '投稿 P-100 未ブックマーク'],
         testData: ['投稿 = P-100'],
         steps: ['ブックマークアイコンを1秒以内に2回タップ', 'マイブックマーク一覧を開く'],
-        expected: [
-          'P-100 が1件のみ表示',
-          'ブックマーク件数 1増加',
-          '仕様確認要: 2回目のタップで解除されるか',
-        ],
+        expected: ['P-100 の重複表示なし', '仕様確認要: 2回目のタップでブックマーク維持(1件)か解除(0件)か'],
         whyEasyToMiss: '仕様書はブックマーク追加のみで、連続タップ時の動作が未定義',
         origin: 'spec',
       },
@@ -227,7 +226,7 @@ const STYLES: Readonly<Record<Language, LanguageStyle>> = {
         preconditions: ['已登录', '帖子 P-100 未收藏'],
         testData: ['帖子 = P-100'],
         steps: ['1秒内点击收藏图标2次', '进入我的收藏'],
-        expected: ['P-100 仅显示1条', '收藏数增加1', '需确认需求: 第二次点击是否取消收藏'],
+        expected: ['P-100 未重复显示', '需确认需求: 第二次点击后保留收藏(1条)还是取消收藏(0条)'],
         whyEasyToMiss: '需求只描述添加收藏，未定义重复点击的行为',
         origin: 'spec',
       },
@@ -277,7 +276,7 @@ Rewritten from essay voice to sheet voice:
 - not: ${style.contrast.no}
 - but: ${style.contrast.yes}
 
-When the spec does not say what should happen, write the result you would hold the product to and add a last expected line that starts with "${SPEC_DECISION_LABEL[language]}:" and names the open question.
+When the spec does not say what should happen, the expected lines hold only what must be true whichever way it is decided, and the last expected line starts with "${SPEC_DECISION_LABEL[language]}:" and names the open question with its options. A status code, error name or message the spec does not give belongs in that last line, never above it.
 
 Two cases in the voice to use. They show the voice and the level of detail only; their subject has nothing to do with the spec you are given.
 

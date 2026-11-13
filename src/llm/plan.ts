@@ -42,10 +42,12 @@ import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 export const AC_GROUP_SIZE = 3;
 /** Output the merge call is expected to write: a few index numbers per decision. */
 const MERGE_OUTPUT_TOKENS = 2_000;
-/** Rough size of one row of the case index shown to the merge call. */
-const INDEX_ROW_TOKENS = 45;
+/** Rough size of one row of the case index shown to the merge call (title, setup, first result). */
+const INDEX_ROW_TOKENS = 110;
+/** Longest setup text shown per case in the merge index. */
+const INDEX_SETUP_CHARS = 240;
 /** Cases a group is expected to produce, for sizing the merge call before any call is made. */
-const EXPECTED_CASES_PER_REQUIREMENT = 6;
+const EXPECTED_CASES_PER_REQUIREMENT = 14;
 const CHARS_PER_TOKEN = 3.2;
 const PRIORITY_ORDER: Readonly<Record<Priority, number>> = { P0: 0, P1: 1, P2: 2 };
 
@@ -56,6 +58,11 @@ export const PlanMergeSchema = z.object({
   duplicates: z
     .array(
       z.object({
+        reason: z
+          .string()
+          .describe(
+            'One sentence: the setup, action and observation these cases share. Written before choosing.',
+          ),
         keep: z.number().describe('Index of the case to keep.'),
         drop: z.array(z.number()).describe('Indexes of the cases that duplicate it.'),
       }),
@@ -178,7 +185,8 @@ export function normalizePlanned(
       testData: cleanList(raw.testData),
       steps,
       expected,
-      whyEasyToMiss: clean(raw.whyEasyToMiss),
+      // A happy path is the requirement as written: the spec states it, so it has no gap to name.
+      whyEasyToMiss: raw.technique === 'happy_path' ? '' : clean(raw.whyEasyToMiss),
       origin: 'spec',
       reuseCaseId,
     });
@@ -218,6 +226,8 @@ export interface MergedAway {
   keptTitle: string;
   /** `exact`: same technique and title, dropped in code. `merge`: called a duplicate by the merge call. */
   by: 'exact' | 'merge';
+  /** The merge call's own sentence on what the two cases share. Absent for `exact`. */
+  reason?: string;
 }
 
 /**
@@ -234,11 +244,15 @@ export interface PlanDiagnostics {
   priorityChanges: number;
   /** False when there was one group, or the merge call failed or was skipped by the cost cap. */
   mergeRan: boolean;
+  /** Duplicate groups the merge call named without saying what the cases share; they were not applied. */
+  unexplainedGroups: number;
 }
 
 /**
  * Applies the merge call's decisions. Indexes outside the sheet are ignored, a case named both as
  * kept and as dropped is kept, and a dropped case hands its existing id to the case that stays.
+ * A duplicate group that does not say what its cases share is not applied: removing a case needs
+ * a reason someone can check.
  */
 export function applyMerge(cases: PlannedCase[], merge: PlanMerge): PlannedCase[] {
   return applyMergeDetailed(cases, merge).cases;
@@ -248,14 +262,16 @@ export function applyMerge(cases: PlannedCase[], merge: PlanMerge): PlannedCase[
 export function applyMergeDetailed(
   cases: PlannedCase[],
   merge: PlanMerge,
-): { cases: PlannedCase[]; mergedAway: MergedAway[]; priorityChanges: number } {
+): { cases: PlannedCase[]; mergedAway: MergedAway[]; priorityChanges: number; unexplainedGroups: number } {
   const valid = (i: number): boolean => Number.isInteger(i) && i >= 0 && i < cases.length;
-  const kept = new Set(merge.duplicates.map((d) => d.keep).filter(valid));
+  const explained = merge.duplicates.filter((d) => clean(d.reason ?? '') !== '');
+  const unexplainedGroups = merge.duplicates.length - explained.length;
+  const kept = new Set(explained.map((d) => d.keep).filter(valid));
   const next = cases.map((c) => ({ ...c }));
   const dropped = new Set<number>();
   const mergedAway: MergedAway[] = [];
   let priorityChanges = 0;
-  for (const group of merge.duplicates) {
+  for (const group of explained) {
     if (!valid(group.keep)) continue;
     for (const i of group.drop) {
       if (!valid(i) || i === group.keep || kept.has(i) || dropped.has(i)) continue;
@@ -269,6 +285,7 @@ export function applyMergeDetailed(
         priority: gone.priority,
         keptTitle: keeper.title,
         by: 'merge',
+        reason: clean(group.reason),
       });
       if (keeper.reuseCaseId === null && gone.reuseCaseId !== null) keeper.reuseCaseId = gone.reuseCaseId;
       keeper.acLabels = [...new Set([...keeper.acLabels, ...gone.acLabels])];
@@ -280,7 +297,7 @@ export function applyMergeDetailed(
     if (target.priority !== change.priority && !dropped.has(change.index)) priorityChanges++;
     target.priority = change.priority;
   }
-  return { cases: next.filter((_, i) => !dropped.has(i)), mergedAway, priorityChanges };
+  return { cases: next.filter((_, i) => !dropped.has(i)), mergedAway, priorityChanges, unexplainedGroups };
 }
 
 async function pool<T>(
@@ -385,6 +402,7 @@ export async function generatePlan(
   const generated = perGroup.flat();
   const mergedAway: MergedAway[] = [];
   let priorityChanges = 0;
+  let unexplainedGroups = 0;
   let mergeRan = false;
   let cases = dropExactRepeats(generated, mergedAway);
 
@@ -396,6 +414,7 @@ export async function generatePlan(
       technique: c.technique,
       priority: c.priority,
       title: c.title,
+      setup: [...c.preconditions, ...c.testData].join('; ').slice(0, INDEX_SETUP_CHARS),
       expected: c.expected[0] ?? '',
     }));
     try {
@@ -416,6 +435,7 @@ export async function generatePlan(
       cases = applied.cases;
       mergedAway.push(...applied.mergedAway);
       priorityChanges = applied.priorityChanges;
+      unexplainedGroups = applied.unexplainedGroups;
       mergeRan = true;
     } catch (err) {
       // The cases are complete without the merge; keep them and say what was skipped.
@@ -464,6 +484,13 @@ export async function generatePlan(
     calls,
     warnings,
     dropped,
-    diagnostics: { generated: generated.length, afterMerge, mergedAway, priorityChanges, mergeRan },
+    diagnostics: {
+      generated: generated.length,
+      afterMerge,
+      mergedAway,
+      priorityChanges,
+      mergeRan,
+      unexplainedGroups,
+    },
   };
 }
