@@ -399,7 +399,7 @@ describe('v3 round records (docs/quality/RUBRIC.md "Scoring")', () => {
       language: 'ko',
       split: 'selected',
       variant: 'claude-opus-5-5 · high',
-      rubricVersion: 3,
+      rubricVersion: 3.1,
       specs: 2,
       judged: 2,
       unscored: [],
@@ -719,7 +719,7 @@ describe('scoring saved sheets again: plan --rejudge and --regrade (docs/quality
     const quoted = await runPlanEval(['--rejudge', raw], dry.deps);
     expect(quoted).toMatchObject({ exitCode: 0, executed: false });
     expect(quoted.estimateUsd).toBeGreaterThan(0);
-    expect(dry.lines[0]).toBe('Re-judge plan — rubric v3 (the file was scored with rubric v3)');
+    expect(dry.lines[0]).toBe('Re-judge plan — rubric v3.1 (the file was scored with rubric v3.1)');
     expect(dry.out()).toContain(
       `  source: ${raw}   prompt ${before.promptVersion}   language: ko   sheets: 2 of 2`,
     );
@@ -764,14 +764,14 @@ describe('scoring saved sheets again: plan --rejudge and --regrade (docs/quality
     expect(base.files[backup]).toBe(original);
 
     const [record] = JSON.parse(base.files['evals/rounds/v3/index.json'] as string) as RoundRecordV3[];
-    expect(record).toMatchObject({ round: 0, change: 'baseline', decision: 'keep', rubricVersion: 3 });
+    expect(record).toMatchObject({ round: 0, change: 'baseline', decision: 'keep', rubricVersion: 3.1 });
     expect(record?.rescored).toMatchObject({ what: 'judge' });
     expect(record?.criteria.coverage).toBe(2);
     expect(again.out()).toContain(
       'Round 0 recorded in evals/rounds/v3/0/summary.ko.md and evals/ROUNDS.v3.md (decision: keep).',
     );
     expect(base.files['evals/rounds/v3/0/summary.ko.md']).toMatch(
-      /- Scored again on 2026-11-13: rubric judge \(rubric v3\) and deterministic metrics\. The sheets are the ones written on the date above\./,
+      /- Scored again on 2026-11-13: rubric judge \(rubric v3\.1\) and deterministic metrics\. The sheets are the ones written on the date above\./,
     );
     // A round written with the same judge is no better than the re-judged baseline.
     const next = harness({ coverage: 2 }, base.store);
@@ -846,7 +846,7 @@ describe('scoring saved sheets again: plan --rejudge and --regrade (docs/quality
       await runPlanEval(['--rejudge', raw, '--cases', 'rbac-export-role', '--yes'], mixed.deps),
     ).toMatchObject({ exitCode: 2 });
     expect(mixed.out()).toBe(
-      `Cannot re-judge part of ${raw}: it was scored with rubric v2 and the rubric is now v3. Re-judge the whole file (drop --cases).`,
+      `Cannot re-judge part of ${raw}: it was scored with rubric v2 and the rubric is now v3.1. Re-judge the whole file (drop --cases).`,
     );
   });
 

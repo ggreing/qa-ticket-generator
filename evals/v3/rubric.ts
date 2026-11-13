@@ -14,7 +14,8 @@ import type { LlmUsage, PrdDocument } from '../../src/core/contracts';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import type { RubricClientLike } from '../rubric';
 
-export const RUBRIC_V3_VERSION = 3;
+/** 3.1 (after plan round 1): the judge is told what does and does not count as a duplicate. Anchors unchanged. */
+export const RUBRIC_V3_VERSION = 3.1;
 export const DEFAULT_JUDGE_MODEL = 'claude-sonnet-5-5';
 /** Cases scored in full per sheet. The whole sheet is still shown as an index. */
 export const CASE_SAMPLE = 20;
@@ -174,6 +175,7 @@ ${rubricText(SHEET_CRITERIA)}
 How to apply it:
 - Spec coverage is the criterion that matters most. Work it out yourself: for each requirement of the spec, go through the techniques (${TECHNIQUES_TEXT}) and decide which apply, then look for a case in the index. List what has no case in \`missingCases\`. A technique applies only when the requirement gives it something to test; do not ask for a case per technique. Count what the spec leaves open as something that applies: a limit with no word on whether it is included, an action with no word on what a second one does.
 - A long sheet is not a fault. Only repeated test intent costs points under no duplicates, and you list those groups in \`duplicateGroups\`.
+- No duplicates: two cases repeat each other only when a tester who ran one would learn nothing from the other, which means the same setup, the same action and the same thing observed. They are not duplicates when they differ in the state they start from, in the actor, in the side of a limit they test (the last value that passes and the first value that fails are two cases, and so is the limit itself when the spec does not say whether it is included), or in what is observed, however alike their titles are. They are duplicates when they are several values of one kind with the same result, the same scenario filed under two techniques, or the same situation written once per requirement with nothing different to observe. Check each group against this before you list it.
 - Easy-to-miss value is about the case, not about how its \`whyEasyToMiss\` is worded. A plain happy path is a 1: it has to be there, and nobody would forget it.
 - QA-sheet style: titles are short noun phrases, steps are short actions, expected results are observable facts, and nothing explains or sells the test. Phrases like "verify that", "ensure", "should be able to", "properly", "correctly", emoji and added explanations after a dash are the voice to mark down. Judge the style in the language the sheet is written in, by that language's QA conventions.
 - Honesty: a case may assume a concrete value for test data. It may not test a feature the spec does not have. Where the spec does not say what should happen, a case that names the open question is honest; one that presents its guess as the defined behavior is not.

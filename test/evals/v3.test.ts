@@ -153,7 +153,7 @@ const COVERAGE_CALL_COST = (2_000 * 0.1 + 200 * 0.5) / 1e6;
 
 describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
   it('SPEC v3 §8 has five case criteria and three sheet criteria, with anchors word for word from RUBRIC.md', () => {
-    expect(RUBRIC_V3_VERSION).toBe(3);
+    expect(RUBRIC_V3_VERSION).toBe(3.1);
     expect(CASE_CRITERIA).toEqual(['actionability', 'traceability', 'priority', 'missValue', 'style']);
     expect(SHEET_CRITERIA).toEqual(['coverage', 'noDuplicates', 'honesty']);
     const rows = readFileSync('docs/quality/RUBRIC.md', 'utf8')
@@ -176,6 +176,13 @@ describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
       for (const anchor of RUBRIC_V3[c].anchors) expect(JUDGE_SYSTEM_V3, c).toContain(anchor);
     expect(JUDGE_SYSTEM_V3).toContain('Spec coverage is the criterion that matters most.');
     expect(JUDGE_SYSTEM_V3).toContain('A long sheet is not a fault.');
+    // v3.1: what separates two cases, and what does not.
+    expect(JUDGE_SYSTEM_V3).toContain('a tester who ran one would learn nothing from the other');
+    expect(JUDGE_SYSTEM_V3).toContain(
+      'the last value that passes and the first value that fails are two cases',
+    );
+    expect(JUDGE_SYSTEM_V3).toContain('the same scenario filed under two techniques');
+    expect(JUDGE_SYSTEM_V3).toContain('Check each group against this before you list it.');
     expect(JUDGE_SYSTEM_V3).toContain('A plain happy path is a 1');
     expect(JUDGE_SYSTEM_V3).toContain('Judge the style in the language the sheet is written in');
     expect(JUDGE_SYSTEM_V3).toContain('do not ask for a case per technique');
@@ -189,7 +196,7 @@ describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
     expect(score.caseScore).toBeCloseTo((2 + 2 + 1 + 1 + 2) / 5, 9);
     expect(score.sheetScore).toBeCloseTo((2 * 1 + 2 + 2) / 4, 9);
     expect(score.overall).toBeCloseTo(0.5 * 1.6 + 0.5 * 1.5, 9);
-    expect(score).toMatchObject({ rubricVersion: 3, unscoredCases: [] });
+    expect(score).toMatchObject({ rubricVersion: 3.1, unscoredCases: [] });
     expect(score.missingCases).toEqual([
       { requirement: 'AC2', technique: 'concurrency', what: 'two requests at once' },
     ]);
@@ -532,7 +539,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
     expect(h.out()).toContain('left out, no spec to plan from: login-throttle-no-prd');
     expect(h.out()).toMatch(/estimated run cost: {3}~\$\d+\.\d\d \(claude-opus-5-5\)/);
     expect(h.out()).toMatch(
-      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3 \+ claude-haiku-5-5 must-cover check\)/,
+      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3\.1 \+ claude-haiku-5-5 must-cover check\)/,
     );
     expect(h.lines.at(-1)).toBe('Nothing was sent to the API. Re-run with --yes to execute.');
     const perSpec = (outcome.estimate?.runUsd ?? 0) / withSpec.length;
@@ -554,7 +561,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
       split: 'selected',
       model: MODEL,
       judgeModel: 'claude-sonnet-5-5',
-      rubricVersion: 3,
+      rubricVersion: 3.1,
       lintSource: 'cases',
     });
     expect(results.runs.map((r) => r.caseId)).toEqual(['coupon-expiry-missing', 'rbac-export-role']);
@@ -567,7 +574,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
       origin: 'spec',
     });
     expect(run?.grade).toMatchObject({ mustCoverRecall: 1, repeatedTitles: 0 });
-    expect(run?.rubric).toMatchObject({ rubricVersion: 3, sheetScore: 1.5 });
+    expect(run?.rubric).toMatchObject({ rubricVersion: 3.1, sheetScore: 1.5 });
     expect(run?.judge).toMatchObject({ model: 'claude-sonnet-5-5' });
     expect(results.summary).toMatchObject({ specs: 2, mustCoverRecall: 1 });
     expect(results.rubric).toMatchObject({ judged: 2 });

@@ -37,6 +37,13 @@ Notes for both the judge and human reviewers:
   to test.
 - **Length is not judged.** A sheet of 60 cases is as good as a sheet of 20 if both cover the spec without
   repeating themselves.
+- **What counts as a duplicate** (v3.1). Two cases repeat each other only when a tester who ran one would
+  learn nothing from the other: the same setup, the same action, the same thing observed. Cases that differ
+  in the state they start from, the actor, the side of a limit they test, or what is observed are not
+  duplicates, however alike their titles are. The last value that passes and the first that fails are two
+  cases, and so is the limit itself when the spec does not say whether it is included. Several values of one
+  kind with the same result, the same scenario filed under two techniques, and the same situation written
+  once per requirement with nothing different to observe are duplicates.
 - **Easy-to-miss value** is about the case, not about how its reason is worded. A plain happy path scores 1.
 - **QA-sheet style** is judged in the language of the sheet, by that language's QA conventions (SPEC v3
   §3.1). The deterministic count of style-rule violations is reported next to it.
