@@ -38,6 +38,7 @@ export const en: Strings = {
   table: { requirement: 'Requirement', status: 'Status', evidence: 'Evidence' },
   requirementStatus: {
     covered: 'covered',
+    partial: 'partly covered',
     missing: 'missing',
     contradicts: 'contradicts',
     unclear: 'unclear',

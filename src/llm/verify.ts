@@ -67,7 +67,9 @@ const STATUS_RANK: Readonly<Record<CodeStatus, number>> = {
   unknown: 0,
 };
 const FINDING_RANK: Readonly<Record<Finding['status'], number>> = {
-  contradicts: 3,
+  contradicts: 4,
+  // One part saw the basic behavior and an edge that is not handled: more specific than "covered".
+  partial: 3,
   covered: 2,
   missing: 1,
   unclear: 0,

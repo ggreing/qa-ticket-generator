@@ -126,7 +126,7 @@ export interface VerifyGrade {
   /** One row per requirement with a known code state (from `expected.mustFindings`). */
   requirements: {
     id: string;
-    expected: 'covered' | 'missing' | 'contradicts' | 'unclear';
+    expected: 'covered' | 'partial' | 'missing' | 'contradicts' | 'unclear';
     /** Statuses of the cases that test this requirement. */
     statuses: string[];
     ok: boolean;
@@ -162,7 +162,7 @@ export function gradeVerify(evalCase: GradedCase, cases: QaCase[], result: Verif
         ? statuses.includes('missing')
         : expected === 'contradicts'
           ? statuses.includes('contradicts')
-          : expected === 'covered'
+          : expected === 'covered' || expected === 'partial'
             ? statuses.includes('implemented') && !statuses.includes('contradicts')
             : !statuses.includes('contradicts'); // unclear: nothing in the code to contradict
     return { id: must.id, expected, statuses, ok };
@@ -173,7 +173,11 @@ export function gradeVerify(evalCase: GradedCase, cases: QaCase[], result: Verif
         new RegExp(`(^|[^A-Za-z0-9])${label}([^A-Za-z0-9]|$)`, 'i').test(f.requirement),
       ),
     );
-    return found.length > 0 && found.every((f) => must.accept.includes(f.status));
+    // `partial` (basic behavior there, an edge case missing) is what a partly built requirement
+    // is called since verify 2026-11-13.7. Ground truth written before that says `missing` for it.
+    const accepted = (s: (typeof found)[number]['status']): boolean =>
+      must.accept.includes(s) || (s === 'partial' && must.accept.includes('missing'));
+    return found.length > 0 && found.every((f) => accepted(f.status));
   });
   const all = result.statuses.length;
   return {

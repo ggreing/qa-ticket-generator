@@ -24,7 +24,13 @@ export const ko: Strings = {
     redactions: '마스킹된 비밀값',
   },
   table: { requirement: '요구사항', status: '상태', evidence: '근거' },
-  requirementStatus: { covered: '충족', missing: '누락', contradicts: '상충', unclear: '불명확' },
+  requirementStatus: {
+    covered: '충족',
+    partial: '부분 충족',
+    missing: '누락',
+    contradicts: '상충',
+    unclear: '불명확',
+  },
   omittedTickets: (n) =>
     `GitHub 코멘트 길이 제한 때문에 우선순위가 낮은 티켓 ${n}개를 생략했습니다. 전체 리포트는 워크플로의 Job Summary와 report.json에 있습니다.`,
   omittedFindings: (n) =>

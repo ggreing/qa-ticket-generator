@@ -31,7 +31,13 @@ export const zhCN: Strings = {
     redactions: '已脱敏的密钥',
   },
   table: { requirement: '需求', status: '状态', evidence: '依据' },
-  requirementStatus: { covered: '已覆盖', missing: '缺失', contradicts: '冲突', unclear: '不明确' },
+  requirementStatus: {
+    covered: '已覆盖',
+    partial: '部分覆盖',
+    missing: '缺失',
+    contradicts: '冲突',
+    unclear: '不明确',
+  },
   omittedTickets: (n) =>
     `受 GitHub 评论长度限制,省略了 ${n} 个优先级较低的工单。完整报告见工作流的 Job Summary 和 report.json。`,
   omittedFindings: (n) =>
