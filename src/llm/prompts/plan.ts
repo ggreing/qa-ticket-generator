@@ -18,7 +18,7 @@ export const PLAN_PROMPT_VERSION = '2026-11-13.1';
 
 /** Tags this module emits; data containing them is defused so it cannot close a section early. */
 const RESERVED =
-  /<(\/?)(spec|requirements|related_document|repo_notes|glossary|style_examples|existing_cases|case_index|task|example_case)\b/gi;
+  /<(\/?)(spec|requirements|related_document|repo_notes|glossary|style_examples|existing_cases|case_index|task|example_case|cases|case|pr_metadata|pr_title|pr_body|code_changes|changed_file|file_summary|hunk|code_context|skipped_files)\b/gi;
 export const guardSpec = (text: string): string => text.replace(RESERVED, '&lt;$1$2');
 
 export const PLAN_SYSTEM = `You are a senior QA engineer. You are given a product spec, and you write the test case sheet for it: every case a tester has to run before this feature ships, each one as a row that becomes its own ticket. A program reads your answer, so it is a single JSON object that follows the provided schema.
