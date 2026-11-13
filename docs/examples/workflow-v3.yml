@@ -56,6 +56,7 @@ jobs:
           # notion-qa-database-id: 0123456789abcdef0123456789abcdef
       # Plan runs also write the cases as files; keep them with the run.
       # Pinned to a full commit SHA, like every third-party action in our own workflows.
+      # upload-artifact may print Node version and deprecation warnings here; the upload still works.
       - name: Upload QA case files
         if: steps.qa.outputs.cases-dir != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

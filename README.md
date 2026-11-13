@@ -131,6 +131,7 @@ jobs:
         uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      # upload-artifact may print Node version and deprecation warnings here; the upload still works.
       - if: steps.qa.outputs.cases-dir != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
