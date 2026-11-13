@@ -213,6 +213,8 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 | Output             | 说明                                             |
 | ------------------ | ------------------------------------------------ |
 | `report-path`      | 完整结果 `report.json` 的路径。                  |
+| `case-count`       | 计划阶段后有效的 QA 用例数。                     |
+| `cases-dir`        | 计划阶段后存放 qa-cases.md、.csv、.json 的目录。 |
 | `scenario-count`   | 写出的测试用例数量。                             |
 | `alignment-status` | `aligned`、`partial`、`misaligned` 或 `no_prd`。 |
 | `cost-usd`         | 本次运行的预估费用。                             |

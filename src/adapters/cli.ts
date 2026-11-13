@@ -1,5 +1,6 @@
 /** CLI entry point: `qa-ticket-generator run --repo o/r --pr 12`. OWNERSHIP: control session. */
 import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { getOctokit } from '@actions/github';
 import type { Logger } from '../core/contracts';
 import { toQtgError } from '../core/errors';
@@ -57,7 +58,11 @@ export async function main(argv: string[]): Promise<number> {
   try {
     const result = await execute({
       input,
-      event: { name: 'workflow_dispatch', dispatchPrNumber: args.pr as number },
+      event:
+        args.command === 'plan'
+          ? { name: 'workflow_dispatch' }
+          : { name: 'workflow_dispatch', dispatchPrNumber: args.pr as number },
+      caseFileDir: resolve(args.outDir ?? '.'),
       owner,
       repo,
       octokit: getOctokit(token),
@@ -78,6 +83,11 @@ export async function main(argv: string[]): Promise<number> {
       },
     });
     if (result.kind === 'skipped') return 0;
+    if (result.kind === 'planned') {
+      const o = result.outcome;
+      if (o.status === 'error') err(`error: ${o.error?.message ?? 'unknown error'}`);
+      return o.status === 'error' ? 1 : 0;
+    }
     const { final, failed } = result.outcome;
     if (final.status === 'error') err(`error: ${final.error?.message ?? 'unknown error'}`);
     return failed || final.status === 'error' ? 1 : 0;

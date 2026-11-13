@@ -69,3 +69,23 @@ describe('cliInputReader', () => {
     expect(cliInputReader({ ...args, publish: true }, {})('dry-run')).toBe('false');
   });
 });
+
+describe('plan command (SPEC v3 §2.1)', () => {
+  it('requires --repo and --spec, maps v3 flags to inputs and forces plan mode', () => {
+    const a = parseArgs([
+      'plan',
+      '--repo',
+      'acme/shop',
+      '--spec',
+      'PAY-9',
+      '--sinks',
+      'jira,file',
+      '--out-dir',
+      'out',
+    ]);
+    expect(a).toMatchObject({ command: 'plan', outDir: 'out', publish: false });
+    expect(a.inputs).toMatchObject({ spec: 'PAY-9', sinks: 'jira,file', mode: 'plan' });
+    expect(() => parseArgs(['plan', '--repo', 'acme/shop'])).toThrow(/--spec is required/);
+    expect(() => parseArgs(['run', '--repo', 'acme/shop'])).toThrow(/--pr is required/);
+  });
+});

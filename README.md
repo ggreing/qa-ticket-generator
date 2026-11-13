@@ -222,13 +222,15 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 ### Outputs
 
 <!-- outputs:start -->
-| Output             | Description                                     |
-| ------------------ | ----------------------------------------------- |
-| `report-path`      | Path to `report.json` with the full result.     |
-| `scenario-count`   | How many test cases were written.               |
-| `alignment-status` | `aligned`, `partial`, `misaligned` or `no_prd`. |
-| `cost-usd`         | Estimated cost of the run.                      |
-| `skipped-reason`   | Why the run was skipped, if it was.             |
+| Output             | Description                                               |
+| ------------------ | --------------------------------------------------------- |
+| `report-path`      | Path to `report.json` with the full result.               |
+| `case-count`       | Active QA cases after a plan run.                         |
+| `cases-dir`        | Folder with qa-cases.md, .csv and .json after a plan run. |
+| `scenario-count`   | How many test cases were written.                         |
+| `alignment-status` | `aligned`, `partial`, `misaligned` or `no_prd`.           |
+| `cost-usd`         | Estimated cost of the run.                                |
+| `skipped-reason`   | Why the run was skipped, if it was.                       |
 <!-- outputs:end -->
 
 ### Repository config file

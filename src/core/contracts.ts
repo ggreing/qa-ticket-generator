@@ -63,6 +63,10 @@ export interface TriggerEvent {
   };
   /** PR number supplied to `workflow_dispatch` (or the CLI). */
   dispatchPrNumber?: number;
+  /** SPEC v3 §2.1 — the issue of an `issues` event (a spec written as a GitHub issue). */
+  issue?: { number: number; state: 'open' | 'closed'; labels: string[] };
+  /** SPEC v3 §7 — `spec` input of `workflow_dispatch` (or the CLI). */
+  dispatchSpec?: string;
 }
 
 export type TriggerSkipReason =

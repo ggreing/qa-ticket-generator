@@ -4,28 +4,38 @@
  * OWNERSHIP: control session.
  */
 
+import { lintCaseStyle, planSync, reconcileCases, renderCase } from '../cases';
 import { createGitHubReader } from '../context/github';
 import { createGitHubIssueProvider } from '../context/prd/github-issue';
 import { createJiraProvider } from '../context/prd/jira';
 import { createNotionProvider } from '../context/prd/notion';
 import { extractPrdRefs } from '../context/prd/refs';
 import { collectPrdDocuments } from '../context/prd/registry';
+import type { CaseSink } from '../core/cases';
 import { type InputReader, parseRepoConfig, type QtgConfig, resolveConfig } from '../core/config';
-import type { FinalReport, Logger, TriggerEvent, TriggerSkipReason } from '../core/contracts';
+import type { FinalReport, Logger, PrdRef, TriggerEvent, TriggerSkipReason } from '../core/contracts';
+import { QtgError } from '../core/errors';
 import { astExtensionsFor } from '../core/languages';
 import { MAX_OUTPUT_TOKENS } from '../core/limits';
 import type { Octokit } from '../core/octokit';
 import { type PipelineOutcome, runPipeline } from '../core/pipeline';
+import { type PlanOutcome, runPlan } from '../core/plan-pipeline';
 import { createPrCommentStore } from '../delivery/comment-store';
 import { renderPrComment } from '../delivery/render/markdown';
 import { createSlackDeliverer } from '../delivery/slack';
 import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
 import { createAnthropicProvider } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
+import { generatePlan } from '../llm/plan';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
 import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
+import { createFileCaseSink } from '../sinks/file';
+import { createGitHubIssueCaseSink } from '../sinks/github-issue';
+import { createJiraCaseSink } from '../sinks/jira';
+import { createNotionCaseSink } from '../sinks/notion';
 import { decideTrigger } from '../trigger/gate';
 import { prNumberOf } from './event';
+import { decideMode } from './mode';
 
 export interface ExecuteRequest {
   input: InputReader;
@@ -40,11 +50,14 @@ export interface ExecuteRequest {
   signal: AbortSignal;
   /** The CLI is an explicit request: bypass the label gate. */
   bypassGate?: boolean;
+  /** SPEC v3 §5 — where the file sink writes qa-cases.{md,csv,json}. */
+  caseFileDir: string;
 }
 
 export type ExecuteResult =
   | { kind: 'skipped'; reason: TriggerSkipReason }
-  | { kind: 'ran'; outcome: PipelineOutcome; config: QtgConfig };
+  | { kind: 'ran'; outcome: PipelineOutcome; config: QtgConfig }
+  | { kind: 'planned'; outcome: PlanOutcome; config: QtgConfig };
 
 const SKIP_TEXT: Record<TriggerSkipReason, string> = {
   irrelevant_label: 'A different label was added.',
@@ -61,6 +74,24 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
   const { input, event, logger } = req;
   // Validate inputs early (repo config is merged after the PR is known).
   const early = resolveConfig(input, parseRepoConfig(null));
+
+  // SPEC v3 §2 — plan (spec -> cases) or verify (PR).
+  const mode = decideMode(event, {
+    mode: early.mode,
+    spec: early.spec,
+    planLabel: early.planLabel,
+    owner: req.owner,
+    repo: req.repo,
+    jiraProjectKeys: early.jiraProjectKeys,
+  });
+  if (mode.mode === 'skip') {
+    logger.info(`Skipping: ${mode.reason}`);
+    await req.sink.writeMarkdown(
+      `### 🧪 QA cases — skipped\n\n${SKIP_TEXT[mode.reason]} (\`${mode.reason}\`)\n`,
+    );
+    return { kind: 'skipped', reason: mode.reason };
+  }
+  if (mode.mode === 'plan') return executePlan(req, early, mode.spec);
 
   if (!req.bypassGate) {
     const decision = decideTrigger(event, {
@@ -136,6 +167,114 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
     req.signal,
   );
   return { kind: 'ran', outcome, config: cfg };
+}
+
+async function executePlan(req: ExecuteRequest, early: QtgConfig, spec: PrdRef): Promise<ExecuteResult> {
+  const { input, logger } = req;
+  // Repo config from the default branch: a plan run has no PR base to read it from.
+  const { data: repoInfo } = await req.octokit.rest.repos.get({ owner: req.owner, repo: req.repo });
+  const reader = createGitHubReader(req.octokit, {
+    owner: req.owner,
+    repo: req.repo,
+    astExtensions: [],
+    logger,
+  });
+  const repoText = await reader.getFileContent(
+    `${req.owner}/${req.repo}`,
+    early.configPath,
+    repoInfo.default_branch,
+  );
+  const cfg = resolveConfig(input, parseRepoConfig(repoText));
+  const ctx = { logger, language: cfg.language };
+
+  // Dry-run publishes nothing outside the run: only the file sink stays.
+  const kinds = cfg.dryRun ? (['file'] as const) : cfg.sinks;
+  if (cfg.dryRun && cfg.sinks.some((k) => k !== 'file')) {
+    logger.info(
+      'Dry-run: writing qa-cases files only. Pass --publish (CLI) or dry-run: false to create tickets.',
+    );
+  }
+  const sinks: CaseSink[] = kinds.map((kind) => {
+    switch (kind) {
+      case 'jira':
+        return createJiraCaseSink(cfg.jira ? { ...cfg.jira, subtaskType: cfg.jiraSubtaskType } : null, ctx);
+      case 'github-issue':
+        return createGitHubIssueCaseSink(req.octokit, { owner: req.owner, repo: req.repo }, ctx);
+      case 'notion':
+        return createNotionCaseSink(
+          cfg.notionToken && cfg.notionQaDatabaseId
+            ? { token: cfg.notionToken, databaseId: cfg.notionQaDatabaseId }
+            : null,
+          ctx,
+        );
+      case 'file':
+        return createFileCaseSink({ dir: req.caseFileDir, previous: null }, ctx);
+      default:
+        throw new QtgError('config_invalid', `Unknown sink "${String(kind)}".`);
+    }
+  });
+
+  const llm = createAnthropicProvider(
+    {
+      apiKey: cfg.anthropicApiKey,
+      model: cfg.model,
+      effort: cfg.effort,
+      serverFallback: cfg.serverFallback,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+    },
+    { logger },
+  );
+
+  const outcome = await runPlan(
+    {
+      logger,
+      prdProviders: [
+        createGitHubIssueProvider(req.octokit),
+        createJiraProvider(cfg.jira),
+        createNotionProvider(cfg.notionToken),
+      ],
+      collectPrdDocuments,
+      redactText,
+      llm,
+      generatePlan,
+      reconcileCases,
+      planSync,
+      renderCase,
+      lintCaseStyle,
+      sinks,
+    },
+    cfg,
+    spec,
+    req.signal,
+  );
+  await req.sink.writeMarkdown(renderPlanSummary(outcome));
+  return { kind: 'planned', outcome, config: cfg };
+}
+
+/** Job Summary / CLI stdout for a plan run. */
+export function renderPlanSummary(o: PlanOutcome): string {
+  if (o.status === 'error') {
+    return `### 🧪 QA cases — failed\n\n${o.error?.code}: ${o.error?.message}\n`;
+  }
+  const active = o.cases.filter((c) => c.lifecycle === 'active');
+  const count = (p: string) => active.filter((c) => c.priority === p).length;
+  const lines = [
+    `### 🧪 QA cases for ${o.spec.raw}`,
+    '',
+    `${active.length} cases (P0 ${count('P0')} · P1 ${count('P1')} · P2 ${count('P2')}), ` +
+      `${o.cases.length - active.length} no longer apply. Cost $${o.costUsd.toFixed(2)}.`,
+    '',
+    '| Sink | Created | Updated | Suggested | Marked obsolete | Unchanged | Status |',
+    '|---|---|---|---|---|---|---|',
+    ...o.sinks.map(
+      (s) =>
+        `| ${s.kind} | ${s.created} | ${s.updated} | ${s.suggested} | ${s.obsoleted} | ${s.unchanged} | ${s.ok ? 'ok' : (s.error ?? 'failed')} |`,
+    ),
+  ];
+  if (o.styleViolations > 0) {
+    lines.push('', `Style check: ${o.styleViolations} phrases read as machine-written.`);
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 /** PRE-05 for the PR title/body, using the engine's own marker pipeline (spoof-proof counts). */

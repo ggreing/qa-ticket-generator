@@ -220,13 +220,15 @@ PR のタイトルと説明文も同じです。いくつマスクしたかは�
 ### Outputs
 
 <!-- outputs:start -->
-| Output             | 説明                                           |
-| ------------------ | ---------------------------------------------- |
-| `report-path`      | 結果全体が入った `report.json` のパス。        |
-| `scenario-count`   | 書いたテストケースの数。                       |
-| `alignment-status` | `aligned`、`partial`、`misaligned`、`no_prd`。 |
-| `cost-usd`         | 今回の実行の見積もりコスト。                   |
-| `skipped-reason`   | スキップした場合はその理由。                   |
+| Output             | 説明                                                       |
+| ------------------ | ---------------------------------------------------------- |
+| `report-path`      | 結果全体が入った `report.json` のパス。                    |
+| `case-count`       | 計画フェーズ後の有効な QA ケース数。                       |
+| `cases-dir`        | 計画フェーズ後の qa-cases.md、.csv、.json があるフォルダ。 |
+| `scenario-count`   | 書いたテストケースの数。                                   |
+| `alignment-status` | `aligned`、`partial`、`misaligned`、`no_prd`。             |
+| `cost-usd`         | 今回の実行の見積もりコスト。                               |
+| `skipped-reason`   | スキップした場合はその理由。                               |
 <!-- outputs:end -->
 
 ### Repository config file

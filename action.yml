@@ -132,6 +132,10 @@ inputs:
     default: "false"
 
 outputs:
+  case-count:
+    description: Active QA cases after a plan run.
+  cases-dir:
+    description: Directory with qa-cases.md, qa-cases.csv and qa-cases.json after a plan run.
   report-path:
     description: Path to report.json.
   scenario-count:

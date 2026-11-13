@@ -10,6 +10,7 @@ export interface PayloadLike {
   action?: string;
   label?: LabelLike;
   inputs?: Record<string, unknown>;
+  issue?: { number?: number; state?: string; labels?: LabelLike[]; pull_request?: unknown };
   pull_request?: {
     number?: number;
     state?: string;
@@ -37,6 +38,20 @@ export function toTriggerEvent(eventName: string, payload: PayloadLike): Trigger
       isFork: head === undefined ? pr.head?.repo === null : head !== base,
       draft: pr.draft === true,
     };
+  }
+
+  const issue = payload.issue;
+  // `issues` events only: issue_comment payloads on PRs also carry `issue`.
+  if (eventName === 'issues' && issue?.number && !issue.pull_request) {
+    event.issue = {
+      number: issue.number,
+      state: issue.state === 'closed' ? 'closed' : 'open',
+      labels: (issue.labels ?? []).map((l) => l.name ?? '').filter(Boolean),
+    };
+  }
+  const spec = payload.inputs?.spec;
+  if (eventName === 'workflow_dispatch' && typeof spec === 'string' && spec.trim()) {
+    event.dispatchSpec = spec.trim();
   }
 
   const dispatched = Number(payload.inputs?.['pr-number']);

@@ -215,13 +215,15 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 ### Outputs
 
 <!-- outputs:start -->
-| Output             | 설명                                          |
-| ------------------ | --------------------------------------------- |
-| `report-path`      | 전체 결과가 담긴 `report.json` 경로.          |
-| `scenario-count`   | 작성한 테스트 케이스 수.                      |
-| `alignment-status` | `aligned`, `partial`, `misaligned`, `no_prd`. |
-| `cost-usd`         | 이번 실행의 예상 비용.                        |
-| `skipped-reason`   | 건너뛰었다면 그 이유.                         |
+| Output             | 설명                                                    |
+| ------------------ | ------------------------------------------------------- |
+| `report-path`      | 전체 결과가 담긴 `report.json` 경로.                    |
+| `case-count`       | 기획 단계 실행 후 유효한 QA 케이스 수.                  |
+| `cases-dir`        | 기획 단계 실행 후 qa-cases.md, .csv, .json이 있는 폴더. |
+| `scenario-count`   | 작성한 테스트 케이스 수.                                |
+| `alignment-status` | `aligned`, `partial`, `misaligned`, `no_prd`.           |
+| `cost-usd`         | 이번 실행의 예상 비용.                                  |
+| `skipped-reason`   | 건너뛰었다면 그 이유.                                   |
 <!-- outputs:end -->
 
 ### Repository config file

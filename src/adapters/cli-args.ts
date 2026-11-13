@@ -1,14 +1,26 @@
 /** CLI argument parsing and input mapping (pure, testable). OWNERSHIP: control session. */
 import type { InputReader } from '../core/config';
 
-export const USAGE = `Usage: qa-ticket-generator run --repo <owner/repo> --pr <number> [options]
+export const USAGE = `Usage:
+  qa-ticket-generator plan --repo <owner/repo> --spec <ref> [options]
+  qa-ticket-generator run  --repo <owner/repo> --pr <number> [options]
+
+plan reads a spec (issue number, Jira key or Notion URL) and writes one QA case per test idea.
+Dry-run by default: cases go to qa-cases.{md,csv,json} in --out-dir and nothing else is touched.
+Pass --publish to create or update tickets in the configured --sinks.
+
+run checks a pull request.
 
 Generates BDD QA scenarios for a pull request. Dry-run by default: the report is printed and
 nothing is published. Pass --publish to write the PR comment and Slack message.
 
 Options:
   --repo <owner/repo>     Repository (required)
-  --pr <number>           Pull request number (required)
+  --spec <ref>            Spec to plan from (plan)
+  --sinks <list>          jira,github-issue,notion,file (plan, with --publish)
+  --out-dir <path>        Where qa-cases.* files go (plan, default: .)
+  --max-cases <n>         Safety cap on cases per spec (plan, default: 80)
+  --pr <number>           Pull request number (run)
   --publish               Publish to the PR comment / Slack instead of dry-run
   --format <md|json>      Stdout format (default: md)
   --out <path>            Also write report.json to this path
@@ -28,19 +40,30 @@ Environment:
 `;
 
 export interface CliArgs {
-  command: 'run' | 'help' | 'version';
+  command: 'run' | 'plan' | 'help' | 'version';
   repo?: { owner: string; repo: string };
   pr?: number;
   publish: boolean;
   format: 'md' | 'json';
   out?: string;
+  /** plan: directory for qa-cases.* files. */
+  outDir?: string;
   /** Flags that map 1:1 to action inputs. */
   inputs: Record<string, string>;
 }
 
 export class CliUsageError extends Error {}
 
-const INPUT_FLAGS = new Set(['language', 'model', 'effort', 'max-cost-usd', 'config-path']);
+const INPUT_FLAGS = new Set([
+  'language',
+  'model',
+  'effort',
+  'max-cost-usd',
+  'config-path',
+  'spec',
+  'sinks',
+  'max-cases',
+]);
 
 export function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = { command: 'help', publish: false, format: 'md', inputs: {} };
@@ -48,9 +71,9 @@ export function parseArgs(argv: string[]): CliArgs {
   const first = rest[0];
   if (first === undefined || first === '-h' || first === '--help' || first === 'help') return args;
   if (first === '-v' || first === '--version') return { ...args, command: 'version' };
-  if (first !== 'run') throw new CliUsageError(`Unknown command "${first}".`);
+  if (first !== 'run' && first !== 'plan') throw new CliUsageError(`Unknown command "${first}".`);
   rest.shift();
-  args.command = 'run';
+  args.command = first;
 
   while (rest.length > 0) {
     const flag = rest.shift() as string;
@@ -82,13 +105,18 @@ export function parseArgs(argv: string[]): CliArgs {
       case 'out':
         args.out = value;
         break;
+      case 'out-dir':
+        args.outDir = value;
+        break;
       default:
         if (name && INPUT_FLAGS.has(name)) args.inputs[name] = value;
         else throw new CliUsageError(`Unknown option ${flag}.`);
     }
   }
   if (!args.repo) throw new CliUsageError('--repo is required.');
-  if (!args.pr) throw new CliUsageError('--pr is required.');
+  if (args.command === 'run' && !args.pr) throw new CliUsageError('--pr is required.');
+  if (args.command === 'plan' && !args.inputs.spec) throw new CliUsageError('--spec is required.');
+  if (args.command === 'plan') args.inputs.mode = 'plan';
   return args;
 }
 

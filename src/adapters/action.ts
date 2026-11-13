@@ -38,6 +38,7 @@ export async function main(): Promise<void> {
       logger,
       signal: controller.signal,
       fullReportUrl: () => runUrl,
+      caseFileDir: join(process.env.RUNNER_TEMP || tmpdir(), 'qa-cases'),
       sink: {
         async writeMarkdown(markdown) {
           await core.summary.addRaw(markdown, true).write();
@@ -55,6 +56,15 @@ export async function main(): Promise<void> {
 
     if (result.kind === 'skipped') {
       core.setOutput('skipped-reason', result.reason);
+      return;
+    }
+
+    if (result.kind === 'planned') {
+      const o = result.outcome;
+      core.setOutput('case-count', String(o.cases.filter((c) => c.lifecycle === 'active').length));
+      core.setOutput('cases-dir', join(process.env.RUNNER_TEMP || tmpdir(), 'qa-cases'));
+      core.setOutput('cost-usd', o.costUsd.toFixed(4));
+      if (o.status === 'error') core.setFailed(`QA plan failed: ${o.error?.message ?? 'unknown error'}`);
       return;
     }
 
