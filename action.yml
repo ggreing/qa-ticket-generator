@@ -1,5 +1,5 @@
 name: QA Ticket Generator
-description: Cross-check PR diffs against linked PRDs with Claude and publish BDD QA scenarios to the PR and Slack.
+description: Turn a spec into QA test case tickets (GitHub Issues, Jira, Notion, CSV) with Claude, then check each PR against them.
 author: ggreing
 branding:
   icon: check-square

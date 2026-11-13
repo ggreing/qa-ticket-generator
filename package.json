@@ -1,7 +1,7 @@
 {
   "name": "qa-ticket-generator",
   "version": "0.1.0",
-  "description": "GitHub Action that cross-checks PR diffs against linked PRDs (GitHub Issues, Jira, Notion) with Claude and publishes BDD QA scenarios to the PR and Slack.",
+  "description": "Turn a spec into QA test case tickets (GitHub Issues, Jira, Notion, CSV) with Claude, then check each pull request against them. GitHub Action and CLI.",
   "license": "Apache-2.0",
   "author": "ggreing",
   "repository": {
