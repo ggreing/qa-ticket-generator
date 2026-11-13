@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import type { GenerateRequest } from '../../src/core/contracts';
 import { QtgError } from '../../src/core/errors';
 import {
@@ -10,6 +11,7 @@ import {
   type LlmStream,
   SERVER_FALLBACK_BETA,
 } from '../../src/llm/anthropic';
+import type { StructuredRequest } from '../../src/llm/structured';
 import { fakeReport, silentLogger } from '../helpers/fakes';
 import { chunk, fakeClient, message, promptContext } from './support';
 
@@ -310,5 +312,98 @@ describe('createAnthropicProvider', () => {
   it('LLM-01 builds a real SDK client when none is injected (no request is made)', () => {
     const provider = createAnthropicProvider(OPTIONS);
     expect(provider.id).toBe('anthropic');
+  });
+});
+
+describe('generateStructured — any schema-shaped output (SPEC v3, plan and verify calls)', () => {
+  const Shape = z.object({ cases: z.array(z.object({ title: z.string() })) });
+  const call = (overrides: Partial<StructuredRequest<z.infer<typeof Shape>>> = {}) => ({
+    system: ['method text', 'language text'],
+    prefix: ['<spec>the spec</spec>', '<existing_cases>(none)</existing_cases>'],
+    tail: '<task>AC1</task>',
+    schema: Shape,
+    ...overrides,
+  });
+
+  it('SPEC v3 sends system, cached prefix and tail in that order, with the schema of the call', async () => {
+    const { client, calls } = fakeClient([message({ cases: [{ title: 'Limit reached' }] })]);
+    const provider = createAnthropicProvider(OPTIONS, { client });
+    const result = await provider.generateStructured(call(), signal());
+
+    expect(result.value).toEqual({ cases: [{ title: 'Limit reached' }] });
+    expect(result.usage).toEqual({
+      inputTokens: 1_000,
+      outputTokens: 500,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 300,
+    });
+    const body = calls[0]?.body;
+    expect(body.system).toEqual([
+      { type: 'text', text: 'method text' },
+      { type: 'text', text: 'language text', cache_control: { type: 'ephemeral' } },
+    ]);
+    expect(body.messages[0].content).toEqual([
+      { type: 'text', text: '<spec>the spec</spec>', cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: '<existing_cases>(none)</existing_cases>', cache_control: { type: 'ephemeral' } },
+      { type: 'text', text: '<task>AC1</task>' },
+    ]);
+    expect(body.output_config.format.type).toBe('json_schema');
+    expect(JSON.stringify(body.output_config.format.schema)).toContain('"cases"');
+    expect(JSON.stringify(body.output_config.format.schema)).not.toContain('prdAlignment');
+    expect(body.max_tokens).toBe(32_000);
+  });
+
+  it('LLM-06 never uses more than four cache breakpoints, however many prefix blocks a call has', async () => {
+    const { client, calls } = fakeClient([message({ cases: [] })]);
+    await createAnthropicProvider(OPTIONS, { client }).generateStructured(
+      call({ prefix: ['a', 'b', 'c', 'd', 'e'] }),
+      signal(),
+    );
+    const content = calls[0]?.body.messages[0].content as { text: string; cache_control?: unknown }[];
+    expect(content.map((b) => b.text)).toEqual(['a\nb\nc', 'd', 'e', '<task>AC1</task>']);
+    const breakpoints = content.filter((b) => b.cache_control).length + 1; // plus the system one
+    expect(breakpoints).toBe(4);
+  });
+
+  it("LLM-02/04 validates against the call's schema, retries a bad shape once, and names the output in errors", async () => {
+    const retried = fakeClient([message({ wrong: true }), message({ cases: [{ title: 'ok' }] })]);
+    const ok = await createAnthropicProvider(OPTIONS, {
+      client: retried.client,
+      logger: silentLogger(),
+    }).generateStructured(call({ what: 'QA case' }), signal());
+    expect(ok.value.cases).toHaveLength(1);
+    expect(ok.usage.inputTokens).toBe(2_000); // both attempts are billed
+
+    const bad = fakeClient([message({ wrong: true }), message('not json')]);
+    const schema = await failure(
+      createAnthropicProvider(OPTIONS, { client: bad.client, logger: silentLogger() }).generateStructured(
+        call({ what: 'QA case' }),
+        signal(),
+      ),
+    );
+    expect(schema).toMatchObject({
+      code: 'llm_schema',
+      userMessage: 'The model response did not match the QA case schema after a retry.',
+    });
+
+    const refused = fakeClient([
+      message({}, { stop_reason: 'refusal', stop_details: { category: 'cyber' } }),
+    ]);
+    const refusal = await failure(
+      createAnthropicProvider(OPTIONS, { client: refused.client }).generateStructured(
+        call({ subject: 'spec' }),
+        signal(),
+      ),
+    );
+    expect(refusal.userMessage).toBe('The model declined to analyze this spec (category: cyber).');
+
+    const cut = fakeClient([message({ cases: [] }, { stop_reason: 'max_tokens' })]);
+    expect(
+      (
+        await failure(
+          createAnthropicProvider(OPTIONS, { client: cut.client }).generateStructured(call(), signal()),
+        )
+      ).code,
+    ).toBe('llm_truncated');
   });
 });
