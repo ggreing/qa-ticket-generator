@@ -29,7 +29,14 @@ import { QtgError } from '../core/errors';
 import { MAP_CONCURRENCY } from '../core/limits';
 import { type QaReport, type VerifyOutput, VerifyOutputSchema } from '../core/schema';
 import { planLanguageBlock, type Requirement, requirementsOf } from './prompts/plan';
-import { buildCaseIndex, buildVerifyPrefix, buildVerifyTail, VERIFY_SYSTEM } from './prompts/verify';
+import {
+  buildCaseIndex,
+  buildScopeBlock,
+  buildVerifyPrefix,
+  buildVerifyTail,
+  VERIFY_SYSTEM,
+} from './prompts/verify';
+import { type OutOfScopeReason, outOfScope, type ResolvedScope, resolveScope } from './scope';
 import { asStructured } from './structured';
 import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 
@@ -111,8 +118,12 @@ export function planVerifyRun(
   const prefixTokens = batches.map((batch) =>
     estimateTokens(buildVerifyPrefix(req, requirements, batch).join('\n')),
   );
-  // The call that may write new cases also gets the index of the whole sheet.
+  // The call that may write new cases also gets the index of the whole sheet, and after the
+  // first check the lines pushed since.
   const indexTokens = estimateTokens(buildCaseIndex(active));
+  const scope = resolveScope(req.newCaseScope ?? null, req.pre.chunks);
+  const scopeTokens = (chunk: CodeChunk): number =>
+    scope ? estimateTokens(buildScopeBlock(scope, chunk)) : 0;
   const cost = (inputTokens: number, outputTokens: number): number =>
     provider.estimateCostUsd({ inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 });
   const estimate = (chunks: CodeChunk[]): number =>
@@ -123,7 +134,10 @@ export function planVerifyRun(
           (s, batch, b) =>
             s +
             cost(
-              system + (prefixTokens[b] as number) + chunk.estimatedTokens + (b === 0 ? indexTokens : 0),
+              system +
+                (prefixTokens[b] as number) +
+                chunk.estimatedTokens +
+                (b === 0 ? indexTokens + scopeTokens(chunk) : 0),
               expectedOutput(batch.length, b === 0, req.maxNewCases, options.expectedOutputTokens),
             ),
           0,
@@ -173,6 +187,11 @@ export interface VerifyDiagnostics {
   sameRisk: SameRisk[];
   /** New cases kept although they named an id, because no active case has that id. */
   unknownSameAs: SameRisk[];
+  /**
+   * New cases dropped because the pull request was checked before and they do not come from the
+   * lines pushed since. Empty on a first check.
+   */
+  outOfScope: { title: string; reason: OutOfScopeReason }[];
 }
 
 /** A code-derived case as the model wrote it, cleaned; null when it is not a runnable case. */
@@ -211,6 +230,9 @@ function toCodeCase(
  * A new case whose `sameAsCaseId` names an active case of the sheet is dropped: the model itself
  * says the risk is already there. An id that no active case has proves nothing, so that case is
  * kept and reported.
+ *
+ * With a `scope` (the pull request was checked before), a new case that does not come from the
+ * lines pushed since is dropped as well; `outOfScope` in scope.ts states the test.
  */
 export function combineVerify(
   outputs: VerifyOutput[],
@@ -218,6 +240,7 @@ export function combineVerify(
   requirements: Requirement[],
   changedPaths: ReadonlySet<string>,
   maxNewCases: number,
+  scope: ResolvedScope | null = null,
 ): Pick<VerifyResult, 'statuses' | 'newCases' | 'alignment'> & { diagnostics: VerifyDiagnostics } {
   const files = (list: string[]): string[] => [
     ...new Set(list.map((f) => f.trim()).filter((f) => changedPaths.has(f))),
@@ -255,7 +278,7 @@ export function combineVerify(
   const existingTitles = new Set(cases.map((c) => key(c.title)));
   // The ids the model was shown in the index: the active cases.
   const indexed = new Map(cases.filter((c) => c.lifecycle === 'active').map((c) => [c.caseId, c.title]));
-  const diagnostics: VerifyDiagnostics = { sameRisk: [], unknownSameAs: [] };
+  const diagnostics: VerifyDiagnostics = { sameRisk: [], unknownSameAs: [], outOfScope: [] };
   const seen = new Set<string>();
   const newCases: CaseDraft[] = [];
   for (const output of outputs) {
@@ -270,6 +293,11 @@ export function combineVerify(
           continue;
         }
         diagnostics.unknownSameAs.push({ title: c.title, sameAsCaseId: sameAs, existingTitle: null });
+      }
+      const reason = scope ? outOfScope(c, scope) : null;
+      if (reason) {
+        diagnostics.outOfScope.push({ title: c.title, reason });
+        continue;
       }
       const k = key(c.title);
       if (seen.has(k) || existingTitles.has(k)) continue;
@@ -362,6 +390,9 @@ export async function verifyCases(
   const phase = req.pre.chunks.length > 1 ? 'map' : 'single';
   // The whole sheet, every batch: what a new case has to be new against.
   const sheet = plan.batches.flat();
+  // After the first check: what a new case has to come from. Files of chunks that are not judged
+  // are not shown, so nothing can come from them.
+  const scope = resolveScope(req.newCaseScope ?? null, plan.chunks);
   const skipped: SkippedFile[] = [
     ...req.pre.skipped,
     ...plan.dropped.flatMap((c) => c.files.map((f) => ({ path: f.path, reason: 'cost_cap' as const }))),
@@ -394,7 +425,8 @@ export async function verifyCases(
             withCodeCases: call.withCodeCases,
             maxNewCases: req.maxNewCases,
             caseCount: call.batch.length,
-            sheet: sheet,
+            sheet,
+            scope,
           }),
           schema: VerifyOutputSchema,
           sharePrefix: queue.length > 1,
@@ -421,7 +453,7 @@ export async function verifyCases(
     });
   }
 
-  const combined = combineVerify(outputs, req.cases, requirements, changedPaths, req.maxNewCases);
+  const combined = combineVerify(outputs, req.cases, requirements, changedPaths, req.maxNewCases, scope);
   for (const d of combined.diagnostics.unknownSameAs) {
     warnings.push({
       code: 'other',
