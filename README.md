@@ -279,6 +279,7 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 | `sinks`                 |          | `github-issue,file`               | Where case tickets go: `jira`, `github-issue`, `notion`, `file`.                                       |
 | `notion-qa-database-id` |          | —                                 | Notion database for QA cases.                                                                          |
 | `jira-subtask-type`     |          | `Sub-task`                        | Jira issue type for case sub-tasks.                                                                    |
+| `force-plan`            |          | `false`                           | Plan again even if the spec has not changed.                                                           |
 | `max-cases`             |          | `80`                              | Safety cap per spec. P2 cases go first.                                                                |
 | `previous-cases`        |          | —                                 | `qa-cases.json` from an earlier run, e.g. a downloaded artifact. The file sink keeps case IDs from it. |
 | `dry-run`               |          | `false`                           | Write the report to the job summary only.                                                              |

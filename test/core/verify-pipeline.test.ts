@@ -297,3 +297,19 @@ describe('runVerify (SPEC v3 §2.2)', () => {
     expect(out.warnings.some((w) => /jira sink was skipped/.test(w.message))).toBe(true);
   });
 });
+
+describe('runVerify spec-side summary (SPEC v3 §2.2)', () => {
+  it('updates the spec case list with new cases and code statuses', async () => {
+    const sink = memorySink([baseCase(1), baseCase(2, { title: '동시 적용', technique: 'concurrency' })]);
+    const publish = vi.fn(async (_s: PrdRef, _sum: unknown) => ({}));
+    sink.publishSummary = publish;
+    const { deps } = makeDeps(sink);
+    await runVerify(deps, cfg(), pr, { name: 'pull_request' }, signal);
+    const summary = publish.mock.calls[0]?.[1] as unknown as import('../../src/core/cases').CaseSetSummary;
+    expect(summary.meta).toMatchObject({ mode: 'verify', sha: pr.headSha });
+    expect(summary.counts.total).toBe(3);
+    expect(summary.counts.byCodeStatus).toEqual({ implemented: 1, missing: 1, contradicts: 0, unknown: 0 });
+    expect(summary.cases.find((c) => c.caseId === 'shop-12-C02')?.codeStatus).toBe('missing');
+    expect(summary.cases.find((c) => c.caseId === 'shop-12-C03')?.url).toBe('https://t/shop-12-C03');
+  });
+});

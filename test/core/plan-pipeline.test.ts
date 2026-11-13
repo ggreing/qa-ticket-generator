@@ -9,7 +9,13 @@ import type {
 } from '../../src/core/cases';
 import { parseRepoConfig, type QtgConfig, resolveConfig } from '../../src/core/config';
 import type { PrdRef } from '../../src/core/contracts';
-import { type PlanDeps, primarySink, runPlan } from '../../src/core/plan-pipeline';
+import {
+  type PlanDeps,
+  primarySink,
+  runPlan,
+  specDigestOf,
+  specUnchanged,
+} from '../../src/core/plan-pipeline';
 import { inputs, silentLogger } from '../helpers/fakes';
 
 const spec: PrdRef = { source: 'jira', id: 'PROJ-123', raw: 'PROJ-123' };
@@ -206,5 +212,57 @@ describe('v3 config', () => {
     expect(cfg({ sinks: 'jira, notion,jira' }).sinks).toEqual(['jira', 'notion']);
     expect(() => cfg({ sinks: 'slack' })).toThrow(/Unknown sink/);
     expect(() => cfg({ mode: 'review' })).toThrow();
+  });
+});
+
+describe('spec digest (SPEC v3 §4)', () => {
+  const spec0 = {
+    title: '쿠폰 적용',
+    bodyMarkdown: '토큰 [REDACTED:github_token] 포함',
+    acceptanceCriteria: ['AC1: 만료 쿠폰 거부'],
+  };
+
+  it('stamps active spec cases with the digest of the redacted spec', async () => {
+    const out = await runPlan(makeDeps([fakeSink('file').sink]), cfg(), spec, signal);
+    expect(out.cases.every((c) => c.specDigest === specDigestOf(spec0))).toBe(true);
+  });
+
+  it('skips generation when every active spec case was planned from the same text', async () => {
+    const digest = specDigestOf(spec0);
+    const last: QaCase = {
+      ...planned('만료 1초 지난 쿠폰 적용 시 거부'),
+      caseId: 'PROJ-123-C01',
+      specRef: 'PROJ-123',
+      lifecycle: 'active',
+      specDigest: digest,
+    };
+    const ticket = { ...existingTicket, lastWritten: last };
+    const jira = fakeSink('jira', [ticket]);
+    const deps = makeDeps([jira.sink]);
+    const out = await runPlan(deps, cfg({ sinks: 'jira' }), spec, signal);
+    expect(out).toMatchObject({ status: 'ok', skipped: 'spec_unchanged' });
+    expect(out.cases.map((c) => c.caseId)).toEqual(['PROJ-123-C01']);
+    expect(deps.generatePlan).not.toHaveBeenCalled();
+    expect(jira.calls).toEqual([]);
+
+    const forced = makeDeps([fakeSink('jira', [ticket]).sink]);
+    await runPlan(forced, cfg({ sinks: 'jira', 'force-plan': 'true' }), spec, signal);
+    expect(forced.generatePlan).toHaveBeenCalledOnce();
+  });
+
+  it('plans again when the spec text changed or older cases carry no digest', async () => {
+    const old: QaCase = {
+      ...planned('x'),
+      caseId: 'PROJ-123-C01',
+      specRef: 'PROJ-123',
+      lifecycle: 'active',
+      specDigest: 'stale',
+    };
+    const a = makeDeps([fakeSink('jira', [{ ...existingTicket, lastWritten: old }]).sink]);
+    await runPlan(a, cfg({ sinks: 'jira' }), spec, signal);
+    expect(a.generatePlan).toHaveBeenCalledOnce();
+    const noDigest: QaCase = { ...old, specDigest: undefined };
+    expect(specUnchanged([{ ...existingTicket, lastWritten: noDigest }], specDigestOf(spec0))).toBe(false);
+    expect(specUnchanged([], specDigestOf(spec0))).toBe(false);
   });
 });

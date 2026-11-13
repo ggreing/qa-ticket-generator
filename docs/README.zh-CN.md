@@ -258,6 +258,7 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 | `sinks`                 |      | `github-issue,file`               | 用例工单写到哪里:`jira`、`github-issue`、`notion`、`file`。                        |
 | `notion-qa-database-id` |      | —                                 | 存放 QA 用例的 Notion 数据库。                                                     |
 | `jira-subtask-type`     |      | `Sub-task`                        | 用例子任务使用的 Jira 问题类型。                                                   |
+| `force-plan`            |      | `false`                           | 即使需求未变也重新生成。                                                           |
 | `max-cases`             |      | `80`                              | 每个需求的安全上限,超出时先去掉 P2。                                               |
 | `previous-cases`        |      | —                                 | 上次运行的 `qa-cases.json` 路径(例如下载的 artifact),file sink 沿用其中的用例 ID。 |
 | `dry-run`               |      | `false`                           | 只把报告写到 Job Summary。                                                         |

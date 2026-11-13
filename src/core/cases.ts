@@ -51,6 +51,11 @@ export interface QaCase extends CaseDraft {
   /** PrdRef.id of the spec the case belongs to. */
   specRef: string;
   lifecycle: Lifecycle;
+  /**
+   * Digest of the spec text this case was planned from (tool-owned). A plan run whose spec digest
+   * matches every active spec case skips generation, so an unchanged spec never churns tickets.
+   */
+  specDigest?: string;
   codeStatus?: {
     status: CodeStatus;
     /** One factual sentence naming file and function. */

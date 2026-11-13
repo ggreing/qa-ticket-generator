@@ -2,6 +2,8 @@
  * Plan phase (SPEC v3 §2.1, §4, §5): spec -> QA cases -> tickets in every configured sink.
  * Pure wiring over injected modules. OWNERSHIP: control session only.
  */
+
+import { createHash } from 'node:crypto';
 import type {
   CaseSetSummary,
   CaseSink,
@@ -76,6 +78,8 @@ export interface PlanOutcome {
   styleViolations: number;
   warnings: Warning[];
   error?: { code: string; message: string };
+  /** Set when generation was skipped: the spec text is the same as at the last plan. */
+  skipped?: 'spec_unchanged';
 }
 
 /**
@@ -104,6 +108,25 @@ export function primarySink(sinks: CaseSink[]): CaseSink | null {
     if (s) return s;
   }
   return null;
+}
+
+/** §4 — digest of the (redacted) spec text the model sees. */
+export function specDigestOf(
+  doc: Pick<PrdDocument, 'title' | 'bodyMarkdown' | 'acceptanceCriteria'>,
+): string {
+  const text = [doc.title, doc.bodyMarkdown, ...doc.acceptanceCriteria]
+    .join('\n')
+    .replace(/\r\n?/g, '\n')
+    .trim();
+  return createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16);
+}
+
+/** True when every active spec-origin case was planned from this exact spec text. */
+export function specUnchanged(existing: ExistingCaseTicket[], digest: string): boolean {
+  const planned = existing
+    .map((t) => t.lastWritten)
+    .filter((c): c is QaCase => c !== null && c.lifecycle === 'active' && c.origin === 'spec');
+  return planned.length > 0 && planned.every((c) => c.specDigest === digest);
 }
 
 function redactDoc(doc: PrdDocument, redact: RedactText): PrdDocument {
@@ -151,6 +174,16 @@ export async function runPlan(
       ? await logger.group(`Read existing cases (${primary.kind})`, () => primary.list(specRef, signal))
       : [];
 
+    const digest = specDigestOf(spec);
+    if (!cfg.forcePlan && specUnchanged(existing, digest)) {
+      logger.info(
+        'The spec has not changed since the last plan; no new cases were generated. Set force-plan to plan again.',
+      );
+      outcome.skipped = 'spec_unchanged';
+      outcome.cases = existing.map((t) => t.lastWritten).filter((c): c is QaCase => c !== null);
+      return outcome;
+    }
+
     const plan = await logger.group('Generate QA cases', () =>
       deps.generatePlan(
         {
@@ -177,7 +210,9 @@ export async function runPlan(
 
     const reconciled = deps.reconcileCases(specRef.id, existing, plan.cases);
     warnings.push(...reconciled.warnings);
-    outcome.cases = reconciled.cases;
+    outcome.cases = reconciled.cases.map((c) =>
+      c.lifecycle === 'active' && c.origin === 'spec' ? { ...c, specDigest: digest } : c,
+    );
 
     // §3.1 — count style violations; they are reported, not blocking.
     for (const c of outcome.cases) {
@@ -310,7 +345,7 @@ async function applyOp(
   }
 }
 
-function buildSummary(
+export function buildSummary(
   spec: PrdRef,
   title: string,
   language: Language,
@@ -318,6 +353,7 @@ function buildSummary(
   urls: Map<string, string>,
   llm: LlmProvider,
   costUsd: number,
+  opts: { mode?: 'plan' | 'verify'; sha?: string } = {},
 ): CaseSetSummary {
   const byPriority: Record<Priority, number> = { P0: 0, P1: 0, P2: 0 };
   let obsolete = 0;
@@ -334,9 +370,23 @@ function buildSummary(
       title: c.title,
       priority: c.priority,
       lifecycle: c.lifecycle,
+      ...(c.codeStatus ? { codeStatus: c.codeStatus.status } : {}),
       url: urls.get(c.caseId),
     })),
-    counts: { total: cases.length - obsolete, byPriority, obsolete },
-    meta: { model: llm.id, costUsd, mode: 'plan' },
+    counts: {
+      total: cases.length - obsolete,
+      byPriority,
+      obsolete,
+      ...(opts.mode === 'verify' ? { byCodeStatus: countCodeStatus(cases) } : {}),
+    },
+    meta: { model: llm.id, costUsd, mode: opts.mode ?? 'plan', ...(opts.sha ? { sha: opts.sha } : {}) },
   };
+}
+
+function countCodeStatus(
+  cases: QaCase[],
+): Record<'implemented' | 'missing' | 'contradicts' | 'unknown', number> {
+  const out = { implemented: 0, missing: 0, contradicts: 0, unknown: 0 };
+  for (const c of cases) if (c.lifecycle === 'active' && c.codeStatus) out[c.codeStatus.status]++;
+  return out;
 }

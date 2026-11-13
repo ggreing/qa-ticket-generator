@@ -38,6 +38,7 @@ import type {
 import { toQtgError } from './errors';
 import { EXPECTED_OUTPUT_TOKENS, PRD_TIMEOUT_MS } from './limits';
 import {
+  buildSummary,
   type PlanDeps,
   type PlanOutcome,
   primarySink,
@@ -271,6 +272,20 @@ export async function runVerify(
           signal,
         ),
       );
+    }
+
+    // The spec-side case list (issue / story comment) follows the new cases and statuses.
+    const summary = buildSummary(spec.ref, specTitle, cfg.language, out.cases, urls, deps.llm, out.costUsd, {
+      mode: 'verify',
+      sha: pr.headSha,
+    });
+    for (const sink of configured) {
+      try {
+        await sink.publishSummary(spec.ref, summary, signal);
+      } catch (err) {
+        logger.warn(`${sink.kind}: summary failed: ${(err as Error).message}`);
+        warnings.push({ code: 'other', message: `${sink.kind}: could not update the case summary.` });
+      }
     }
 
     const data: VerifySummaryData = {

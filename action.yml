@@ -122,6 +122,10 @@ inputs:
     description: Jira issue type used for case sub-tasks.
     required: false
     default: Sub-task
+  force-plan:
+    description: Plan again even when the spec text has not changed since the last plan.
+    required: false
+    default: "false"
   max-cases:
     description: Safety cap on cases per spec; P2 cases are dropped first beyond it.
     required: false

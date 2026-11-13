@@ -270,6 +270,7 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 | `sinks`                 |      | `github-issue,file`               | 케이스 티켓을 만들 곳: `jira`, `github-issue`, `notion`, `file`.                          |
 | `notion-qa-database-id` |      | —                                 | QA 케이스를 담을 Notion 데이터베이스.                                                     |
 | `jira-subtask-type`     |      | `Sub-task`                        | 케이스 하위 작업에 쓸 Jira 이슈 타입.                                                     |
+| `force-plan`            |      | `false`                           | 기획서가 바뀌지 않았어도 다시 생성.                                                       |
 | `max-cases`             |      | `80`                              | 기획서당 안전 상한. 넘으면 P2부터 뺌.                                                     |
 | `previous-cases`        |      | —                                 | 이전 실행의 `qa-cases.json` 경로(예: 내려받은 아티팩트). file sink가 케이스 ID를 이어 씀. |
 | `dry-run`               |      | `false`                           | Job Summary에만 리포트를 씀.                                                              |

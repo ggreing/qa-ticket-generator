@@ -83,6 +83,8 @@ export interface QtgConfig {
   notionQaDatabaseId: string | null;
   jiraSubtaskType: string;
   maxCases: number;
+  /** SPEC v3 §4 — plan even when the spec text has not changed since the last plan. */
+  forcePlan: boolean;
   /** SPEC v3 §5 — `qa-cases.json` of an earlier run; the file sink continues from it. */
   previousCases: string | null;
   preprocess: PreprocessOptions;
@@ -210,6 +212,7 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
     failOnError: bool(input('fail-on-error'), 'fail-on-error', false),
     allowForkPrs: bool(input('allow-fork-prs'), 'allow-fork-prs', false),
     dryRun: bool(input('dry-run'), 'dry-run', false),
+    forcePlan: bool(input('force-plan'), 'force-plan', false),
     serverFallback: bool(input('server-fallback'), 'server-fallback', true),
     maxPrdDocuments: repo.prd.maxDocuments ?? DEFAULTS.maxPrdDocuments,
     mode: oneOf(input('mode'), 'mode', ['auto', 'plan', 'verify'] as const, 'auto'),

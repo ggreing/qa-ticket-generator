@@ -276,6 +276,7 @@ PR のタイトルと説明文も同じです。いくつマスクしたかは�
 | `sinks`                 |      | `github-issue,file`               | ケースチケットの作成先: `jira`、`github-issue`、`notion`、`file`。                                          |
 | `notion-qa-database-id` |      | —                                 | QA ケースを入れる Notion データベース。                                                                     |
 | `jira-subtask-type`     |      | `Sub-task`                        | ケースのサブタスクに使う Jira 課題タイプ。                                                                  |
+| `force-plan`            |      | `false`                           | 仕様が変わっていなくても再生成する。                                                                        |
 | `max-cases`             |      | `80`                              | 仕様ごとの安全上限。超えると P2 から外す。                                                                  |
 | `previous-cases`        |      | —                                 | 前回実行の `qa-cases.json` のパス(例: ダウンロードしたアーティファクト)。file sink がケース ID を引き継ぐ。 |
 | `dry-run`               |      | `false`                           | レポートを Job Summary にだけ書く。                                                                         |

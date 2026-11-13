@@ -22,6 +22,7 @@ Options:
   --previous <path>       qa-cases.json of an earlier run to continue from
                           (plan, default: <out-dir>/qa-cases.json when it exists)
   --max-cases <n>         Safety cap on cases per spec (plan, default: 80)
+  --force-plan true       Plan again even if the spec has not changed (plan)
   --pr <number>           Pull request number (run)
   --publish               Publish to the PR comment / Slack instead of dry-run
   --format <md|json>      Stdout format (default: md)
@@ -65,6 +66,7 @@ const INPUT_FLAGS = new Set([
   'spec',
   'sinks',
   'max-cases',
+  'force-plan',
 ]);
 
 export function parseArgs(argv: string[]): CliArgs {
