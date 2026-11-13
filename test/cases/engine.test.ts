@@ -4,6 +4,7 @@ import {
   caseIdFor,
   caseNumber,
   compareCaseIds,
+  displayLength,
   lintCaseStyle,
   MAX_TITLE_LENGTH,
   mdSafe,
@@ -245,6 +246,13 @@ describe('SPEC v3 §3.1 STYLE_RULES', () => {
   it.each(LANGUAGES)('SPEC v3 §3.1 the spec-gap line is allowed (%s)', (lang) => {
     const c = draft('Title', { expected: [`${SPEC_GAP_PREFIX[lang]}: X`] });
     expect(lintCaseStyle(c, lang).filter((v) => v.text.includes(SPEC_GAP_PREFIX[lang]))).toEqual([]);
+  });
+
+  it('SPEC v3 §3.1 displayLength counts CJK as 1 and everything else as 1/2', () => {
+    expect(displayLength('만료 쿠폰')).toBe(4.5);
+    expect(displayLength('ID 409')).toBe(3);
+    expect(displayLength('期限切れ')).toBe(4);
+    expect(displayLength('')).toBe(0);
   });
 
   it('SPEC v3 §3.1 an empty case yields no violations and lint is repeatable', () => {
