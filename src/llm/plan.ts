@@ -89,8 +89,14 @@ export function planPlanRun(
 ): PlanRunPlan {
   const requirements = requirementsOf(req.spec);
   const all: Requirement[][] = [];
-  for (let i = 0; i < requirements.length; i += AC_GROUP_SIZE)
-    all.push(requirements.slice(i, i + AC_GROUP_SIZE));
+  // As few calls as the group size allows, with the requirements spread evenly over them, so no
+  // call is left with a single requirement while another carries three.
+  const groupCount = Math.ceil(requirements.length / AC_GROUP_SIZE);
+  for (let g = 0, i = 0; g < groupCount; g++) {
+    const size = Math.ceil((requirements.length - i) / (groupCount - g));
+    all.push(requirements.slice(i, i + size));
+    i += size;
+  }
   if (all.length === 0) all.push([]);
 
   const prefix = buildPlanPrefix(req, requirements).join('\n');

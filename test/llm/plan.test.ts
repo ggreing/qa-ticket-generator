@@ -143,13 +143,13 @@ describe('requirements of a spec (SPEC v3 §2.1)', () => {
 describe('planPlanRun — grouping and cost plan (SPEC v3 §6, LLM-10)', () => {
   const pricing = { estimateCostUsd: (u: LlmUsage) => estimateCostUsd(MODEL, u) };
 
-  it('SPEC v3 §6 covers the requirements three per call and adds a merge call when there are several groups', () => {
+  it('SPEC v3 §6 covers the requirements at most three per call, spread evenly, and adds a merge call when there are several groups', () => {
     expect(AC_GROUP_SIZE).toBe(3);
     const plan = planPlanRun(request(), pricing, OPTIONS);
     expect(plan.groups.map((g) => g.map((r) => r.label))).toEqual([
       ['AC1', 'AC2', 'AC3'],
-      ['AC4', 'AC5', 'AC6'],
-      ['AC7'],
+      ['AC4', 'AC5'],
+      ['AC6', 'AC7'],
     ]);
     expect(plan).toMatchObject({ merge: true, skipped: [] });
     // Three calls at 12K expected output on Opus 5.5 ($20/M) plus a small merge: under a dollar.
@@ -169,9 +169,9 @@ describe('planPlanRun — grouping and cost plan (SPEC v3 §6, LLM-10)', () => {
     const plan = planPlanRun(request(), pricing, { ...OPTIONS, maxCostUsd: 0.6 });
     expect(plan.groups.map((g) => g.map((r) => r.label))).toEqual([
       ['AC1', 'AC2', 'AC3'],
-      ['AC4', 'AC5', 'AC6'],
+      ['AC4', 'AC5'],
     ]);
-    expect(plan.skipped.map((g) => g.map((r) => r.label))).toEqual([['AC7']]);
+    expect(plan.skipped.map((g) => g.map((r) => r.label))).toEqual([['AC6', 'AC7']]);
     expect(plan.estimateUsd).toBeLessThanOrEqual(0.6);
     const one = planPlanRun(request(), pricing, { ...OPTIONS, maxCostUsd: 0.01 });
     expect(one.groups).toHaveLength(1);
@@ -186,8 +186,8 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
 
     expect(p.planCalls().map((c) => c.tail.match(/requirements of the spec: ([^.]+)\./)?.[1])).toEqual([
       'AC1, AC2, AC3',
-      'AC4, AC5, AC6',
-      'AC7',
+      'AC4, AC5',
+      'AC6, AC7',
     ]);
     // Every plan call repeats the same system text and prefix, so they share one cache entry.
     const first = p.planCalls()[0] as Call;
@@ -361,10 +361,10 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
     const some = provider(perLabel);
     const result = await run(request(), some, { ...OPTIONS, maxCostUsd: 0.6 });
     expect(some.planCalls()).toHaveLength(2);
-    expect(result.cases.map((c) => c.acLabels[0])).toEqual(['AC1', 'AC2', 'AC3', 'AC4', 'AC5', 'AC6']);
+    expect(result.cases.map((c) => c.acLabels[0])).toEqual(['AC1', 'AC2', 'AC3', 'AC4', 'AC5']);
     expect(result.warnings).toContainEqual({
       code: 'cost_cap',
-      message: 'No cases were written for AC7 because the estimated cost exceeded max-cost-usd ($0.60).',
+      message: 'No cases were written for AC6, AC7 because the estimated cost exceeded max-cost-usd ($0.60).',
     });
   });
 
