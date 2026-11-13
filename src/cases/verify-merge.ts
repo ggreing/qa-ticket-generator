@@ -11,18 +11,10 @@
  *   dropped, and an obsolete duplicate is revived instead (the risk is back in the code).
  * - Output order: the input cases in order, then the new cases in model order.
  */
-import type { CaseDraft, CodeStatus, QaCase, VerifyResult } from '../core/cases';
+import type { ApplyVerify, CaseDraft, CodeStatus, QaCase } from '../core/cases';
 import type { Warning } from '../core/contracts';
 import { caseIdFor, caseNumber, specKey, toQaCase } from './reconcile';
 import { plainTitle } from './render';
-
-/** Proposed core contract (src/core/cases.ts) for the verify merge. */
-export type ApplyVerify = (
-  cases: QaCase[],
-  result: Pick<VerifyResult, 'statuses' | 'newCases'>,
-  sha: string,
-  specRef: string,
-) => { cases: QaCase[]; warnings: Warning[] };
 
 const CODE_STATUSES: readonly CodeStatus[] = ['implemented', 'missing', 'contradicts', 'unknown'];
 

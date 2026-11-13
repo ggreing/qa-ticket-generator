@@ -46,7 +46,54 @@ const c5 = qaCase('SHOP-101-C05', '프로모션 적용 장바구니에 쿠폰 �
 const obsolete = (c: QaCase): QaCase => ({ ...c, lifecycle: 'obsolete' });
 const changed = (c: QaCase): QaCase => ({ ...c, expected: [...c.expected, '쿠폰 사용 이력 미생성'] });
 
+const fromCode = qaCase('SHOP-101-C04', '부분 환불 합계가 결제 금액 초과 시 거부', {
+  origin: 'code',
+  acLabels: [],
+  technique: 'data_integrity',
+  codeStatus: {
+    status: 'missing',
+    evidence: 'RefundService.record()에 합계 검사 없음',
+    files: ['payments/refunds.py'],
+    sha: 'abc1234',
+  },
+});
+
 export const RECONCILE: GoldenSource[] = [
+  {
+    kind: 'reconcile',
+    name: 'SPEC v3 §4.4 code-origin cases the planner does not reuse keep their content and lifecycle',
+    input: {
+      specRef: 'SHOP-101',
+      existing: [
+        ticket(c1),
+        ticket(fromCode),
+        ticket({
+          ...fromCode,
+          caseId: 'SHOP-101-C06',
+          title: '환불 웹훅 서명 불일치 시 401',
+          lifecycle: 'obsolete',
+        }),
+        ticket(c2),
+      ],
+      planned: [planned('만료 1초 지난 쿠폰 적용 시 거부', 'SHOP-101-C01'), planned('새 기획 케이스')],
+    },
+  },
+  {
+    kind: 'reconcile',
+    name: 'SPEC v3 §4.4 a code case the planner reuses takes the planned content and may become spec',
+    input: {
+      specRef: 'SHOP-101',
+      existing: [ticket(c1), ticket(fromCode)],
+      planned: [
+        planned('만료 1초 지난 쿠폰 적용 시 거부', 'SHOP-101-C01'),
+        planned('부분 환불 합계가 결제 금액 초과 시 거부', 'SHOP-101-C04', {
+          acLabels: ['AC5'],
+          technique: 'data_integrity',
+          origin: 'spec',
+        }),
+      ],
+    },
+  },
   {
     kind: 'reconcile',
     name: 'SPEC v3 §4.1 first run assigns C01..C03 to a Jira spec',

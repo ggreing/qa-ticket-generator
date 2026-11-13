@@ -1,0 +1,377 @@
+{
+  "name": "SPEC v3 §4.4 code-origin cases the planner does not reuse keep their content and lifecycle",
+  "kind": "reconcile",
+  "input": {
+    "specRef": "SHOP-101",
+    "existing": [
+      {
+        "caseId": "SHOP-101-C01",
+        "ticketRef": "T-SHOP-101-C01",
+        "url": "https://tickets.example/SHOP-101-C01",
+        "lastWritten": {
+          "title": "만료 1초 지난 쿠폰 적용 시 거부",
+          "acLabels": [
+            "AC3"
+          ],
+          "technique": "boundary",
+          "priority": "P0",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec",
+          "caseId": "SHOP-101-C01",
+          "specRef": "SHOP-101",
+          "lifecycle": "active"
+        },
+        "writtenHash": "000f11a2c30529f75555bf4175f2eca02ab1711c5224cba96c7fcb34e91fdc6a",
+        "currentHash": "000f11a2c30529f75555bf4175f2eca02ab1711c5224cba96c7fcb34e91fdc6a",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C04",
+        "ticketRef": "T-SHOP-101-C04",
+        "url": "https://tickets.example/SHOP-101-C04",
+        "lastWritten": {
+          "title": "부분 환불 합계가 결제 금액 초과 시 거부",
+          "acLabels": [],
+          "technique": "data_integrity",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "code",
+          "caseId": "SHOP-101-C04",
+          "specRef": "SHOP-101",
+          "lifecycle": "active",
+          "codeStatus": {
+            "status": "missing",
+            "evidence": "RefundService.record()에 합계 검사 없음",
+            "files": [
+              "payments/refunds.py"
+            ],
+            "sha": "abc1234"
+          }
+        },
+        "writtenHash": "1455fb636d44bdfe0efdc2fdc3434680bbd9f756c8b0b118b4192b414e8d23eb",
+        "currentHash": "1455fb636d44bdfe0efdc2fdc3434680bbd9f756c8b0b118b4192b414e8d23eb",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C06",
+        "ticketRef": "T-SHOP-101-C06",
+        "url": "https://tickets.example/SHOP-101-C06",
+        "lastWritten": {
+          "title": "환불 웹훅 서명 불일치 시 401",
+          "acLabels": [],
+          "technique": "data_integrity",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "code",
+          "caseId": "SHOP-101-C06",
+          "specRef": "SHOP-101",
+          "lifecycle": "obsolete",
+          "codeStatus": {
+            "status": "missing",
+            "evidence": "RefundService.record()에 합계 검사 없음",
+            "files": [
+              "payments/refunds.py"
+            ],
+            "sha": "abc1234"
+          }
+        },
+        "writtenHash": "1698b8632441c31d953da29aea293ee3a204159df925d924db6174446be95d47",
+        "currentHash": "1698b8632441c31d953da29aea293ee3a204159df925d924db6174446be95d47",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C02",
+        "ticketRef": "T-SHOP-101-C02",
+        "url": "https://tickets.example/SHOP-101-C02",
+        "lastWritten": {
+          "title": "같은 쿠폰 두 번째 적용 시 거부",
+          "acLabels": [
+            "AC1"
+          ],
+          "technique": "idempotency",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec",
+          "caseId": "SHOP-101-C02",
+          "specRef": "SHOP-101",
+          "lifecycle": "active"
+        },
+        "writtenHash": "b9d5c9dc90b53086f5fe0db8a6edd9e27001801dad4848f0e19d9866727fc9e5",
+        "currentHash": "b9d5c9dc90b53086f5fe0db8a6edd9e27001801dad4848f0e19d9866727fc9e5",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      }
+    ],
+    "planned": [
+      {
+        "title": "만료 1초 지난 쿠폰 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "reuseCaseId": "SHOP-101-C01"
+      },
+      {
+        "title": "새 기획 케이스",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "reuseCaseId": null
+      }
+    ]
+  },
+  "expected": {
+    "cases": [
+      {
+        "caseId": "SHOP-101-C01",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "만료 1초 지난 쿠폰 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      },
+      {
+        "caseId": "SHOP-101-C07",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "새 기획 케이스",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      },
+      {
+        "caseId": "SHOP-101-C04",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "부분 환불 합계가 결제 금액 초과 시 거부",
+        "acLabels": [],
+        "technique": "data_integrity",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "codeStatus": {
+          "status": "missing",
+          "evidence": "RefundService.record()에 합계 검사 없음",
+          "files": [
+            "payments/refunds.py"
+          ],
+          "sha": "abc1234"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C06",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete",
+        "title": "환불 웹훅 서명 불일치 시 401",
+        "acLabels": [],
+        "technique": "data_integrity",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "codeStatus": {
+          "status": "missing",
+          "evidence": "RefundService.record()에 합계 검사 없음",
+          "files": [
+            "payments/refunds.py"
+          ],
+          "sha": "abc1234"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C02",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete",
+        "title": "같은 쿠폰 두 번째 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      }
+    ],
+    "warnings": []
+  }
+}
