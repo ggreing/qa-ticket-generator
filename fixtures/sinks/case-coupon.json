@@ -1,0 +1,16 @@
+{
+  "_comment": "Synthetic QA case (no real data), shaped like SPEC v3 §3 QaCase.",
+  "caseId": "PROJ-123-C07",
+  "specRef": "PROJ-123",
+  "lifecycle": "active",
+  "title": "만료 1초 지난 쿠폰 적용 시 거부",
+  "acLabels": ["AC3"],
+  "technique": "boundary",
+  "priority": "P0",
+  "preconditions": ["쿠폰 EXP1 발급됨, 만료 2026-11-13 23:59:59", "주문 금액 30,000원 장바구니"],
+  "testData": ["쿠폰 코드 EXP1", "현재 시각 2026-11-14 00:00:00"],
+  "steps": ["결제 화면 진입", "쿠폰 EXP1 입력 후 적용"],
+  "expected": ["\"만료된 쿠폰입니다\" 토스트 노출", "결제 금액 30,000원 유지"],
+  "whyEasyToMiss": "기획서에 만료 시각 포함 여부(이하/미만) 정의 없음",
+  "origin": "spec"
+}
