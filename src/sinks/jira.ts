@@ -167,6 +167,8 @@ export function createJiraCaseSink(
   const base = options?.baseUrl.replace(/\/+$/, '') ?? '';
   const auth = options ? Buffer.from(`${options.email}:${options.apiToken}`).toString('base64') : '';
   let priorityUnsupported = false;
+  /** Sub-task key per case id, from list() and create() (see publishSummary). */
+  const keys = new Map<string, string>();
   let account: Promise<string> | undefined;
 
   async function request<T>(
@@ -333,6 +335,7 @@ export function createJiraCaseSink(
             ?.slice(4);
           const caseId = parts.caseId ?? fromLabel;
           if (!caseId) continue;
+          keys.set(caseId, issue.key);
           tickets.push(
             ticketFrom({
               caseId,
@@ -408,6 +411,7 @@ export function createJiraCaseSink(
           'creating a sub-task',
         );
       }
+      keys.set(c.caseId, created.key);
       return { ticketRef: created.key, url: `${base}/browse/${created.key}` };
     },
 
@@ -505,7 +509,11 @@ export function createJiraCaseSink(
     async publishSummary(spec, summary: CaseSetSummary, signal) {
       if (spec.source !== 'jira') return {};
       const key = storyKey(spec);
-      const { heading, counts, lines, empty } = summaryLines(summary, (url) => url);
+      // Keys this sink saw in list()/create() first: the pipeline's URL for a case can be empty.
+      const { heading, counts, lines, empty } = summaryLines(summary, (c) => {
+        const own = keys.get(c.caseId);
+        return own ? `${base}/browse/${own}` : c.url || undefined;
+      });
       const marker = summaryMarker(key);
       const items: AdfNode[] = lines.map((l) => {
         const strike = l.obsolete ? [{ type: 'strike' }] : [];

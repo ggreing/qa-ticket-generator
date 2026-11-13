@@ -169,10 +169,14 @@ export interface SummaryLine {
   obsolete: boolean;
 }
 
-/** Plain lines of the spec-side summary; each sink formats them (Markdown checklist, ADF list). */
+/**
+ * Plain lines of the spec-side summary; each sink formats them (Markdown checklist, ADF list).
+ * `refFor` gets the whole case entry so a sink can link the ticket it knows for that case id
+ * instead of relying on `url` alone.
+ */
 export function summaryLines(
   summary: CaseSetSummary,
-  refFor: (url: string | undefined) => string | undefined,
+  refFor: (c: CaseSetSummary['cases'][number]) => string | undefined,
 ) {
   const t = SUMMARY_TEXT[summary.language];
   const { byPriority } = summary.counts;
@@ -191,7 +195,7 @@ export function summaryLines(
     )
     .map((c) => ({
       text: `[${c.priority}] ${c.caseId} ${c.title}`,
-      ref: refFor(c.url),
+      ref: refFor(c),
       obsolete: c.lifecycle === 'obsolete',
     }));
   return { heading: t.heading, counts, lines, empty: t.none };

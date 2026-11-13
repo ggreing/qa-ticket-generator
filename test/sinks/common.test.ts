@@ -77,7 +77,7 @@ describe('summaryLines', () => {
       counts: { total: 2, byPriority: { P0: 1, P1: 0, P2: 1 }, obsolete: 1 },
       meta: { model: 'm', costUsd: 0, mode: 'plan' },
     };
-    const out = summaryLines(summary, (u) => (u ? `<${u}>` : undefined));
+    const out = summaryLines(summary, (c) => (c.url ? `<${c.url}>` : undefined));
     expect(out.counts).toBe('2 active case(s) · P0 1 · P1 0 · P2 1 · 1 obsolete');
     expect(out.lines.map((l) => [l.text, l.ref, l.obsolete])).toEqual([
       ['[P0] PROJ-1-C02 c2', '<u2>', false],
