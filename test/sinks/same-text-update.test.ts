@@ -248,3 +248,42 @@ describe('digest-only updates (same text)', () => {
     expect(kinds(planSync(await sink.list(spec, signal()), [c], render))).toEqual(['unchanged']);
   });
 });
+
+describe('origin-only updates (same text, session b 5b070ea)', () => {
+  it.each<[string, () => { rig: Rig; minimal: (ref: string) => string }]>([
+    ['GitHub', () => ({ rig: githubRig().rig, minimal: (ref) => `PATCH /repos/acme/shop/issues/${ref}` })],
+    [
+      'Jira',
+      () => ({
+        rig: jiraRig().rig,
+        minimal: (ref) => `PUT /rest/api/3/issue/${ref}/properties/${CASE_PROPERTY}`,
+      }),
+    ],
+    ['Notion', () => ({ rig: notionRig().rig, minimal: (ref) => `PATCH pages/${ref}` })],
+  ])('§4.2 %s: a code case reused as a spec case records the new origin with one write', async (_n, make) => {
+    const { rig, minimal } = make();
+    const { sink, spec } = rig;
+    // origin is rendered only when there are no AC labels, so with AC3 both versions read the same.
+    const fromCode: QaCase = { ...rig.c, origin: 'code', acLabels: ['AC3'] };
+    const fromSpec: QaCase = { ...fromCode, origin: 'spec' };
+    expect(render(fromSpec).hash).toBe(render(fromCode).hash);
+    const { ticketRef } = await sink.create(spec, fromCode, render(fromCode), signal());
+
+    const ops = planSync(await sink.list(spec, signal()), [fromSpec], render);
+    expect(kinds(ops)).toEqual(['update']);
+    const before = rig.writes().length;
+    const [op] = ops;
+    if (op?.op === 'update') await sink.update(op.ticket, op.case, render(op.case), signal());
+    expect(
+      rig
+        .writes()
+        .slice(before)
+        .map((w) => `${w.method} ${w.path}`),
+    ).toEqual([minimal(ticketRef)]);
+
+    const [t] = await sink.list(spec, signal());
+    expect(t?.lastWritten?.origin).toBe('spec');
+    expect(t?.currentHash).toBe(t?.writtenHash);
+    expect(kinds(planSync(await sink.list(spec, signal()), [fromSpec], render))).toEqual(['unchanged']);
+  });
+});
