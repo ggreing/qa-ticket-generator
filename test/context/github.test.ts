@@ -435,3 +435,108 @@ describe('createGitHubReader.listPathsChangedBetween', () => {
     await expect(r.listPathsChangedBetween(fakePr(), 'a', 'b')).rejects.toMatchObject({ code: 'github_api' });
   });
 });
+
+describe('createGitHubReader.getChangesBetween', () => {
+  const SECRET_LINE = '+const token = "ghp_0123456789abcdefghijklmnopqrstuvwxyzAB";';
+
+  it('§2.2 returns every changed file with its patch, in one compare call with one commit per page', async () => {
+    const seen: RecordedRequest[] = [];
+    const { r } = reader(
+      api({
+        '/repos/acme/shop/compare/(.+)': (req) => {
+          seen.push(req);
+          return json({
+            status: 'ahead',
+            files: [
+              { filename: 'src/coupon.ts', status: 'modified', patch: '@@ -1 +1 @@\n-a\n+b' },
+              { filename: 'package-lock.json', status: 'modified', patch: '@@ -1 +1 @@\n-1\n+2' },
+              { filename: 'src/new.ts', previous_filename: 'src/old.ts', status: 'renamed' },
+              { filename: 'assets/logo.png', status: 'added' },
+            ],
+          });
+        },
+      }),
+    );
+    const changes = await r.getChangesBetween?.(fakePr(), 'old1', 'new2');
+    expect(changes).toEqual([
+      { path: 'src/coupon.ts', patch: '@@ -1 +1 @@\n-a\n+b' },
+      // Noise paths are the caller's call (isNoisePath, repo filters), not the reader's.
+      { path: 'package-lock.json', patch: '@@ -1 +1 @@\n-1\n+2' },
+      { path: 'src/new.ts', patch: '' },
+      // Binary files and very large diffs come without a patch.
+      { path: 'assets/logo.png', patch: '' },
+    ]);
+    expect(seen).toHaveLength(1);
+    expect(decodeURIComponent(seen[0]?.url.pathname ?? '')).toBe('/repos/acme/shop/compare/old1...new2');
+    expect(seen[0]?.url.searchParams.get('per_page')).toBe('1');
+  });
+
+  it('§2.2 an identical range is an empty change set, not "unknown"', async () => {
+    const { r } = reader(
+      api({ '/repos/acme/shop/compare/(.+)': () => json({ status: 'identical', files: [] }) }),
+    );
+    await expect(r.getChangesBetween?.(fakePr(), 'a', 'b')).resolves.toEqual([]);
+  });
+
+  it.each(['diverged', 'behind'])('§2.2 %s (force-push, reset) is unknown: null', async (status) => {
+    const { r, logger } = reader(
+      api({
+        '/repos/acme/shop/compare/(.+)': () => json({ status, files: [{ filename: 'a.ts', patch: '+x' }] }),
+      }),
+    );
+    await expect(r.getChangesBetween?.(fakePr(), 'a', 'b')).resolves.toBeNull();
+    expect(logger.lines.join('\n')).toContain(status);
+  });
+
+  it('§2.2 a list at the compare cap may be cut off: null; one below the cap is complete', async () => {
+    const files = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ filename: `src/f${i}.ts`, patch: '+x' }));
+    const { r } = reader(
+      api({
+        '/repos/acme/shop/compare/full...head': () => json({ status: 'ahead', files: files(300) }),
+        '/repos/acme/shop/compare/most...head': () => json({ status: 'ahead', files: files(299) }),
+      }),
+    );
+    await expect(r.getChangesBetween?.(fakePr(), 'full', 'head')).resolves.toBeNull();
+    await expect(r.getChangesBetween?.(fakePr(), 'most', 'head')).resolves.toHaveLength(299);
+  });
+
+  it.each([
+    [404, 'info'],
+    [422, 'info'],
+    [401, 'warn'],
+    [503, 'warn'],
+  ])('§2.2 HTTP %i is unknown: null (logged as %s), never a failed run', async (status, level) => {
+    const { r, logger } = reader(
+      api({ '/repos/acme/shop/compare/(.+)': () => json({ message: 'x' }, status) }),
+    );
+    await expect(r.getChangesBetween?.(fakePr(), 'a'.repeat(40), 'b'.repeat(40))).resolves.toBeNull();
+    expect(logger.lines.some((l) => l.startsWith(`${level}: `) && l.includes(`HTTP ${status}`))).toBe(true);
+  });
+
+  it('§2.2 lets an abort through instead of turning it into null', async () => {
+    const { r } = reader(() => {
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    });
+    await expect(r.getChangesBetween?.(fakePr(), 'a', 'b')).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('§11 logs counts and short SHAs only, never patch text', async () => {
+    const { r, logger } = reader(
+      api({
+        '/repos/acme/shop/compare/(.+)': () =>
+          json({
+            status: 'ahead',
+            files: [{ filename: 'src/config.ts', patch: `@@ -0,0 +1 @@\n${SECRET_LINE}` }],
+          }),
+      }),
+    );
+    const changes = await r.getChangesBetween?.(fakePr(), 'c'.repeat(40), 'd'.repeat(40));
+    // Raw on purpose: the caller masks it with the diff redaction before the model sees it.
+    expect(changes?.[0]?.patch).toContain('ghp_');
+    const log = logger.lines.join('\n');
+    expect(log).not.toContain('ghp_');
+    expect(log).not.toContain('c'.repeat(8));
+    expect(log).toContain('ccccccc...ddddddd');
+  });
+});
