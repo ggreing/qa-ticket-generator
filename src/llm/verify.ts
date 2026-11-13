@@ -154,6 +154,27 @@ const labelKey = (requirement: string): string => {
   return m ? (m[1] as string).toUpperCase().replace(/[\s-]/g, '') : key(requirement);
 };
 
+/** A new case the model itself tied to an existing one, and what was done with it. */
+export interface SameRisk {
+  /** Title of the new case as the model wrote it. */
+  title: string;
+  /** The id the model named in `sameAsCaseId`. */
+  sameAsCaseId: string;
+  /** Title of that case; null when the id is not an active case of the sheet. */
+  existingTitle: string | null;
+}
+
+/**
+ * What happened to the new cases between the model's answers and the result. Not part of the core
+ * `VerifyResult` contract; the eval harness records it.
+ */
+export interface VerifyDiagnostics {
+  /** New cases dropped because the model named an existing case that covers the same risk. */
+  sameRisk: SameRisk[];
+  /** New cases kept although they named an id, because no active case has that id. */
+  unknownSameAs: SameRisk[];
+}
+
 /** A code-derived case as the model wrote it, cleaned; null when it is not a runnable case. */
 function toCodeCase(
   raw: VerifyOutput['newCases'][number],
@@ -186,6 +207,10 @@ function toCodeCase(
 /**
  * Combines the answers of every call into one result (see the module comment for the rule).
  * `changedPaths` is every path of the pull request; a file reference outside it is dropped.
+ *
+ * A new case whose `sameAsCaseId` names an active case of the sheet is dropped: the model itself
+ * says the risk is already there. An id that no active case has proves nothing, so that case is
+ * kept and reported.
  */
 export function combineVerify(
   outputs: VerifyOutput[],
@@ -193,7 +218,7 @@ export function combineVerify(
   requirements: Requirement[],
   changedPaths: ReadonlySet<string>,
   maxNewCases: number,
-): Pick<VerifyResult, 'statuses' | 'newCases' | 'alignment'> {
+): Pick<VerifyResult, 'statuses' | 'newCases' | 'alignment'> & { diagnostics: VerifyDiagnostics } {
   const files = (list: string[]): string[] => [
     ...new Set(list.map((f) => f.trim()).filter((f) => changedPaths.has(f))),
   ];
@@ -228,12 +253,24 @@ export function combineVerify(
   // ── new cases: once each, most important first ──────────────────────────────
   const labels = new Map(requirements.map((r) => [r.label.toUpperCase().replace(/[\s-]/g, ''), r.label]));
   const existingTitles = new Set(cases.map((c) => key(c.title)));
+  // The ids the model was shown in the index: the active cases.
+  const indexed = new Map(cases.filter((c) => c.lifecycle === 'active').map((c) => [c.caseId, c.title]));
+  const diagnostics: VerifyDiagnostics = { sameRisk: [], unknownSameAs: [] };
   const seen = new Set<string>();
   const newCases: CaseDraft[] = [];
   for (const output of outputs) {
     for (const raw of output.newCases) {
       const c = toCodeCase(raw, labels);
       if (!c) continue;
+      const sameAs = (raw.sameAsCaseId ?? '').trim();
+      if (sameAs !== '') {
+        const existingTitle = indexed.get(sameAs) ?? null;
+        if (existingTitle !== null) {
+          diagnostics.sameRisk.push({ title: c.title, sameAsCaseId: sameAs, existingTitle });
+          continue;
+        }
+        diagnostics.unknownSameAs.push({ title: c.title, sameAsCaseId: sameAs, existingTitle: null });
+      }
       const k = key(c.title);
       if (seen.has(k) || existingTitles.has(k)) continue;
       seen.add(k);
@@ -274,7 +311,10 @@ export function combineVerify(
         : findings.every((f) => f.status === 'covered')
           ? 'aligned'
           : 'partial';
-  return { statuses, newCases: ranked, alignment: { status, findings } };
+  // Only a case that would have been kept is worth reporting as kept despite an unknown id.
+  const keptTitles = new Set(newCases.map((c) => c.title));
+  diagnostics.unknownSameAs = diagnostics.unknownSameAs.filter((d) => keptTitles.has(d.title));
+  return { statuses, newCases: ranked, alignment: { status, findings }, diagnostics };
 }
 
 async function pool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
@@ -295,7 +335,7 @@ export async function verifyCases(
   provider: LlmProvider,
   options: { maxCostUsd: number; expectedOutputTokens: number },
   signal: AbortSignal,
-): Promise<VerifyResult> {
+): Promise<VerifyResult & { diagnostics: VerifyDiagnostics }> {
   const llm = asStructured(provider);
   const requirements = requirementsOf(req.spec);
   const warnings: Warning[] = [...(req.pre.warnings ?? [])];
@@ -382,6 +422,12 @@ export async function verifyCases(
   }
 
   const combined = combineVerify(outputs, req.cases, requirements, changedPaths, req.maxNewCases);
+  for (const d of combined.diagnostics.unknownSameAs) {
+    warnings.push({
+      code: 'other',
+      message: `The new case "${d.title}" was said to repeat ${d.sameAsCaseId}, which is not an active case of this spec. It was kept as a new case.`,
+    });
+  }
   const costUsd = spent();
   if (costUsd > options.maxCostUsd && leftOut.length === 0) {
     warnings.push({

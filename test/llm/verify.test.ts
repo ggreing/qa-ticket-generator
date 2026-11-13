@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { QaCase, VerifyRequest } from '../../src/core/cases';
 import type { LlmResult, LlmUsage, PrdDocument } from '../../src/core/contracts';
 import { QtgError } from '../../src/core/errors';
-import type { VerifyOutput } from '../../src/core/schema';
+import { type VerifyOutput, VerifyOutputSchema } from '../../src/core/schema';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import {
   buildCaseIndex,
@@ -94,6 +94,7 @@ const newCase = (
   title: string,
   overrides: Partial<VerifyOutput['newCases'][number]> = {},
 ): VerifyOutput['newCases'][number] => ({
+  sameAsCaseId: null,
   title,
   acLabels: [],
   technique: 'concurrency',
@@ -600,7 +601,7 @@ describe('verify again on a later push: code-derived cases are not written twice
   });
 
   it('the prompt says a new case must be new, what "the same risk" means, and where a known risk is reported instead', () => {
-    expect(VERIFY_PROMPT_VERSION).toBe('2026-11-13.3');
+    expect(VERIFY_PROMPT_VERSION).toBe('2026-11-13.4');
     expect(VERIFY_SYSTEM).toContain('# A new case must be new');
     expect(VERIFY_SYSTEM).toContain('compare it with every line of <case_index>');
     expect(VERIFY_SYSTEM).toContain(
@@ -621,6 +622,100 @@ describe('verify again on a later push: code-derived cases are not written twice
       'while the risk is still in the code, the status is missing or contradicts',
     );
     expect(VERIFY_SYSTEM).not.toContain('Do not repeat an existing case, and');
+  });
+
+  it('SPEC v3 §2.2 a new case that names the existing case it repeats is dropped, and the pair is recorded', async () => {
+    const p = provider((call) =>
+      output({
+        statuses: idsIn(call).map((id) => status(id, 'missing')),
+        newCases: call.tail.includes('<case_index>')
+          ? [
+              // The second run of the sandbox: the same risk in other words, and the model says so.
+              newCase('Wish list add with an Invalid Date expiry rejected', {
+                sameAsCaseId: ' SHOP-900-C65 ',
+                priority: 'P0',
+              }),
+              newCase('Wish list export without a size limit', { priority: 'P2' }),
+            ]
+          : [],
+      }),
+    );
+    // One new case allowed: the dropped repeat does not take the place of the real one.
+    const result = await run(request({ cases: sheet, maxNewCases: 1 }), p);
+    expect(result.newCases.map((c) => c.title)).toEqual(['Wish list export without a size limit']);
+    expect(result.newCases[0]).not.toHaveProperty('sameAsCaseId'); // not part of a case
+    expect(result.diagnostics).toEqual({
+      sameRisk: [
+        {
+          title: 'Wish list add with an Invalid Date expiry rejected',
+          sameAsCaseId: 'SHOP-900-C65',
+          existingTitle: 'Wish list add with an unparseable expiry date',
+        },
+      ],
+      unknownSameAs: [],
+    });
+    expect(result.warnings).toEqual([]); // dropping a repeat is the normal outcome, not a warning
+  });
+
+  it('an id that is not an active case of the sheet proves nothing: the case is kept, with a warning', async () => {
+    const withObsolete = [qaCase(1), qaCase(2, { lifecycle: 'obsolete' })];
+    const p = provider((call) =>
+      output({
+        statuses: idsIn(call).map((id) => status(id, 'implemented')),
+        newCases: [
+          newCase('Race on add', { sameAsCaseId: 'SHOP-900-C99' }),
+          newCase('Unbounded export', { sameAsCaseId: 'SHOP-900-C02' }), // obsolete: not in the index
+          newCase('Empty id is no claim', { sameAsCaseId: '  ' }),
+          newCase('Wish list case 1', { sameAsCaseId: 'SHOP-123-C01' }), // dropped anyway: the title repeats
+        ],
+      }),
+    );
+    const result = await run(request({ cases: withObsolete }), p);
+    expect(result.newCases.map((c) => c.title)).toEqual([
+      'Race on add',
+      'Unbounded export',
+      'Empty id is no claim',
+    ]);
+    expect(result.diagnostics.sameRisk).toEqual([]);
+    expect(result.diagnostics.unknownSameAs.map((d) => [d.title, d.sameAsCaseId])).toEqual([
+      ['Race on add', 'SHOP-900-C99'],
+      ['Unbounded export', 'SHOP-900-C02'],
+    ]);
+    expect(result.warnings).toEqual([
+      {
+        code: 'other',
+        message:
+          'The new case "Race on add" was said to repeat SHOP-900-C99, which is not an active case of this spec. It was kept as a new case.',
+      },
+      {
+        code: 'other',
+        message:
+          'The new case "Unbounded export" was said to repeat SHOP-900-C02, which is not an active case of this spec. It was kept as a new case.',
+      },
+    ]);
+  });
+
+  it('the schema asks for sameAsCaseId before the case itself, and the prompt says what it is for', () => {
+    const fields = Object.keys(VerifyOutputSchema.shape.newCases.element.shape);
+    expect(fields[0]).toBe('sameAsCaseId');
+    expect(fields).toContain('whyEasyToMiss');
+    const { sameAsCaseId: _omitted, ...withoutField } = newCase('Race on add');
+    expect(VerifyOutputSchema.safeParse(output({ newCases: [withoutField as never] })).success).toBe(false);
+    expect(VerifyOutputSchema.safeParse(output({ newCases: [newCase('Race on add')] })).success).toBe(true);
+    expect(
+      VerifyOutputSchema.safeParse(
+        output({ newCases: [newCase('Race on add', { sameAsCaseId: 'SHOP-900-C01' })] }),
+      ).success,
+    ).toBe(true);
+
+    expect(VERIFY_SYSTEM).toContain(
+      'Every new case starts with `sameAsCaseId`, and you fill it before you write the rest',
+    );
+    expect(VERIFY_SYSTEM).toContain('copied exactly, or null when no case does');
+    expect(VERIFY_SYSTEM).toContain('the better answer is to leave the case out altogether');
+    expect(VERIFY_SYSTEM).toContain(
+      'a wrong null becomes a duplicate ticket that someone has to close by hand',
+    );
   });
 
   it('the estimate counts the index, once per chunk', () => {

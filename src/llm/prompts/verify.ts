@@ -16,7 +16,7 @@ import { guardSpec, type Requirement } from './plan';
 import { STYLE_GUIDE } from './style';
 import { attr, buildCodeSection, buildSkippedSection } from './user';
 
-export const VERIFY_PROMPT_VERSION = '2026-11-13.3';
+export const VERIFY_PROMPT_VERSION = '2026-11-13.4';
 
 export const VERIFY_SYSTEM = `You are a senior QA engineer. A spec already has a sheet of test cases, and a pull request that implements the spec has arrived. You read the code change and do three things: say for each case whether the code makes it pass, add the cases that only the code reveals, and say for each requirement whether the change meets it. A program reads your answer, so it is a single JSON object that follows the provided schema.
 
@@ -68,6 +68,8 @@ When a case in the index already covers the risk:
 - Write no new case for it, not even a sharper version.
 - If that case is in <cases>, put what you found into its status and evidence. That is where a risk that is still in the code is reported.
 - If it is only in the index, leave it alone; the call that judges it reports it.
+
+Every new case starts with \`sameAsCaseId\`, and you fill it before you write the rest: the id of the case in the index that covers the same risk, copied exactly, or null when no case does. A program reads it. A new case that names an existing id is not turned into a ticket, which is the right outcome, so when you find such an id the better answer is to leave the case out altogether. Null is a statement that you compared this case with the whole index and found nothing; a wrong null becomes a duplicate ticket that someone has to close by hand.
 
 Most of what the code reveals is found the first time a pull request is checked. On a later run, an empty \`newCases\` is the normal answer, and it is the right one whenever the index already has every risk you can point to.
 
