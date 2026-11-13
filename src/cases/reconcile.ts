@@ -100,7 +100,12 @@ export function toQaCase(
  * - A reused id must belong to an existing ticket and may be claimed by one planned case only
  *   (first claim wins, in planned order). Otherwise the case gets a new id and a warning.
  * - New ids continue after the highest existing number for this spec key.
- * - Output order: planned cases in planned order, then obsolete cases by id.
+ * - §4.4 — code-origin cases the planner does not reuse keep their content and lifecycle: only the
+ *   verify phase decides whether they are obsolete. When the planner does reuse a code case's id
+ *   (the spec now covers that risk), the case takes the planned content, so its origin may become
+ *   'spec'.
+ * - Output order: planned cases in planned order, then kept code cases by id, then obsolete
+ *   cases by id.
  */
 export const reconcileCases: ReconcileCases = (specRef, existing, planned) => {
   const key = specKey(specRef);
@@ -142,18 +147,26 @@ export const reconcileCases: ReconcileCases = (specRef, existing, planned) => {
     cases.push(toQaCase(p, id, specRef, 'active', ticket?.lastWritten?.codeStatus));
   }
 
+  const fromCode: QaCase[] = [];
   const obsolete: QaCase[] = [];
   for (const [id, t] of byId) {
     if (claimed.has(id)) continue;
-    if (!t.lastWritten) {
+    const last = t.lastWritten;
+    if (!last) {
       warnings.push({
         code: 'other',
         message: `Case ${id} has no readable content in its ticket; it is marked obsolete without changes.`,
       });
       continue;
     }
-    obsolete.push(toQaCase(t.lastWritten, id, specRef, 'obsolete', t.lastWritten.codeStatus));
+    if (last.origin === 'code') {
+      // §4.4 — code-origin cases come from the verify phase; a plan re-run does not retire them.
+      fromCode.push(toQaCase(last, id, specRef, last.lifecycle, last.codeStatus));
+      continue;
+    }
+    obsolete.push(toQaCase(last, id, specRef, 'obsolete', last.codeStatus));
   }
+  fromCode.sort((a, b) => compareCaseIds(a.caseId, b.caseId));
   obsolete.sort((a, b) => compareCaseIds(a.caseId, b.caseId));
-  return { cases: [...cases, ...obsolete], warnings };
+  return { cases: [...cases, ...fromCode, ...obsolete], warnings };
 };

@@ -1,0 +1,193 @@
+{
+  "name": "SPEC v3 §2.2 unknown, obsolete, invalid and repeated statuses are dropped with warnings",
+  "kind": "verify",
+  "input": {
+    "cases": [
+      {
+        "title": "만료 1초 지난 쿠폰 적용 시 거부",
+        "acLabels": [
+          "AC3"
+        ],
+        "technique": "boundary",
+        "priority": "P0",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "caseId": "SHOP-101-C01",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "같은 쿠폰 두 번째 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "caseId": "SHOP-101-C02",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete"
+      }
+    ],
+    "result": {
+      "statuses": [
+        {
+          "caseId": "SHOP-101-C09",
+          "status": "missing",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ]
+        },
+        {
+          "caseId": "SHOP-101-C02",
+          "status": "implemented",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ]
+        },
+        {
+          "caseId": "SHOP-101-C01",
+          "status": "maybe",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ]
+        },
+        {
+          "caseId": "SHOP-101-C01",
+          "status": "implemented",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ]
+        },
+        {
+          "caseId": "SHOP-101-C01",
+          "status": "missing",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ]
+        }
+      ],
+      "newCases": []
+    },
+    "sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+    "specRef": "SHOP-101"
+  },
+  "expected": {
+    "cases": [
+      {
+        "caseId": "SHOP-101-C01",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "만료 1초 지난 쿠폰 적용 시 거부",
+        "acLabels": [
+          "AC3"
+        ],
+        "technique": "boundary",
+        "priority": "P0",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "codeStatus": {
+          "status": "implemented",
+          "evidence": "src/a.ts의 check()에서 처리",
+          "files": [
+            "src/a.ts"
+          ],
+          "sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C02",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete",
+        "title": "같은 쿠폰 두 번째 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "other",
+        "message": "Code status for unknown case SHOP-101-C09 was ignored."
+      },
+      {
+        "code": "other",
+        "message": "Code status for obsolete case SHOP-101-C02 was ignored."
+      },
+      {
+        "code": "other",
+        "message": "Code status \"maybe\" for case SHOP-101-C01 is not valid and was ignored."
+      },
+      {
+        "code": "other",
+        "message": "Case SHOP-101-C01 was judged twice; the first status was kept."
+      }
+    ]
+  }
+}

@@ -9,7 +9,7 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { lintCaseStyle, planSync, reconcileCases, renderCase } from '../../src/cases';
+import { applyVerify, lintCaseStyle, planSync, reconcileCases, renderCase } from '../../src/cases';
 import type { Language } from '../../src/core/contracts';
 import { ALL_SOURCES, fixtureFileName, type GoldenSource } from './golden/sources';
 
@@ -40,6 +40,10 @@ function run(kind: GoldenSource['kind'], input: unknown): unknown {
     case 'render': {
       const i = input as Extract<GoldenSource, { kind: 'render' }>['input'];
       return renderCase(i.case, i.language);
+    }
+    case 'verify': {
+      const i = input as Extract<GoldenSource, { kind: 'verify' }>['input'];
+      return applyVerify(i.cases, i.result, i.sha, i.specRef);
     }
   }
 }

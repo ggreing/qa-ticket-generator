@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  applyVerify,
   caseIdFor,
   caseNumber,
   compareCaseIds,
@@ -258,5 +259,28 @@ describe('SPEC v3 §3.1 STYLE_RULES', () => {
     expect(lintCaseStyle(empty, 'ko')).toEqual([]);
     const bad = draft('올바르게 거부되는지 확인하는 테스트');
     expect(lintCaseStyle(bad, 'ko')).toEqual(lintCaseStyle(bad, 'ko'));
+  });
+});
+
+describe('SPEC v3 §2.2 applyVerify invariants', () => {
+  it('SPEC v3 §2.2 is pure, deterministic and emits only tool-owned keys', () => {
+    const cases = [
+      { ...qaCase('SHOP-101-C01', 'a'), ...({ execStatus: 'Pass' } as object) } as QaCase,
+      qaCase('SHOP-101-C02', 'b', { origin: 'code', lifecycle: 'obsolete' }),
+    ];
+    const result = {
+      statuses: [{ caseId: 'SHOP-101-C01', status: 'implemented' as const, evidence: 'e', files: ['f.ts'] }],
+      newCases: [draft('b', { origin: 'code' }), draft('c')],
+    };
+    const before = structuredClone({ cases, result });
+    const a = applyVerify(cases, result, 'sha1', 'SHOP-101');
+    expect({ cases, result }).toStrictEqual(before);
+    expect(applyVerify(structuredClone(cases), structuredClone(result), 'sha1', 'SHOP-101')).toStrictEqual(a);
+    for (const c of a.cases) for (const k of Object.keys(c)) expect(QA_CASE_KEYS.has(k), k).toBe(true);
+    expect(a.cases.map((c) => [c.caseId, c.lifecycle])).toEqual([
+      ['SHOP-101-C01', 'active'],
+      ['SHOP-101-C02', 'active'],
+      ['SHOP-101-C03', 'active'],
+    ]);
   });
 });
