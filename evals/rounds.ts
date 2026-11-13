@@ -1,5 +1,5 @@
 /**
- * Improvement rounds (docs/quality/RUBRIC.md "Procedure"). Each paid run that belongs to a round
+ * Improvement rounds (docs/quality/RUBRIC.v2.md "Procedure"). Each paid run that belongs to a round
  * leaves three things: `evals/rounds/<n>/raw/results.json` (raw, not committed),
  * `evals/rounds/<n>/summary.md` (committed) and a row in `evals/ROUNDS.md`, which is regenerated
  * from `evals/rounds/index.json` so the history is one diffable file.
@@ -100,7 +100,7 @@ export function renderRoundsIndex(records: RoundRecord[]): string {
     '# Improvement rounds',
     '',
     'Generated from `evals/rounds/index.json` by the eval runner (`--round`, `--decision`). Do not edit by hand.',
-    'Scores are rubric means on a 0–2 scale (docs/quality/RUBRIC.md); the percentages are the deterministic',
+    'Scores are rubric means on a 0–2 scale (docs/quality/RUBRIC.v2.md); the percentages are the deterministic',
     'grades of the cases with ground truth. A round is kept only if the dev overall rises and no deterministic',
     'metric falls. Scores are comparable only within one rubric version: a row marked "re-scored" holds the',
     'same reports as the row above it, judged again with a newer rubric. "(16/19)" after an overall means the',

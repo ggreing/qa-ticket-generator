@@ -1,5 +1,5 @@
 /**
- * Human review support (docs/quality/RUBRIC.md "Procedure"): a blind rating pack built from a
+ * Human review support (docs/quality/RUBRIC.v2.md "Procedure"): a blind rating pack built from a
  * results file, and a comparison of the filled-in ratings with the rubric judge. Both are
  * offline. The pack never contains judge scores, expected answers or deterministic grades, so
  * the reviewer rates what a team would actually see.

@@ -1,5 +1,5 @@
 /**
- * Rubric judge (docs/quality/RUBRIC.md): scores what code cannot check. Every scenario gets four
+ * Rubric judge (docs/quality/RUBRIC.v2.md): scores what code cannot check. Every scenario gets four
  * criteria and the report three, each 0–2 with a one-line reason, as Structured Outputs.
  * The anchors below are copied from RUBRIC.md; a test fails when the two drift apart.
  * Owner: qa-work-session-c(fable).

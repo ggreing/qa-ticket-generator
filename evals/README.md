@@ -7,10 +7,47 @@ the Action uses, then scored two ways:
   forbidden content, file references), on synthetic cases with planted gaps;
 - a **rubric judge** for what code cannot check (is a ticket runnable, traceable, aimed at a real
   risk, prioritised sensibly; is the report concise and honest), on every case, following
-  [`docs/quality/RUBRIC.md`](../docs/quality/RUBRIC.md).
+  [`docs/quality/RUBRIC.v2.md`](../docs/quality/RUBRIC.v2.md).
 
 Running the eval costs money. Nothing is sent to the API until you have seen the estimate and
 passed `--yes`.
+
+## v3: case sheets from a spec (SPEC v3 §8)
+
+The product now writes the full QA case sheet of a spec and later checks each case against the
+pull request. Two eval paths measure that. Everything below this section describes the v2 runner
+(`run`), which scores the PR-comment report and is kept for the scores recorded with it.
+
+```bash
+# Plan: spec only -> case sheet. Prints the plan and the cost; add --yes to call the API.
+node evals/cli.mjs plan --judge
+#   --split dev|test|all   --cases a,b   --language ko   --model <id>   --effort <level>
+#   --judge                score each sheet with the rubric v3 judge (default claude-sonnet-5-5)
+
+# Verify: the sheets of a plan run, judged against each case's pull request.
+node evals/cli.mjs verify --from evals/results/<timestamp>-plan.json
+```
+
+| Path   | Input                               | Deterministic metrics                                                                             | Judge                           |
+| ------ | ----------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
+| plan   | the case's first PRD document       | must-cover recall, requirements with a case, style violations per 100 cases, repeated titles      | rubric v3, optional (`--judge`) |
+| verify | a plan run's sheet + the PR's files | code-status accuracy, share left unknown, alignment and finding statuses as in v2, new case count | none                            |
+
+- **Must-cover** reuses the risk units in `expected.json` (`mustScenarios`): a risk is covered when
+  some case contains its keywords. The keywords are mostly English, so the number understates a
+  non-English run.
+- **Style violations** are counted with `lintCaseStyle` from `src/cases`. Until that module is
+  merged a coarser stand-in is used and the results file says so (`lintSource: "fallback"`).
+- **Code-status accuracy** is per requirement, from `mustFindings`: a requirement known to be
+  missing needs a case marked `missing`, one known to be contradicted a case marked `contradicts`,
+  one known to be covered a case marked `implemented` and none marked `contradicts`.
+- **Rubric v3** ([`docs/quality/RUBRIC.md`](../docs/quality/RUBRIC.md)): five criteria per case and
+  three per sheet, with spec coverage counted double and length never a fault. The judge scores a
+  fixed sample of 20 cases per sheet in full and sees the whole sheet as an index. It does not see
+  `expected.json`.
+- A case without a PRD has no spec to plan from and is left out of both paths.
+- Results go to `evals/results/<timestamp>-plan.json` and `-verify.json`. Round records
+  (`ROUNDS.md`), review packs and calibration are not wired to the v3 paths yet.
 
 ## Data
 

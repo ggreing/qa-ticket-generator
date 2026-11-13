@@ -226,7 +226,7 @@ Run (prints the plan and the estimated cost; calls the API only with --yes):
   --concurrency <n>     cases in flight at once (default: 3)
   --language <code>     language the reports are written in: en (default), ko, ja, zh-CN;
                         the Action's aliases work too (kr, jp, cn, zh)
-  --judge               score every report with the rubric judge (docs/quality/RUBRIC.md)
+  --judge               score every report with the rubric judge (docs/quality/RUBRIC.v2.md)
   --judge-model <id>    rubric judge model (default: ${DEFAULT_RUBRIC_MODEL})
   --coverage-judge      also judge must-cover scenarios with ${JUDGE_MODEL} (cases with ground truth)
   --round <n>           record this run as improvement round n, 0 for the baseline

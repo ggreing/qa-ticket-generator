@@ -8,6 +8,7 @@ import { createRubricClient } from './rubric';
 import { runEvals } from './run';
 import { writeCases } from './tools/build-cases';
 import { main as snapshotReal } from './tools/snapshot-real';
+import { runPlanEval, runVerifyEval, type V3Deps } from './v3/run';
 
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
@@ -25,8 +26,33 @@ async function main(argv: string[]): Promise<number> {
       sourcesPath: resolve('evals/real-sources.json'),
     });
   }
+  if (command === 'plan' || command === 'verify') {
+    // v3 paths: the case sheet of a spec, and its code statuses against a pull request.
+    const deps: V3Deps = {
+      evalsRoot: resolve('evals'),
+      resultsRoot: resolve('evals/results'),
+      env: process.env,
+      print: (line) => console.log(line),
+      now: () => Date.now(),
+      createEngine: createPreprocessEngine,
+      createProvider: ({ apiKey, model, effort, maxOutputTokens }) =>
+        createAnthropicProvider(
+          { apiKey, model, effort, serverFallback: false, maxOutputTokens },
+          { logger: { warn: (message) => console.warn(message) } },
+        ),
+      createRubricClient,
+      writeFile: (path, text) => {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, text);
+      },
+      readFile: (path) => readFileSync(path, 'utf8'),
+    };
+    return (await (command === 'plan' ? runPlanEval(rest, deps) : runVerifyEval(rest, deps))).exitCode;
+  }
   if (command !== 'run') {
-    console.log('Usage: node evals/cli.mjs run [options]   |   build-cases   |   snapshot-real [--ids a,b]');
+    console.log(
+      'Usage: node evals/cli.mjs plan [options]   |   verify --from <plan-results.json>   |   run [options] (v2)   |   build-cases   |   snapshot-real [--ids a,b]',
+    );
     return command === undefined || command === '--help' ? 0 : 2;
   }
   const outcome = await runEvals(rest, {
