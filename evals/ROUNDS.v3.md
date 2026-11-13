@@ -6,6 +6,7 @@ style violations are deterministic or checked against ground truth. A round is k
 and none of those three gets worse. Rows are comparable only within one language. "(13/14)" after an overall
 means the judge returned no usable score for the other sheets. The M3.5 rounds are in `ROUNDS.md`.
 
-| Round | Date       | Prompt       | Change                             | Split    | Lang | Overall | Case | Sheet | Spec coverage | Must-cover | Req. with a case | Style viol./100 | Cases/spec | Merged away | Cost  | Decision |
-| ----- | ---------- | ------------ | ---------------------------------- | -------- | ---- | ------- | ---- | ----- | ------------- | ---------- | ---------------- | --------------- | ---------- | ----------- | ----- | -------- |
-| 0     | 2026-11-13 | 2026-11-13.1 | baseline: plan prompt 2026-11-13.1 | selected | ko   | 1.54    | 1.79 | 1.29  | 1.57          | 98%        | 100%             | 0.0             | 53.6       | 18          | $8.00 | keep     |
+| Round | Date       | Prompt       | Change                                                                                   | Split    | Lang | Overall | Case | Sheet | Spec coverage | Must-cover | Req. with a case | Style viol./100 | Cases/spec | Merged away | Cost  | Decision |
+| ----- | ---------- | ------------ | ---------------------------------------------------------------------------------------- | -------- | ---- | ------- | ---- | ----- | ------------- | ---------- | ---------------- | --------------- | ---------- | ----------- | ----- | -------- |
+| 0     | 2026-11-13 | 2026-11-13.1 | baseline: plan prompt 2026-11-13.1                                                       | selected | ko   | 1.54    | 1.79 | 1.29  | 1.57          | 98%        | 100%             | 0.0             | 53.6       | 18          | $8.00 | keep     |
+| 1     | 2026-11-13 | 2026-11-13.2 | prompt 2026-11-13.2: one intent one case, open outcomes as questions, merge with reasons | selected | ko   | 1.60    | 1.81 | 1.39  | 1.43          | 100%       | 100%             | 0.0             | 39.2       | 7           | $8.27 | keep     |
