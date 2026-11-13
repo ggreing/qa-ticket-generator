@@ -40,6 +40,12 @@ assignees, comments and labels your team adds are never overwritten. If someone 
 tool leaves it alone and posts the change it would have made as a comment. Cases that drop out of the spec
 are marked as obsolete, not closed or deleted.
 
+Later runs only do what is needed. If the spec hasn't changed since the last plan, no cases are written
+again (set `force-plan: true` to plan anyway). The PR check skips a commit it has already checked, and a
+push that only changes comments or whitespace. After the first check, new cases only come from the lines
+that changed, and a case keeps its status unless a file it rests on changed or it was still waiting for
+code. Running the workflow by hand checks everything again.
+
 Setting up Jira or Notion takes a few extra minutes:
 [`docs/setup/jira-subtasks.md`](docs/setup/jira-subtasks.md) and
 [`docs/setup/notion-qa-database.md`](docs/setup/notion-qa-database.md).
@@ -82,6 +88,11 @@ On the PR, the comment starts with how well the change matches the spec, then li
 seems to miss or contradict and a P0 checklist, each linked to its ticket. When you push more commits, the
 same comment is updated instead of a new one being added, and pushes that only touch lockfiles or build
 output are ignored.
+
+If you want the check to fail, look at `fail-on`. When a requirement's main behaviour is there but some of
+its cases look missing or contradicted, the requirement counts as partly met and the badge says partially
+aligned. So `fail-on: misaligned` only fails when the main behaviour goes against the spec. Use
+`fail-on: partial` if edge cases should block the merge too.
 
 A PR that links no spec still gets a comment: requirements are inferred from the code, with a short list of
 test cases and a note that there was no spec to compare with. If you connect Slack, a short summary of this
@@ -240,6 +251,12 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
   spec. The spec's GitHub issue or Jira story gets that list instead.
 - The model only sees the changed files. If a requirement is handled in a file the PR doesn't touch, it may
   be reported as missing; the comment lists that kind of assumption at the end.
+- We still call GitHub's REST API without a version header, so GitHub answers with version 2022-11-28 and
+  marks the issue endpoints as deprecated. That version works until March 2028; we plan to move to
+  2026-03-10 before then.
+- Code statuses are the model's judgement. A manual run checks everything again and can flip a few of them.
+- The `qtg.case` issue property the Jira sink uses hasn't been tried on a real Jira site yet.
+- The Notion sink hasn't been tried in a real Notion workspace yet.
 
 ## Configuration reference
 
