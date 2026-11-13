@@ -103,6 +103,13 @@ describe('docs/examples workflows', () => {
       if?: string;
     };
     expect(upload?.if).toBe("steps.qa.outputs.cases-dir != ''");
+    // Same pin as our release workflow (full SHA, version in the comment).
+    const releasePin = read('.github/workflows/release.yml').match(
+      /actions\/upload-artifact@([0-9a-f]{40}) # (v[\d.]+)/,
+    );
+    expect(releasePin).not.toBeNull();
+    expect(upload?.uses).toBe(`actions/upload-artifact@${releasePin?.[1]}`);
+    expect(read(V3)).toContain(`${upload?.uses} # ${releasePin?.[2]}`);
     expect(upload?.with?.path).toMatch(/^\$\{\{ steps\.qa\.outputs\.cases-dir \}\}$/);
     // The upload step only ships files the action wrote; nothing else runs.
     expect(steps(wf)).toHaveLength(2);
