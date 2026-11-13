@@ -304,3 +304,17 @@ describe('spec digest edge cases (SPEC v3 §4)', () => {
     expect(jira.sink.publishSummary).not.toHaveBeenCalled();
   });
 });
+
+describe('case links in the summary (SPEC v3 §5)', () => {
+  it('a sink without urls (file) never blanks the ticket link another sink created', async () => {
+    const gh = fakeSink('github-issue');
+    const file = fakeSink('file');
+    file.sink.create = vi.fn(async (_s, c: QaCase) => ({ ticketRef: c.caseId, url: '' }));
+    await runPlan(makeDeps([gh.sink, file.sink]), cfg(), spec, signal);
+    const summary = vi.mocked(gh.sink.publishSummary).mock.calls[0]?.[1];
+    expect(summary?.cases.map((c) => c.url)).toEqual([
+      'https://github-issue/PROJ-123-C02',
+      'https://github-issue/PROJ-123-C01',
+    ]);
+  });
+});

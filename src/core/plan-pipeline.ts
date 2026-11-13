@@ -191,7 +191,7 @@ export async function runPlan(
         const urls = new Map<string, string>();
         try {
           const known = sink === primary ? existing : await sink.list(specRef, signal);
-          for (const t of known) urls.set(t.caseId, t.url);
+          for (const t of known) if (t.url) urls.set(t.caseId, t.url);
           await sink.publishSummary(
             specRef,
             buildSummary(specRef, spec.title, cfg.language, outcome.cases, urls, deps.llm, 0),
@@ -309,7 +309,7 @@ export async function syncSink(
   };
   try {
     const existing = known ?? (await sink.list(spec, signal));
-    for (const t of existing) urls.set(t.caseId, urls.get(t.caseId) ?? t.url);
+    for (const t of existing) if (t.url && !urls.get(t.caseId)) urls.set(t.caseId, t.url);
     const ops: SyncOp[] = deps.planSync(existing, cases, render);
     // DLV-08 spirit: one failing op is a warning, the rest still run.
     for (const op of ops) {
@@ -343,7 +343,7 @@ async function applyOp(
   switch (op.op) {
     case 'create': {
       const res = await sink.create(spec, op.case, render(op.case), signal);
-      urls.set(op.case.caseId, res.url);
+      if (res.url) urls.set(op.case.caseId, res.url); // the file sink returns no url: never let it blank a ticket link
       out.created++;
       return;
     }
