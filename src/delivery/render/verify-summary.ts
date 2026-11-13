@@ -5,6 +5,7 @@
  *   header: alignment badge, commit
  *   spec and case counts
  *   code status counts
+ *   judged at this commit / kept from earlier checks   (only when some were kept)
  *   cases the code misses or contradicts   (links)
  *   P0 checklist, at most `max-scenarios`  (links)
  *   cases added from the code              (links)
@@ -88,6 +89,8 @@ interface VerifyStrings {
   codeStatus: string;
   status: Record<CodeStatus, string>;
   notJudged: string;
+  /** After the first check: how many statuses are from this commit and how many were kept. */
+  recheck: (judged: number, kept: number) => string;
   attention: (count: number) => string;
   noAttention: string;
   p0Checklist: (shown: number, total: number) => string;
@@ -111,6 +114,8 @@ const VERIFY_STRINGS: Readonly<Record<Language, VerifyStrings>> = {
       unknown: 'Cannot tell from code',
     },
     notJudged: 'Not judged',
+    recheck: (judged, kept) =>
+      `Judged at this commit: ${judged} · kept from earlier checks: ${kept} (their code did not change)`,
     attention: (n) => `Missing or contradicting (${n})`,
     noAttention: 'No case is missing or contradicted in this change',
     p0Checklist: (shown, total) =>
@@ -133,6 +138,8 @@ const VERIFY_STRINGS: Readonly<Record<Language, VerifyStrings>> = {
       unknown: '코드로 판단 불가',
     },
     notJudged: '미판정',
+    recheck: (judged, kept) =>
+      `이번 커밋에서 판정 ${judged}건 · 이전 판정 유지 ${kept}건 (관련 코드 변경 없음)`,
     attention: (n) => `미구현 의심·상충 (${n})`,
     noAttention: '이번 변경에서 미구현·상충 케이스 없음',
     p0Checklist: (shown, total) =>
@@ -155,6 +162,8 @@ const VERIFY_STRINGS: Readonly<Record<Language, VerifyStrings>> = {
       unknown: 'コードから判断不可',
     },
     notJudged: '未判定',
+    recheck: (judged, kept) =>
+      `このコミットで判定 ${judged} 件 · 以前の判定を維持 ${kept} 件 (関連コードの変更なし)`,
     attention: (n) => `未実装の疑い・矛盾 (${n})`,
     noAttention: '今回の変更に未実装・矛盾のケースなし',
     p0Checklist: (shown, total) =>
@@ -177,6 +186,7 @@ const VERIFY_STRINGS: Readonly<Record<Language, VerifyStrings>> = {
       unknown: '无法从代码判断',
     },
     notJudged: '未判定',
+    recheck: (judged, kept) => `本次提交判定 ${judged} 条 · 沿用之前的判定 ${kept} 条 (相关代码未变更)`,
     attention: (n) => `疑似未实现或冲突 (${n})`,
     noAttention: '本次变更没有未实现或冲突的用例',
     p0Checklist: (shown, total) =>
@@ -202,6 +212,9 @@ function caseLink(c: SummaryCase): string {
 }
 
 const statusOf = (c: SummaryCase): CodeStatus | 'none' => c.codeStatus?.status ?? 'none';
+/** Two commit ids name the same commit when one is the short form of the other. */
+const sameCommit = (a: string, b: string): boolean =>
+  a !== '' && b !== '' && (a.startsWith(b) || b.startsWith(a));
 const byUrgency = (a: SummaryCase, b: SummaryCase): number =>
   STATUS_ORDER[statusOf(a)] - STATUS_ORDER[statusOf(b)] ||
   PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
@@ -245,6 +258,11 @@ function render(input: VerifySummaryInput, limit: number): string {
     const notJudged = active.filter((c) => statusOf(c) === 'none').length;
     if (notJudged > 0) counts.push(`${v.notJudged} ${notJudged}`);
     head.push(`**${v.codeStatus}**: ${counts.join(' · ')}`, '');
+    // After the first check only the cases tied to the pushed code are judged again; the rest keep
+    // the status of the commit they were judged at. Say so, or the counts look freshly made.
+    const judgedNow = active.filter((c) => c.codeStatus && sameCommit(c.codeStatus.sha, input.sha)).length;
+    const kept = active.filter((c) => c.codeStatus && !sameCommit(c.codeStatus.sha, input.sha)).length;
+    if (kept > 0) head.push(v.recheck(judgedNow, kept), '');
 
     // ── what the code misses or contradicts ───────────────────────────────────
     const attention = active

@@ -36,7 +36,14 @@ import {
   buildVerifyTail,
   VERIFY_SYSTEM,
 } from './prompts/verify';
-import { type OutOfScopeReason, outOfScope, type ResolvedScope, resolveScope } from './scope';
+import {
+  type OutOfScopeReason,
+  outOfScope,
+  type RejudgeReason,
+  type ResolvedScope,
+  resolveScope,
+  selectCasesToJudge,
+} from './scope';
 import { asStructured } from './structured';
 import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 
@@ -75,8 +82,14 @@ interface Call {
 }
 
 export interface VerifyRunPlan {
-  /** Active cases, split into batches of at most MAX_CASES_PER_CALL. */
+  /** The cases that get a status in this run, split into batches of at most MAX_CASES_PER_CALL. */
   batches: QaCase[][];
+  /** Active cases that keep the status they have (only after the first check of a pull request). */
+  kept: QaCase[];
+  /** Why the cases in `batches` are judged; null on a first check, when every case is. */
+  rejudgeReasons: Record<RejudgeReason, number> | null;
+  /** The lines pushed since the last check, resolved against the chunks that are judged. */
+  scope: ResolvedScope | null;
   /** Chunks that will be judged, highest priority first. */
   chunks: CodeChunk[];
   /** Chunks left out because the estimate exceeded the cap. */
@@ -108,27 +121,36 @@ export function planVerifyRun(
   options: { maxCostUsd: number; expectedOutputTokens: number },
 ): VerifyRunPlan {
   const active = req.cases.filter((c) => c.lifecycle === 'active');
-  const batches: QaCase[][] = [];
-  for (let i = 0; i < active.length; i += MAX_CASES_PER_CALL)
-    batches.push(active.slice(i, i + MAX_CASES_PER_CALL));
-  if (batches.length === 0) batches.push([]);
-
   const requirements = requirementsOf(req.spec);
   const system = estimateTokens(VERIFY_SYSTEM + planLanguageBlock(req.language));
-  const prefixTokens = batches.map((batch) =>
-    estimateTokens(buildVerifyPrefix(req, requirements, batch).join('\n')),
-  );
-  // The call that may write new cases also gets the index of the whole sheet, and after the
-  // first check the lines pushed since.
-  const indexTokens = estimateTokens(buildCaseIndex(active));
-  const scope = resolveScope(req.newCaseScope ?? null, req.pre.chunks);
-  const scopeTokens = (chunk: CodeChunk): number =>
-    scope ? estimateTokens(buildScopeBlock(scope, chunk)) : 0;
+  const prPaths = new Set<string>([
+    ...req.pre.chunks.flatMap((c) => c.files.map((f) => f.path)),
+    ...req.pre.skipped.map((s) => s.path),
+  ]);
   const cost = (inputTokens: number, outputTokens: number): number =>
     provider.estimateCostUsd({ inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 });
-  const estimate = (chunks: CodeChunk[]): number =>
-    chunks.reduce(
-      (sum, chunk) =>
+
+  /**
+   * Everything that depends on which chunks are judged. A file in a chunk the cost cap leaves out
+   * is not shown, so a case that rests on it cannot be judged again and keeps its status.
+   */
+  const layout = (chunks: CodeChunk[]) => {
+    const scope = resolveScope(req.newCaseScope ?? null, chunks);
+    const selection = selectCasesToJudge(active, scope, prPaths);
+    const batches: QaCase[][] = [];
+    for (let i = 0; i < selection.judge.length; i += MAX_CASES_PER_CALL)
+      batches.push(selection.judge.slice(i, i + MAX_CASES_PER_CALL));
+    if (batches.length === 0) batches.push([]);
+    const prefixTokens = batches.map((batch) =>
+      estimateTokens(buildVerifyPrefix(req, requirements, batch, scope !== null).join('\n')),
+    );
+    // The call that may write new cases also gets the index of the whole sheet. After the first
+    // check every call gets the lines pushed since.
+    const keptIds = scope ? new Set(selection.kept.map((c) => c.caseId)) : undefined;
+    const indexTokens = estimateTokens(buildCaseIndex(active, keptIds));
+    const estimateUsd = chunks.reduce((sum, chunk) => {
+      const pushed = scope ? estimateTokens(buildScopeBlock(scope, chunk)) : 0;
+      return (
         sum +
         batches.reduce(
           (s, batch, b) =>
@@ -137,22 +159,32 @@ export function planVerifyRun(
               system +
                 (prefixTokens[b] as number) +
                 chunk.estimatedTokens +
-                (b === 0 ? indexTokens + scopeTokens(chunk) : 0),
+                pushed +
+                (b === 0 ? indexTokens : 0),
               expectedOutput(batch.length, b === 0, req.maxNewCases, options.expectedOutputTokens),
             ),
           0,
-        ),
-      0,
-    );
+        )
+      );
+    }, 0);
+    return { scope, selection, batches, estimateUsd };
+  };
 
   let chunks = req.pre.chunks;
-  while (chunks.length > 1 && estimate(chunks) > options.maxCostUsd) chunks = chunks.slice(0, -1);
+  let current = layout(chunks);
+  while (chunks.length > 1 && current.estimateUsd > options.maxCostUsd) {
+    chunks = chunks.slice(0, -1);
+    current = layout(chunks);
+  }
   return {
-    batches,
+    batches: current.batches,
+    kept: current.selection.kept,
+    rejudgeReasons: current.scope ? current.selection.reasons : null,
+    scope: current.scope,
     chunks,
     dropped: req.pre.chunks.slice(chunks.length),
-    calls: chunks.length * batches.length,
-    estimateUsd: estimate(chunks),
+    calls: chunks.length * current.batches.length,
+    estimateUsd: current.estimateUsd,
   };
 }
 
@@ -192,6 +224,22 @@ export interface VerifyDiagnostics {
    * lines pushed since. Empty on a first check.
    */
   outOfScope: { title: string; reason: OutOfScopeReason }[];
+  /**
+   * How many cases got a status in this run and how many kept the one they had. On a first check
+   * every case is judged and `reasons` is null.
+   */
+  rejudge: { judged: number; kept: number; reasons: Record<RejudgeReason, number> | null };
+  /**
+   * Requirement findings that disagree with the statuses of that requirement's cases (the ones
+   * given now and the ones kept). Reported, not corrected.
+   */
+  alignmentConflicts: {
+    requirement: string;
+    finding: Finding['status'];
+    /** `case_not_met`: found covered while a case is missing or contradicts. `cases_all_met`: found missing or contradicting while every case is implemented. */
+    kind: 'case_not_met' | 'cases_all_met';
+    cases: { caseId: string; status: CodeStatus }[];
+  }[];
 }
 
 /** A code-derived case as the model wrote it, cleaned; null when it is not a runnable case. */
@@ -233,6 +281,10 @@ function toCodeCase(
  *
  * With a `scope` (the pull request was checked before), a new case that does not come from the
  * lines pushed since is dropped as well; `outOfScope` in scope.ts states the test.
+ *
+ * `judged` are the cases that were sent to be judged. Only they get a status in the result; the
+ * other active cases keep the one they have, which the caller leaves untouched by not naming them.
+ * Without it every active case was judged.
  */
 export function combineVerify(
   outputs: VerifyOutput[],
@@ -241,6 +293,7 @@ export function combineVerify(
   changedPaths: ReadonlySet<string>,
   maxNewCases: number,
   scope: ResolvedScope | null = null,
+  judged?: QaCase[],
 ): Pick<VerifyResult, 'statuses' | 'newCases' | 'alignment'> & { diagnostics: VerifyDiagnostics } {
   const files = (list: string[]): string[] => [
     ...new Set(list.map((f) => f.trim()).filter((f) => changedPaths.has(f))),
@@ -248,11 +301,13 @@ export function combineVerify(
 
   // ── statuses: the strongest answer per case ─────────────────────────────────
   const best = new Map<string, VerifyResult['statuses'][number]>();
-  const known = new Set(cases.map((c) => c.caseId));
+  const active = cases.filter((c) => c.lifecycle === 'active');
+  const toJudge = judged ?? active;
+  const known = new Set(toJudge.map((c) => c.caseId));
   for (const output of outputs) {
     for (const s of output.statuses) {
       const caseId = s.caseId.trim();
-      if (!known.has(caseId)) continue; // a status for a case that is not on the sheet
+      if (!known.has(caseId)) continue; // not on the sheet, or not sent to be judged in this run
       const current = best.get(caseId);
       const next = { caseId, status: s.status, evidence: clean(s.evidence), files: files(s.files) };
       if (!current || STATUS_RANK[next.status] > STATUS_RANK[current.status]) {
@@ -266,19 +321,23 @@ export function combineVerify(
       }
     }
   }
-  // Every active case gets a status; one the model skipped is unknown, not silently absent.
-  const statuses = cases
-    .filter((c) => c.lifecycle === 'active')
-    .map(
-      (c) => best.get(c.caseId) ?? { caseId: c.caseId, status: 'unknown' as const, evidence: '', files: [] },
-    );
+  // Every case that was sent gets a status; one the model skipped is unknown, not silently absent.
+  const statuses = toJudge.map(
+    (c) => best.get(c.caseId) ?? { caseId: c.caseId, status: 'unknown' as const, evidence: '', files: [] },
+  );
 
   // ── new cases: once each, most important first ──────────────────────────────
   const labels = new Map(requirements.map((r) => [r.label.toUpperCase().replace(/[\s-]/g, ''), r.label]));
   const existingTitles = new Set(cases.map((c) => key(c.title)));
   // The ids the model was shown in the index: the active cases.
   const indexed = new Map(cases.filter((c) => c.lifecycle === 'active').map((c) => [c.caseId, c.title]));
-  const diagnostics: VerifyDiagnostics = { sameRisk: [], unknownSameAs: [], outOfScope: [] };
+  const diagnostics: VerifyDiagnostics = {
+    sameRisk: [],
+    unknownSameAs: [],
+    outOfScope: [],
+    rejudge: { judged: toJudge.length, kept: active.length - toJudge.length, reasons: null },
+    alignmentConflicts: [],
+  };
   const seen = new Set<string>();
   const newCases: CaseDraft[] = [];
   for (const output of outputs) {
@@ -339,6 +398,42 @@ export function combineVerify(
         : findings.every((f) => f.status === 'covered')
           ? 'aligned'
           : 'partial';
+  // ── do the findings agree with the statuses of their cases? ─────────────────
+  const finalStatus = new Map<string, CodeStatus>();
+  for (const c of active) {
+    const now = known.has(c.caseId) ? (best.get(c.caseId)?.status ?? 'unknown') : c.codeStatus?.status;
+    if (now) finalStatus.set(c.caseId, now);
+  }
+  for (const f of findings) {
+    const label = labelKey(f.requirement);
+    const own = active
+      .filter((c) => c.acLabels.some((l) => l.toUpperCase().replace(/[\s-]/g, '') === label))
+      .flatMap((c) => {
+        const s = finalStatus.get(c.caseId);
+        return s ? [{ caseId: c.caseId, status: s }] : [];
+      });
+    if (own.length === 0) continue;
+    const notMet = own.filter((c) => c.status === 'missing' || c.status === 'contradicts');
+    if (f.status === 'covered' && notMet.length > 0) {
+      diagnostics.alignmentConflicts.push({
+        requirement: f.requirement,
+        finding: f.status,
+        kind: 'case_not_met',
+        cases: notMet,
+      });
+    } else if (
+      (f.status === 'missing' || f.status === 'contradicts') &&
+      own.every((c) => c.status === 'implemented')
+    ) {
+      diagnostics.alignmentConflicts.push({
+        requirement: f.requirement,
+        finding: f.status,
+        kind: 'cases_all_met',
+        cases: own,
+      });
+    }
+  }
+
   // Only a case that would have been kept is worth reporting as kept despite an unknown id.
   const keptTitles = new Set(newCases.map((c) => c.title));
   diagnostics.unknownSameAs = diagnostics.unknownSameAs.filter((d) => keptTitles.has(d.title));
@@ -374,7 +469,23 @@ export async function verifyCases(
 
   // A change with no reviewable code: nothing can be judged, and no call is made.
   if (req.pre.chunks.length === 0) {
-    const empty = combineVerify([], req.cases, requirements, changedPaths, req.maxNewCases);
+    // After a first check the cases keep what they have; only one never judged becomes unknown.
+    const none = resolveScope(req.newCaseScope ?? null, []);
+    const selection = selectCasesToJudge(
+      req.cases.filter((c) => c.lifecycle === 'active'),
+      none,
+      changedPaths,
+    );
+    const empty = combineVerify(
+      [],
+      req.cases,
+      requirements,
+      changedPaths,
+      req.maxNewCases,
+      none,
+      selection.judge,
+    );
+    empty.diagnostics.rejudge.reasons = none ? selection.reasons : null;
     return { ...empty, usage: ZERO_USAGE, costUsd: 0, calls: 0, warnings };
   }
 
@@ -388,11 +499,13 @@ export async function verifyCases(
 
   const system = [VERIFY_SYSTEM, planLanguageBlock(req.language)];
   const phase = req.pre.chunks.length > 1 ? 'map' : 'single';
-  // The whole sheet, every batch: what a new case has to be new against.
-  const sheet = plan.batches.flat();
-  // After the first check: what a new case has to come from. Files of chunks that are not judged
-  // are not shown, so nothing can come from them.
-  const scope = resolveScope(req.newCaseScope ?? null, plan.chunks);
+  // The whole sheet, judged now or not: what a new case has to be new against.
+  const sheet = req.cases.filter((c) => c.lifecycle === 'active');
+  // After the first check: what a new case has to come from and what a status may change for.
+  // Files of chunks that are not judged are not shown, so nothing can come from them.
+  const { scope } = plan;
+  const judged = plan.batches.flat();
+  const keptIds = new Set(plan.kept.map((c) => c.caseId));
   const skipped: SkippedFile[] = [
     ...req.pre.skipped,
     ...plan.dropped.flatMap((c) => c.files.map((f) => ({ path: f.path, reason: 'cost_cap' as const }))),
@@ -419,7 +532,7 @@ export async function verifyCases(
       const result = await llm.generateStructured<VerifyOutput>(
         {
           system,
-          prefix: buildVerifyPrefix(req, requirements, call.batch),
+          prefix: buildVerifyPrefix(req, requirements, call.batch, scope !== null),
           tail: buildVerifyTail(call.chunk, skipped, {
             phase,
             withCodeCases: call.withCodeCases,
@@ -427,6 +540,7 @@ export async function verifyCases(
             caseCount: call.batch.length,
             sheet,
             scope,
+            keptIds,
           }),
           schema: VerifyOutputSchema,
           sharePrefix: queue.length > 1,
@@ -453,7 +567,16 @@ export async function verifyCases(
     });
   }
 
-  const combined = combineVerify(outputs, req.cases, requirements, changedPaths, req.maxNewCases, scope);
+  const combined = combineVerify(
+    outputs,
+    req.cases,
+    requirements,
+    changedPaths,
+    req.maxNewCases,
+    scope,
+    judged,
+  );
+  combined.diagnostics.rejudge.reasons = plan.rejudgeReasons;
   for (const d of combined.diagnostics.unknownSameAs) {
     warnings.push({
       code: 'other',
