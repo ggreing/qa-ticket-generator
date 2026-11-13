@@ -18,3 +18,4 @@ export { caseIdFor, caseNumber, compareCaseIds, reconcileCases, specKey, toQaCas
 export { MAX_TITLE_LENGTH, mdSafe, plainTitle, renderCase, renderTitle, toolTextHash } from './render';
 export { type CaseTextField, lintCaseStyle, STYLE_RULES, type StyleRule } from './style';
 export { planSync } from './sync';
+export { type ApplyVerify, applyVerify } from './verify-merge';

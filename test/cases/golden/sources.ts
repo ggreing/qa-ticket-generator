@@ -2,7 +2,13 @@
  * Golden fixture sources for the case engine (SPEC v3 §3.1, §4). `fixtures/cases/*.json` is
  * generated from these with `UPDATE_GOLDEN=1 npx vitest run test/cases/golden.test.ts`, then reviewed.
  */
-import type { CaseDraft, ExistingCaseTicket, PlannedCase, QaCase } from '../../../src/core/cases';
+import type {
+  CaseDraft,
+  ExistingCaseTicket,
+  PlannedCase,
+  QaCase,
+  VerifyResult,
+} from '../../../src/core/cases';
 import type { Language } from '../../../src/core/contracts';
 import { draft, planned, qaCase, ticket } from '../helpers';
 
@@ -18,7 +24,17 @@ export type GoldenSource =
       input: { existing: ExistingCaseTicket[]; next: QaCase[]; language: Language };
     }
   | { kind: 'lint'; name: string; input: { case: CaseDraft; language: Language } }
-  | { kind: 'render'; name: string; input: { case: QaCase; language: Language } };
+  | { kind: 'render'; name: string; input: { case: QaCase; language: Language } }
+  | {
+      kind: 'verify';
+      name: string;
+      input: {
+        cases: QaCase[];
+        result: Pick<VerifyResult, 'statuses' | 'newCases'>;
+        sha: string;
+        specRef: string;
+      };
+    };
 
 const c1 = qaCase('SHOP-101-C01', '만료 1초 지난 쿠폰 적용 시 거부', { priority: 'P0', acLabels: ['AC3'] });
 const c2 = qaCase('SHOP-101-C02', '같은 쿠폰 두 번째 적용 시 거부', {
@@ -459,7 +475,127 @@ export const RENDER: GoldenSource[] = [
   },
 ];
 
-export const ALL_SOURCES: GoldenSource[] = [...RECONCILE, ...SYNC, ...LINT, ...RENDER];
+const SHA = '9f8e7d6c5b4a39281706f5e4d3c2b1a098765432';
+const codeCase = qaCase('SHOP-101-C04', '부분 환불 합계가 결제 금액 초과 시 거부', {
+  origin: 'code',
+  acLabels: [],
+  technique: 'data_integrity',
+});
+const status = (
+  caseId: string,
+  s: 'implemented' | 'missing' | 'contradicts' | 'unknown',
+  files = ['src/a.ts'],
+) => ({
+  caseId,
+  status: s,
+  evidence: `${files[0]}의 check()에서 처리`,
+  files,
+});
+
+export const VERIFY: GoldenSource[] = [
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 statuses are stamped with the PR sha; cases without a status keep the old one',
+    input: {
+      cases: [
+        c1,
+        {
+          ...c2,
+          codeStatus: { status: 'implemented', evidence: '이전 판정', files: ['src/old.ts'], sha: 'old1234' },
+        },
+        c3,
+      ],
+      result: {
+        statuses: [
+          status('SHOP-101-C01', 'missing'),
+          status('SHOP-101-C03', 'contradicts', ['src/b.ts', 'src/c.ts']),
+        ],
+        newCases: [],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 unknown, obsolete, invalid and repeated statuses are dropped with warnings',
+    input: {
+      cases: [c1, obsolete(c2)],
+      result: {
+        statuses: [
+          status('SHOP-101-C09', 'missing'),
+          status('SHOP-101-C02', 'implemented'),
+          { ...status('SHOP-101-C01', 'missing'), status: 'maybe' as never },
+          status('SHOP-101-C01', 'implemented'),
+          status('SHOP-101-C01', 'missing'),
+        ],
+        newCases: [],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 new code cases get origin code and ids after the highest existing number',
+    input: {
+      cases: [c1, c5],
+      result: {
+        statuses: [],
+        newCases: [
+          draft('관리자 권한 없이 환불 API 호출 시 403', {
+            technique: 'permission',
+            origin: 'spec',
+            acLabels: [],
+          }),
+          draft('결제사 타임아웃 후 재시도 시 중복 환불 없음', { technique: 'idempotency', acLabels: [] }),
+        ],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 a code case with the same title and technique is a duplicate; an obsolete duplicate is revived',
+    input: {
+      cases: [
+        c1,
+        codeCase,
+        obsolete({
+          ...codeCase,
+          caseId: 'SHOP-101-C06',
+          title: '환불 웹훅 서명 불일치 시 401',
+          technique: 'permission',
+        }),
+      ],
+      result: {
+        statuses: [],
+        newCases: [
+          draft('  부분 환불 합계가 결제 금액 초과 시 거부 ', { technique: 'data_integrity', acLabels: [] }),
+          draft('부분 환불 합계가 결제 금액 초과 시 거부', { technique: 'boundary', acLabels: [] }),
+          draft('환불 웹훅 서명 불일치 시 401', { technique: 'permission', acLabels: [] }),
+          draft('새 위험', { technique: 'failure', acLabels: [] }),
+          draft('새 위험', { technique: 'failure', acLabels: [] }),
+        ],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 GitHub spec: new code case ids use the repo-number key',
+    input: {
+      cases: [qaCase('shop-12-C03', 'x', { specRef: 'acme/shop#12' })],
+      result: { statuses: [], newCases: [draft('코드 위험', { acLabels: [] })] },
+      sha: SHA,
+      specRef: 'acme/shop#12',
+    },
+  },
+];
+
+export const ALL_SOURCES: GoldenSource[] = [...RECONCILE, ...SYNC, ...LINT, ...RENDER, ...VERIFY];
 
 export function fixtureFileName(s: GoldenSource): string {
   const slug = s.name
