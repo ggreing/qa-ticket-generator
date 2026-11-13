@@ -30,6 +30,7 @@ import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
 import { createAnthropicProvider } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
 import { generatePlan } from '../llm/plan';
+import { isCosmeticPatch } from '../llm/scope';
 import { verifyCases } from '../llm/verify';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
 import { finalizeRedactions, redactDiffBody, redactText as redactRaw } from '../preprocess/redact';
@@ -160,6 +161,7 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
       llm,
       verifyCases,
       redactPatch,
+      isCosmeticPatch,
       applyVerify,
       planSync,
       renderCase,

@@ -159,6 +159,7 @@ function makeDeps(sink: CaseSink, over: Partial<VerifyDeps> = {}) {
     } as unknown as VerifyDeps['preprocessEngine'],
     isNoisePath: () => false,
     redactText: (t: string) => ({ text: t, redactions: [] }),
+    isCosmeticPatch: () => false,
     redactPatch: (t: string) => ({
       text: t.replace('ghp_SECRET', '[REDACTED:github_token]'),
       redactions: [],
@@ -391,5 +392,30 @@ describe('runVerify scope hygiene (PRE-05)', () => {
     expect(vi.mocked(deps.verifyCases).mock.calls[0]?.[0].newCaseScope?.changes).toEqual([
       { path: 'src/coupon.ts', patch: '+const t = "[REDACTED:github_token]";' },
     ]);
+  });
+});
+
+describe('runVerify on a cosmetic-only push (SPEC v3 §2.2)', () => {
+  it('skips without a model call when every change since the last check is cosmetic', async () => {
+    const { deps, saved } = makeDeps(memorySink([baseCase(1)]), {
+      commentStore: {
+        load: vi.fn(async () => ({
+          commentId: 1,
+          state: { v: 1 as const, sha: 'c'.repeat(40) },
+          warnings: [],
+        })),
+        save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+      },
+    });
+    deps.isCosmeticPatch = (_p: string, patch: string) => patch.startsWith('+//');
+    deps.github.getChangesBetween = vi.fn(async () => [{ path: 'src/coupon.ts', patch: '+// note' }]);
+    const out = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(out).toEqual({ kind: 'skipped', reason: 'no_logic_change' });
+    expect(deps.verifyCases).not.toHaveBeenCalled();
+    expect(saved).toEqual([]);
+
+    deps.github.getChangesBetween = vi.fn(async () => [{ path: 'src/coupon.ts', patch: '+return 0;' }]);
+    const ran = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(ran.kind).toBe('verified');
   });
 });

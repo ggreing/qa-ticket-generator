@@ -81,6 +81,8 @@ export interface VerifyDeps {
   redactText: RedactText;
   /** PRE-05 for unified-diff text (keeps hunk headers); applied once to the new-case scope. */
   redactPatch: RedactText;
+  /** §2.2 — true when a file's patch only touches comments, blank lines or whitespace. */
+  isCosmeticPatch: (path: string, patch: string) => boolean;
   llm: LlmProvider;
   verifyCases: (
     req: VerifyRequest,
@@ -239,6 +241,14 @@ export async function runVerify(
             .filter((c) => !deps.isNoisePath(c.path, cfg.preprocess))
             .map((c) => ({ path: c.path, patch: deps.redactPatch(c.patch).text })),
         };
+        // Nothing that changes behavior since the last check: keep every status, the badge and
+        // the comment as they are, and spend no model call (TRG-04 for comment-only pushes).
+        if (newCaseScope.changes.every((c) => deps.isCosmeticPatch(c.path, c.patch))) {
+          logger.info(
+            `No behavior change since ${state.sha.slice(0, 7)}; the case statuses stay as they are.`,
+          );
+          return { kind: 'skipped', reason: 'no_logic_change' };
+        }
       }
     }
     const result = await logger.group('Check cases against the code', () =>
