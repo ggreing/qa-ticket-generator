@@ -1,0 +1,45 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ❌ **不一致**
+
+> 需求文档: [SHOP-900](https://acme.atlassian.net/browse/SHOP-900) Wish list · 用例 6 条 (P0 4 · P1 1 · P2 1)
+
+**代码状态**: ✅ 已实现 2 · ❌ 疑似未实现 2 · ⛔ 与需求冲突 1 · ❓ 无法从代码判断 1
+
+**疑似未实现或冲突 (3)**
+- ⛔ [SHOP-900-C02](https://github.com/acme/shop/issues/102) **P0** 101st item rejected — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C03](https://github.com/acme/shop/issues/103) **P1** Removed item can be added again — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+
+**P0 检查清单 (4)**
+- [ ] [SHOP-900-C02](https://github.com/acme/shop/issues/102) 101st item rejected → "Wish list is full" shown ⛔
+- [ ] [SHOP-900-C06](https://github.com/acme/shop/issues/106) Two devices adding at once → "Wish list is full" shown ❌
+- [ ] [SHOP-900-C04](https://github.com/acme/shop/issues/104) Signed-out visitor sent to sign-in → "Wish list is full" shown ❓
+- [ ] [SHOP-900-C01](https://github.com/acme/shop/issues/101) Item added once → "Wish list is full" shown ✅
+
+**根据代码新增的用例 (1)**
+- [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add reads the count and inserts without a lock.
+
+<details><summary>逐项需求判定 (2)</summary>
+
+| 需求 | 状态 | 依据 |
+| --- | --- | --- |
+| **AC1** an item can be added once | ✅ 已覆盖 | WishlistService.add checks for the item first. |
+| **AC2** the list holds at most 100 items | ⛔ 冲突 | The limit in the code is 200. |
+
+</details>
+
+<details><summary>全部用例 (6)</summary>
+
+| 用例 | 优先级 | 代码状态 | 标题 |
+| --- | --- | --- | --- |
+| [SHOP-900-C02](https://github.com/acme/shop/issues/102) | P0 | ⛔ 与需求冲突 | 101st item rejected |
+| [SHOP-900-C06](https://github.com/acme/shop/issues/106) | P0 | ❌ 疑似未实现 | Two devices adding at once |
+| [SHOP-900-C03](https://github.com/acme/shop/issues/103) | P1 | ❌ 疑似未实现 | Removed item can be added again |
+| [SHOP-900-C04](https://github.com/acme/shop/issues/104) | P0 | ❓ 无法从代码判断 | Signed-out visitor sent to sign-in |
+| [SHOP-900-C01](https://github.com/acme/shop/issues/101) | P0 | ✅ 已实现 | Item added once |
+| [SHOP-900-C05](https://github.com/acme/shop/issues/105) | P2 | ✅ 已实现 | Wish list case 5 |
+
+</details>
+
+> 已不适用的 1 条用例未显示
+
+<sub><code>claude-opus-5-5</code> · 输入 12.0K / 输出 1.8K tokens · LLM 调用 1 次 · ~$0.11 · 41s</sub>
