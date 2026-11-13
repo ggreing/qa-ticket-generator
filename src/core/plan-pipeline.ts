@@ -30,7 +30,7 @@ import type {
   Warning,
 } from './contracts';
 import { QtgError, toQtgError } from './errors';
-import { EXPECTED_OUTPUT_TOKENS, PRD_TIMEOUT_MS } from './limits';
+import { PLAN_EXPECTED_OUTPUT_TOKENS, PRD_TIMEOUT_MS } from './limits';
 
 export interface PlanDeps {
   logger: Logger;
@@ -168,7 +168,7 @@ export async function runPlan(
           repoInstructions: cfg.repoInstructions,
         },
         deps.llm,
-        { maxCostUsd: cfg.maxCostUsd, expectedOutputTokens: EXPECTED_OUTPUT_TOKENS },
+        { maxCostUsd: cfg.maxCostUsd, expectedOutputTokens: PLAN_EXPECTED_OUTPUT_TOKENS },
         signal,
       ),
     );

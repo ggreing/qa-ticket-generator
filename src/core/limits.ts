@@ -5,6 +5,8 @@
 
 /** LLM-10 — pre-call output estimate per call: ~6K visible JSON + adaptive thinking at high effort. */
 export const EXPECTED_OUTPUT_TOKENS = 12_000;
+/** Plan-phase calls write a whole case sheet per requirement group: round 0 measured 13k–23k output tokens per call. */
+export const PLAN_EXPECTED_OUTPUT_TOKENS = 20_000;
 
 /** LLM-07 — max concurrent map calls in a map-reduce run. */
 export const MAP_CONCURRENCY = 3;
