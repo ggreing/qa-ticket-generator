@@ -29,7 +29,7 @@ import { QtgError } from '../core/errors';
 import { MAP_CONCURRENCY } from '../core/limits';
 import { type QaReport, type VerifyOutput, VerifyOutputSchema } from '../core/schema';
 import { planLanguageBlock, type Requirement, requirementsOf } from './prompts/plan';
-import { buildVerifyPrefix, buildVerifyTail, VERIFY_SYSTEM } from './prompts/verify';
+import { buildCaseIndex, buildVerifyPrefix, buildVerifyTail, VERIFY_SYSTEM } from './prompts/verify';
 import { asStructured } from './structured';
 import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 
@@ -111,6 +111,8 @@ export function planVerifyRun(
   const prefixTokens = batches.map((batch) =>
     estimateTokens(buildVerifyPrefix(req, requirements, batch).join('\n')),
   );
+  // The call that may write new cases also gets the index of the whole sheet.
+  const indexTokens = estimateTokens(buildCaseIndex(active));
   const cost = (inputTokens: number, outputTokens: number): number =>
     provider.estimateCostUsd({ inputTokens, outputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 });
   const estimate = (chunks: CodeChunk[]): number =>
@@ -121,7 +123,7 @@ export function planVerifyRun(
           (s, batch, b) =>
             s +
             cost(
-              system + (prefixTokens[b] as number) + chunk.estimatedTokens,
+              system + (prefixTokens[b] as number) + chunk.estimatedTokens + (b === 0 ? indexTokens : 0),
               expectedOutput(batch.length, b === 0, req.maxNewCases, options.expectedOutputTokens),
             ),
           0,
@@ -318,6 +320,8 @@ export async function verifyCases(
 
   const system = [VERIFY_SYSTEM, planLanguageBlock(req.language)];
   const phase = req.pre.chunks.length > 1 ? 'map' : 'single';
+  // The whole sheet, every batch: what a new case has to be new against.
+  const sheet = plan.batches.flat();
   const skipped: SkippedFile[] = [
     ...req.pre.skipped,
     ...plan.dropped.flatMap((c) => c.files.map((f) => ({ path: f.path, reason: 'cost_cap' as const }))),
@@ -350,6 +354,7 @@ export async function verifyCases(
             withCodeCases: call.withCodeCases,
             maxNewCases: req.maxNewCases,
             caseCount: call.batch.length,
+            sheet: sheet,
           }),
           schema: VerifyOutputSchema,
           sharePrefix: queue.length > 1,
