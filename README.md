@@ -233,6 +233,8 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 
 ## Known gaps
 
+- The npm package isn't published yet, so the `npx` commands above don't work until it is. The Action
+  works today. To use the CLI now, clone the repo and run `npm ci && npm run build && node dist/cli.js`.
 - Labeling a PR that was opened _before_ you added the workflow may do nothing. GitHub doesn't refresh that
   PR's merge commit, so it never sees the new workflow. Update the branch (the "Update branch" button or
   `gh pr update-branch <number>`) and the next push starts a run.

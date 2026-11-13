@@ -66,6 +66,14 @@ describe('release.yml', () => {
     expect(needs(wf.jobs['github-release']).sort()).toEqual(['npm', 'verify']);
   });
 
+  it('REL npm is opt-in (NPM_PUBLISH) and a skipped npm job still releases the Action', () => {
+    expect(wf.jobs.npm?.if).toContain("vars.NPM_PUBLISH == 'true'");
+    const gate = wf.jobs['github-release']?.if ?? '';
+    expect(gate).toContain("needs.verify.result == 'success'");
+    expect(gate).toContain("needs.npm.result == 'skipped'");
+    expect(gate).toContain('!cancelled()');
+  });
+
   it('REL verify installs, checks and builds, then compares dist/', () => {
     const verify = (wf.jobs.verify?.steps ?? []).map((s) => s.run?.trim() ?? '');
     const at = (cmd: string) => verify.indexOf(cmd);

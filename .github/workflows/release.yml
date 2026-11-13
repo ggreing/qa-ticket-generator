@@ -113,7 +113,8 @@ jobs:
   npm:
     name: Publish to npm
     needs: verify
-    if: github.repository == 'ggreing/qa-ticket-generator'
+    # Off until the npm side is set up: set the repository variable NPM_PUBLISH to "true".
+    if: github.repository == 'ggreing/qa-ticket-generator' && vars.NPM_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: release
@@ -144,7 +145,10 @@ jobs:
   github-release:
     name: GitHub Release and major tag
     needs: [verify, npm]
-    if: github.repository == 'ggreing/qa-ticket-generator'
+    # A skipped npm job (NPM_PUBLISH unset) still releases the Action; a failed one does not.
+    if: >-
+      github.repository == 'ggreing/qa-ticket-generator' && !cancelled() &&
+      needs.verify.result == 'success' && (needs.npm.result == 'success' || needs.npm.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

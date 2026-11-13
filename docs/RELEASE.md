@@ -46,6 +46,13 @@ On a pushed tag matching `v*.*.*` (only in `ggreing/qa-ticket-generator`, never 
 All actions are pinned to full commit SHAs with the version in a comment. Lines still marked `TODO(pin)` must be
 pinned before the first release (see the checklist).
 
+### npm is opt-in
+
+The npm job runs only when the repository variable `NPM_PUBLISH` is `true` (Settings → Secrets and variables →
+Actions → Variables). Until then a tag releases the Action alone: the GitHub Release and the major tag are
+created and the npm job shows as skipped. Once the variable is set, npm gets every version from the
+next tag on (a version released without npm is not published there afterwards).
+
 ## Releasing a version
 
 1. **Prepare `main`.** Open a PR that bumps `version` in `package.json` (e.g. `0.1.0`) and updates docs if needed.

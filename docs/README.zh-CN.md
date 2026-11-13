@@ -211,6 +211,8 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 
 ## Known gaps
 
+- npm 包还没有发布,上面的 `npx` 命令在发布前无法使用。Action 现在就能用。需要 CLI 的话,先克隆仓库,
+  再运行 `npm ci && npm run build && node dist/cli.js`。
 - 在你添加 workflow *之前*就已经打开的 PR,打上标签可能没有任何反应。因为 GitHub 不会刷新那个 PR 的 merge
   提交,它看不到新的 workflow。更新一下分支("Update branch" 按钮或 `gh pr update-branch <number>`),
   之后的 push 就会触发运行。

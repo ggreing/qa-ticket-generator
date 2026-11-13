@@ -230,6 +230,8 @@ PR のタイトルと説明文も同じです。いくつマスクしたかは�
 
 ## Known gaps
 
+- npm パッケージはまだ公開していないため、上の `npx` コマンドは公開されるまで動きません。Action は今すぐ
+  使えます。CLI を使うにはリポジトリを取得して `npm ci && npm run build && node dist/cli.js` を実行してください。
 - ワークフローを追加する*前*に開かれた PR は、ラベルを付けても何も起きないことがあります。GitHub がその PR の
   merge コミットを更新しないため、新しいワークフローが見えないからです。ブランチを更新すれば(「Update branch」
   ボタンか `gh pr update-branch <number>`)、次の push から動きます。

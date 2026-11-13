@@ -223,6 +223,8 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 
 ## Known gaps
 
+- npm 패키지는 아직 올리지 않아서, 위의 `npx` 명령은 올라가기 전까지 동작하지 않습니다. Action은 지금 바로
+  쓸 수 있어요. CLI가 필요하면 레포를 받아 `npm ci && npm run build && node dist/cli.js`로 실행하세요.
 - 워크플로를 추가하기 _전에_ 열린 PR은 라벨을 붙여도 아무 일이 없을 수 있습니다. GitHub가 그 PR의 merge
   커밋을 갱신하지 않아서 새 워크플로를 못 보기 때문이에요. 브랜치를 갱신하면("Update branch" 버튼이나
   `gh pr update-branch <number>`) 다음 push부터 실행됩니다.
