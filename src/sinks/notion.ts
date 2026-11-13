@@ -19,6 +19,7 @@ import {
   encodePayload,
   obsoleteTitle,
   type SinkPayload,
+  sameTextUpdate,
   sinkError,
   suggestMarker,
   ticketFrom,
@@ -510,6 +511,9 @@ export function createNotionCaseSink(
         undefined,
         'updating a case row',
       );
+      // Same text as written (only tool fields like specDigest moved): the properties above carry
+      // the new record; the page body stays as it is (saves three or four calls per row).
+      if (sameTextUpdate(t, r)) return;
       const old = await findContainer(t.ticketRef, c.caseId, signal);
       await api(
         signal,

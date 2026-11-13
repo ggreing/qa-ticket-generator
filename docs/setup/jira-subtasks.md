@@ -42,7 +42,9 @@ npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123 --sinks jira --pu
 - Labels: `qtg-case` and `qtg-<case id>`, e.g. `qtg-PROJ-123-C07`. Obsolete cases also get `qtg-obsolete`.
 - Description: the case, then a collapsed section called "qtg data (do not edit)". The tool keeps a record
   of what it wrote there, so it can tell when someone edited the sub-task. Add your own notes below that
-  section; they are kept on every update.
+  section; they are kept on every update. When only that record changes and the text stays the same, the
+  tool keeps it in a hidden issue property (`qtg.case`) instead of editing the description, so watchers
+  don't get an email for it.
 - The story gets one comment that lists every case with a link, updated on each run.
 
 To list the cases of a story in Jira:
