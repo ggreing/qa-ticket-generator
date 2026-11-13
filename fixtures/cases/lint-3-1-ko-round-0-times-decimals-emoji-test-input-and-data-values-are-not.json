@@ -1,0 +1,32 @@
+{
+  "name": "SPEC v3 §3.1 ko round 0: times, decimals, emoji test input and data values are not flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "22:00~06:00 자정 넘는 근무 8시간 전체 가산",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "기존 bio = 안녕하세요"
+      ],
+      "testData": [
+        "표시 이름 = 영문 29자 + '👍'",
+        "표시 이름 = '👨‍👩‍👧' (ZWJ 시퀀스)",
+        "bio = 한글 159자 + 😀"
+      ],
+      "steps": [
+        "영문 29자 뒤에 '👍' 붙여 입력 후 저장"
+      ],
+      "expected": [
+        "'👍'는 1자로 계산되어 30자 저장 성공"
+      ],
+      "whyEasyToMiss": "기획서에 공휴일 2배와 연장 1.5배의 중첩 여부 정의 없음",
+      "origin": "spec"
+    },
+    "language": "ko"
+  },
+  "expected": []
+}

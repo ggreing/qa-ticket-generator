@@ -1,0 +1,51 @@
+{
+  "name": "SPEC v3 §3.1 ko round 0: label colons, unquoted emoji, two sentences and long Hangul titles still count",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "AC1: 만료된 쿠폰을 결제 화면에서 적용하면 오류 안내와 함께 결제 금액이 바뀌지 않음",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "😀 입력 후 저장"
+      ],
+      "expected": [
+        "결과 처리했습니다"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 정의 없음. 운영 정책도 없음",
+      "origin": "spec"
+    },
+    "language": "ko"
+  },
+  "expected": [
+    {
+      "rule": "title-colon",
+      "text": ":"
+    },
+    {
+      "rule": "title-too-long",
+      "text": "AC1: 만료된 쿠폰을 결제 화면에서 적용하면 오류 안내와 함께 결제 금액이 바뀌지 않음"
+    },
+    {
+      "rule": "emoji",
+      "text": "😀"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "니다"
+    },
+    {
+      "rule": "why-multi-sentence",
+      "text": "."
+    }
+  ]
+}

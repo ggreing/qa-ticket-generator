@@ -437,6 +437,42 @@ export const LINT: GoldenSource[] = [
       language: 'zh-CN',
     },
   },
+  // v3 round 0: every reported violation was a false positive of these shapes.
+  {
+    kind: 'lint',
+    name: 'SPEC v3 §3.1 ko round 0: times, decimals, emoji test input and data values are not flagged',
+    input: {
+      case: draft('22:00~06:00 자정 넘는 근무 8시간 전체 가산', {
+        preconditions: ['기존 bio = 안녕하세요'],
+        testData: [
+          "표시 이름 = 영문 29자 + '👍'",
+          "표시 이름 = '👨‍👩‍👧' (ZWJ 시퀀스)",
+          'bio = 한글 159자 + 😀',
+        ],
+        steps: ["영문 29자 뒤에 '👍' 붙여 입력 후 저장"],
+        expected: ["'👍'는 1자로 계산되어 30자 저장 성공"],
+        whyEasyToMiss: '기획서에 공휴일 2배와 연장 1.5배의 중첩 여부 정의 없음',
+      }),
+      language: 'ko',
+    },
+  },
+  {
+    kind: 'lint',
+    name: 'SPEC v3 §3.1 ko round 0: identifier-heavy titles are measured by display width',
+    input: { case: draft('409 응답 본문 오류 코드 IllegalStatusTransition 일치'), language: 'ko' },
+  },
+  {
+    kind: 'lint',
+    name: 'SPEC v3 §3.1 ko round 0: label colons, unquoted emoji, two sentences and long Hangul titles still count',
+    input: {
+      case: draft('AC1: 만료된 쿠폰을 결제 화면에서 적용하면 오류 안내와 함께 결제 금액이 바뀌지 않음', {
+        steps: ['😀 입력 후 저장'],
+        expected: ['결과 처리했습니다'],
+        whyEasyToMiss: '기획서에 만료 시각 정의 없음. 운영 정책도 없음',
+      }),
+      language: 'ko',
+    },
+  },
 ];
 
 export const RENDER: GoldenSource[] = [

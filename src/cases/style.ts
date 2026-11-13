@@ -19,7 +19,30 @@ export interface StyleRule {
   fields: readonly CaseTextField[];
   /** One-line instruction for prompts (English). */
   hint: string;
+  /**
+   * Ignore quoted UI copy and, in preconditions and test data, the value after `=` (data such as
+   * `기존 bio = 안녕하세요` is input, not wording).
+   */
   outsideQuotes?: boolean;
+  /** Extra check on a match; only matches for which it returns true count. */
+  confirm?: (match: string) => boolean;
+}
+
+const isWide = (code: number): boolean =>
+  (code >= 0x1100 && code <= 0x11ff) ||
+  (code >= 0x2e80 && code <= 0x9fff) ||
+  (code >= 0xac00 && code <= 0xd7af) ||
+  (code >= 0xf900 && code <= 0xfaff) ||
+  (code >= 0xff00 && code <= 0xffef);
+
+/**
+ * Title length as a reader sees it in a CJK sheet: Hangul, kana, Han and full-width characters
+ * count 1, everything else (Latin letters in identifiers, digits, spaces) counts 1/2.
+ */
+export function displayLength(text: string): number {
+  let n = 0;
+  for (const ch of text) n += isWide(ch.codePointAt(0) as number) ? 1 : 0.5;
+  return n;
 }
 
 const ALL: readonly CaseTextField[] = [
@@ -34,14 +57,19 @@ const PROSE: readonly CaseTextField[] = ['title', 'preconditions', 'steps', 'exp
 const SENTENCES: readonly CaseTextField[] = ['preconditions', 'steps', 'expected', 'whyEasyToMiss'];
 const TITLE: readonly CaseTextField[] = ['title'];
 
-/** Rules every language shares; `maxTitle` is the title length limit in characters. */
-function common(maxTitle: number): StyleRule[] {
+/**
+ * Rules every language shares. `maxTitle` is the title limit; with `wide` (ko, ja, zh-CN) it is
+ * measured with {@link displayLength}, otherwise in characters.
+ */
+function common(maxTitle: number, wide: boolean): StyleRule[] {
   return [
     {
       rule: 'emoji',
       pattern: /\p{Extended_Pictographic}/gu,
-      fields: ALL,
-      hint: 'No emoji anywhere.',
+      // Test data may need emoji (length counting, ZWJ sequences); quoted input is fine elsewhere.
+      fields: PROSE,
+      hint: 'No emoji in the wording; when a test needs emoji as input, put it in quotes or test data.',
+      outsideQuotes: true,
     },
     {
       rule: 'dash-explanation',
@@ -58,19 +86,24 @@ function common(maxTitle: number): StyleRule[] {
     },
     {
       rule: 'title-colon',
-      pattern: /[:：]\s*\S/g,
+      // A colon between digits is a time or a ratio (23:59:30, 1:1), not a "label: text" title.
+      pattern: /(?<!\d)[:：]\s*\S|(?<=\d)[:：](?!\d)/g,
       fields: TITLE,
-      hint: 'Title is one noun phrase (target + condition + result), with no colon.',
+      hint: 'Title is one noun phrase (target + condition + result), with no colon (times like 23:59 are fine).',
     },
     {
       rule: 'title-too-long',
       pattern: new RegExp(`^[\\s\\S]{${maxTitle + 1},}$`, 'gu'),
       fields: TITLE,
-      hint: `Keep the title within ${maxTitle} characters.`,
+      hint: wide
+        ? `Keep the title within ${maxTitle} characters (Latin letters, digits and spaces count half).`
+        : `Keep the title within ${maxTitle} characters.`,
+      ...(wide ? { confirm: (m: string) => displayLength(m) > maxTitle } : {}),
     },
     {
       rule: 'why-multi-sentence',
-      pattern: /[.!?。！？](?=\s*\S)/g,
+      // A period ends a sentence only before a space (not in 1.5, v2.3 or file.ts).
+      pattern: /[.!?](?=\s+\S)|[。！？](?=\s*\S)/g,
       fields: ['whyEasyToMiss'],
       hint: 'whyEasyToMiss is one factual sentence about what the spec leaves out.',
       outsideQuotes: true,
@@ -80,7 +113,7 @@ function common(maxTitle: number): StyleRule[] {
 
 export const STYLE_RULES: Record<Language, readonly StyleRule[]> = {
   ko: [
-    ...common(40),
+    ...common(40, true),
     {
       rule: 'guarantee',
       pattern:
@@ -161,7 +194,7 @@ export const STYLE_RULES: Record<Language, readonly StyleRule[]> = {
     },
   ],
   en: [
-    ...common(80),
+    ...common(80, false),
     {
       rule: 'ensure',
       pattern: /\bensur(?:e|es|ed|ing)\b/gi,
@@ -234,7 +267,7 @@ export const STYLE_RULES: Record<Language, readonly StyleRule[]> = {
     },
   ],
   ja: [
-    ...common(40),
+    ...common(40, true),
     {
       rule: 'guarantee',
       pattern: /保証(?:します|する|される|されている|されること|できる)/g,
@@ -306,7 +339,7 @@ export const STYLE_RULES: Record<Language, readonly StyleRule[]> = {
     },
   ],
   'zh-CN': [
-    ...common(40),
+    ...common(40, true),
     {
       rule: 'ensure',
       pattern: /确保/g,
@@ -386,6 +419,15 @@ function maskQuotes(text: string): string {
   return text.replace(QUOTED, (m) => ' '.repeat(m.length));
 }
 
+/** In data-carrying fields, `name = value` holds input data: the value is not wording. */
+const DATA_FIELDS: ReadonlySet<CaseTextField> = new Set(['preconditions', 'testData']);
+
+function maskData(text: string, field: CaseTextField): string {
+  if (!DATA_FIELDS.has(field)) return text;
+  const eq = text.indexOf('=');
+  return eq < 0 ? text : text.slice(0, eq + 1) + ' '.repeat(text.length - eq - 1);
+}
+
 function valuesOf(c: CaseDraft, field: CaseTextField): string[] {
   switch (field) {
     case 'title':
@@ -410,10 +452,11 @@ export const lintCaseStyle: LintCaseStyle = (c, language) => {
     for (const raw of valuesOf(c, field)) {
       const text = (raw ?? '').replace(/\s+/g, ' ').trim();
       if (text === '') continue;
-      const masked = maskQuotes(text);
+      const masked = maskData(maskQuotes(text), field);
       for (const r of rules) {
         if (!r.fields.includes(field)) continue;
         for (const m of (r.outsideQuotes ? masked : text).matchAll(r.pattern)) {
+          if (r.confirm && !r.confirm(m[0])) continue;
           out.push({ rule: r.rule, text: m[0].trim() || m[0] });
         }
       }
