@@ -64,6 +64,70 @@ export const QaReportSchema = z.object({
 
 export type QaReport = z.infer<typeof QaReportSchema>;
 
+// ───────────────────────────── v3: spec-driven QA cases (SPEC.v3 §3) ─────────────────────────────
+
+export const TechniqueSchema = z.enum([
+  'happy_path',
+  'boundary',
+  'equivalence',
+  'invalid_input',
+  'state_transition',
+  'permission',
+  'concurrency',
+  'failure',
+  'idempotency',
+  'compatibility',
+  'locale_time',
+  'data_integrity',
+]);
+
+const CaseDraftFields = {
+  title: z.string().describe('Short noun phrase: target + condition + result, like a line in a QA sheet.'),
+  acLabels: z
+    .array(z.string())
+    .describe('Requirement labels this case tests, e.g. "AC2". Empty for code-derived risks.'),
+  technique: TechniqueSchema,
+  priority: Priority,
+  preconditions: z.array(z.string()),
+  testData: z.array(z.string()).describe('Concrete values as "name = value" lines.'),
+  steps: z.array(z.string()).describe('Short imperative actions, one per line.'),
+  expected: z.array(z.string()).describe('Observable results; the first line decides pass or fail.'),
+  whyEasyToMiss: z
+    .string()
+    .describe('One factual sentence: what the spec leaves out that makes this easy to miss.'),
+};
+
+/** Plan phase output (one call per AC group, then merged). */
+export const PlanOutputSchema = z.object({
+  cases: z.array(
+    z.object({
+      ...CaseDraftFields,
+      reuseCaseId: z
+        .string()
+        .nullable()
+        .describe('Existing caseId when this case keeps the same test intent as an existing one, else null.'),
+    }),
+  ),
+});
+export type PlanOutput = z.infer<typeof PlanOutputSchema>;
+
+/** Verify phase output (per PR). */
+export const VerifyOutputSchema = z.object({
+  statuses: z.array(
+    z.object({
+      caseId: z.string(),
+      status: z.enum(['implemented', 'missing', 'contradicts', 'unknown']),
+      evidence: z.string().describe('One factual sentence naming the file and function.'),
+      files: z.array(z.string()),
+    }),
+  ),
+  newCases: z
+    .array(z.object({ ...CaseDraftFields }))
+    .describe('Risks visible only in the code, not covered by any case.'),
+  prdAlignment: QaReportSchema.shape.prdAlignment,
+});
+export type VerifyOutput = z.infer<typeof VerifyOutputSchema>;
+
 // ───────────────────────────── repo config file (.github/qa-ticket-generator.yml) ─────────────────────────────
 
 export const RepoConfigSchema = z
@@ -94,6 +158,8 @@ export const RepoConfigSchema = z
       .object({
         extraInstructions: z.string().max(4000),
         glossary: z.array(z.object({ term: z.string(), meaning: z.string() })).max(100),
+        /** SPEC v3 §3.1 — a few lines from the team's own QA sheet; the model copies the voice. */
+        styleExamples: z.array(z.string().max(500)).max(20),
       })
       .partial()
       .default({}),

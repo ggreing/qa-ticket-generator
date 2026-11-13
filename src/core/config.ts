@@ -17,6 +17,10 @@ export const DEFAULTS = {
   maxCostUsd: 2.0,
   maxScenarios: 8,
   maxPrdDocuments: 5,
+  maxCases: 80,
+  planLabel: 'needs-qa-plan',
+  sinks: ['github-issue', 'file'] as string[],
+  jiraSubtaskType: 'Sub-task',
   configPath: '.github/qa-ticket-generator.yml',
   astLanguages: ['typescript', 'tsx', 'javascript', 'python', 'java', 'go'],
   scoring: { prdKeyword: 3, changeSize: 1, domainPath: 2, testOrConfigPenalty: 2 },
@@ -71,8 +75,20 @@ export interface QtgConfig {
   dryRun: boolean;
   serverFallback: boolean;
   maxPrdDocuments: number;
+  /** SPEC v3 §7 */
+  mode: 'auto' | 'plan' | 'verify';
+  spec: string | null;
+  planLabel: string;
+  sinks: ('jira' | 'github-issue' | 'notion' | 'file')[];
+  notionQaDatabaseId: string | null;
+  jiraSubtaskType: string;
+  maxCases: number;
   preprocess: PreprocessOptions;
-  repoInstructions: { extraInstructions?: string; glossary?: { term: string; meaning: string }[] };
+  repoInstructions: {
+    extraInstructions?: string;
+    glossary?: { term: string; meaning: string }[];
+    styleExamples?: string[];
+  };
 }
 
 /** Reads one raw input; returns '' when unset (same contract as @actions/core getInput). */
@@ -194,6 +210,13 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
     dryRun: bool(input('dry-run'), 'dry-run', false),
     serverFallback: bool(input('server-fallback'), 'server-fallback', true),
     maxPrdDocuments: repo.prd.maxDocuments ?? DEFAULTS.maxPrdDocuments,
+    mode: oneOf(input('mode'), 'mode', ['auto', 'plan', 'verify'] as const, 'auto'),
+    spec: input('spec').trim() || null,
+    planLabel: input('plan-label').trim() || DEFAULTS.planLabel,
+    sinks: parseSinks(input('sinks')),
+    notionQaDatabaseId: input('notion-qa-database-id').trim() || null,
+    jiraSubtaskType: input('jira-subtask-type').trim() || DEFAULTS.jiraSubtaskType,
+    maxCases: num(input('max-cases'), 'max-cases', DEFAULTS.maxCases, 1, 300),
     preprocess: {
       tokenBudget: num(input('token-budget'), 'token-budget', DEFAULTS.tokenBudget, 20_000, 900_000),
       exclude: repo.filters.exclude ?? [],
@@ -209,6 +232,21 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
     repoInstructions: {
       extraInstructions: repo.prompt.extraInstructions,
       glossary: repo.prompt.glossary,
+      styleExamples: repo.prompt.styleExamples,
     },
   };
+}
+
+const SINKS = ['jira', 'github-issue', 'notion', 'file'] as const;
+
+/** SPEC v3 §5 — comma list of sinks; unknown names are a config error. */
+export function parseSinks(raw: string): QtgConfig['sinks'] {
+  const names = list(raw);
+  if (names.length === 0) return [...DEFAULTS.sinks] as QtgConfig['sinks'];
+  for (const n of names) {
+    if (!(SINKS as readonly string[]).includes(n)) {
+      throw new QtgError('config_invalid', `Unknown sink "${n}". Use: ${SINKS.join(', ')}.`);
+    }
+  }
+  return [...new Set(names)] as QtgConfig['sinks'];
 }

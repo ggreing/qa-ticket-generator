@@ -169,35 +169,42 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 ### Inputs
 
 <!-- inputs:start -->
-| Input               | 必填 | 默认值                            | 说明                                                           |
-| ------------------- | ---- | --------------------------------- | -------------------------------------------------------------- |
-| `anthropic-api-key` | ✅   | —                                 | Anthropic API key。                                            |
-| `github-token`      |      | `${{ github.token }}`             | 用于读取 PR 和写评论。                                         |
-| `model`             |      | `claude-opus-5-5`                 | Claude 模型 ID。                                               |
-| `effort`            |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。越低越便宜越快。      |
-| `language`          |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` 也行)。       |
-| `trigger-label`     |      | `needs-ai-qa`                     | 触发运行的标签。                                               |
-| `rerun-on-push`     |      | `true`                            | 标签还在时,每次新提交都重新运行。                              |
-| `require-prd`       |      | `false`                           | 读不到关联需求单时让检查失败。                                 |
-| `token-budget`      |      | `150000`                          | 单次模型调用的输入 token。大的 PR 会拆成多次调用。             |
-| `max-cost-usd`      |      | `2.00`                            | 每次运行的费用上限。超出时先去掉不太重要的文件。               |
-| `max-scenarios`     |      | `8`                               | 评论里测试用例的最大数量。                                     |
-| `comment-author`    |      | —                                 | 只有用自定义 GitHub App token 时才需要,例如 `my-app[bot]`。    |
-| `pr-comment`        |      | `true`                            | 发布 PR 评论并持续更新。                                       |
-| `slack-bot-token`   |      | —                                 | Slack bot token(`xoxb-`),可以原地更新消息和使用回复串。        |
-| `slack-channel`     |      | —                                 | bot 发消息的频道 ID 或 `#名称`。                               |
-| `slack-webhook-url` |      | —                                 | 没有 bot token 时使用的 incoming webhook。                     |
-| `jira-base-url`     |      | —                                 | 例如 `https://acme.atlassian.net`。                            |
-| `jira-email`        |      | —                                 | Jira 账号邮箱。                                                |
-| `jira-api-token`    |      | —                                 | Jira API token。URL、邮箱和 token 都填了才会用 Jira。          |
-| `jira-project-keys` |      | —                                 | 用逗号分隔,写了的项目只写 `KEY-123` 也能识别,例如 `PROJ,WEB`。 |
-| `notion-token`      |      | —                                 | Notion integration token。                                     |
-| `config-path`       |      | `.github/qa-ticket-generator.yml` | 仓库配置文件,从 base 分支读取。                                |
-| `fail-on`           |      | `none`                            | 符合度为 `partial` 或 `misaligned` 时让检查失败。              |
-| `fail-on-error`     |      | `false`                           | 内部错误时让检查失败。默认只给出警告。                         |
-| `allow-fork-prs`    |      | `false`                           | 允许 fork 的 PR。只在 opt-in workflow 里使用。                 |
-| `server-fallback`   |      | `true`                            | Opus 拒绝请求时,由 Anthropic 换一个模型重试。                  |
-| `dry-run`           |      | `false`                           | 只把报告写到 Job Summary。                                     |
+| Input                   | 必填 | 默认值                            | 说明                                                             |
+| ----------------------- | ---- | --------------------------------- | ---------------------------------------------------------------- |
+| `anthropic-api-key`     | ✅   | —                                 | Anthropic API key。                                              |
+| `github-token`          |      | `${{ github.token }}`             | 用于读取 PR 和写评论。                                           |
+| `model`                 |      | `claude-opus-5-5`                 | Claude 模型 ID。                                                 |
+| `effort`                |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。越低越便宜越快。        |
+| `language`              |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` 也行)。         |
+| `trigger-label`         |      | `needs-ai-qa`                     | 触发运行的标签。                                                 |
+| `rerun-on-push`         |      | `true`                            | 标签还在时,每次新提交都重新运行。                                |
+| `require-prd`           |      | `false`                           | 读不到关联需求单时让检查失败。                                   |
+| `token-budget`          |      | `150000`                          | 单次模型调用的输入 token。大的 PR 会拆成多次调用。               |
+| `max-cost-usd`          |      | `2.00`                            | 每次运行的费用上限。超出时先去掉不太重要的文件。                 |
+| `max-scenarios`         |      | `8`                               | 评论里测试用例的最大数量。                                       |
+| `comment-author`        |      | —                                 | 只有用自定义 GitHub App token 时才需要,例如 `my-app[bot]`。      |
+| `pr-comment`            |      | `true`                            | 发布 PR 评论并持续更新。                                         |
+| `slack-bot-token`       |      | —                                 | Slack bot token(`xoxb-`),可以原地更新消息和使用回复串。          |
+| `slack-channel`         |      | —                                 | bot 发消息的频道 ID 或 `#名称`。                                 |
+| `slack-webhook-url`     |      | —                                 | 没有 bot token 时使用的 incoming webhook。                       |
+| `jira-base-url`         |      | —                                 | 例如 `https://acme.atlassian.net`。                              |
+| `jira-email`            |      | —                                 | Jira 账号邮箱。                                                  |
+| `jira-api-token`        |      | —                                 | Jira API token。URL、邮箱和 token 都填了才会用 Jira。            |
+| `jira-project-keys`     |      | —                                 | 用逗号分隔,写了的项目只写 `KEY-123` 也能识别,例如 `PROJ,WEB`。   |
+| `notion-token`          |      | —                                 | Notion integration token。                                       |
+| `config-path`           |      | `.github/qa-ticket-generator.yml` | 仓库配置文件,从 base 分支读取。                                  |
+| `fail-on`               |      | `none`                            | 符合度为 `partial` 或 `misaligned` 时让检查失败。                |
+| `fail-on-error`         |      | `false`                           | 内部错误时让检查失败。默认只给出警告。                           |
+| `allow-fork-prs`        |      | `false`                           | 允许 fork 的 PR。只在 opt-in workflow 里使用。                   |
+| `server-fallback`       |      | `true`                            | Opus 拒绝请求时,由 Anthropic 换一个模型重试。                    |
+| `mode`                  |      | `auto`                            | `auto` 根据事件判断,`plan` 从需求生成 QA 用例,`verify` 对照 PR。 |
+| `spec`                  |      | —                                 | 手动运行时的需求:issue 编号、Jira key 或 Notion 链接。           |
+| `plan-label`            |      | `needs-qa-plan`                   | 启动计划阶段的 issue 标签。                                      |
+| `sinks`                 |      | `github-issue,file`               | 用例工单写到哪里:`jira`、`github-issue`、`notion`、`file`。      |
+| `notion-qa-database-id` |      | —                                 | 存放 QA 用例的 Notion 数据库。                                   |
+| `jira-subtask-type`     |      | `Sub-task`                        | 用例子任务使用的 Jira 问题类型。                                 |
+| `max-cases`             |      | `80`                              | 每个需求的安全上限,超出时先去掉 P2。                             |
+| `dry-run`               |      | `false`                           | 只把报告写到 Job Summary。                                       |
 <!-- inputs:end -->
 
 ### Outputs

@@ -100,6 +100,32 @@ inputs:
     description: Enable Anthropic server-side refusal fallback.
     required: false
     default: "true"
+  mode:
+    description: "auto (decide from the event), plan (spec -> QA cases) or verify (check a PR against the cases)."
+    required: false
+    default: auto
+  spec:
+    description: Spec to plan from on a manual run (GitHub issue number, Jira key or Notion URL).
+    required: false
+  plan-label:
+    description: Issue label that starts the plan phase for a spec written as a GitHub issue.
+    required: false
+    default: needs-qa-plan
+  sinks:
+    description: "Where QA case tickets go: comma list of jira, github-issue, notion, file."
+    required: false
+    default: github-issue,file
+  notion-qa-database-id:
+    description: Notion database that holds QA cases (for the notion sink).
+    required: false
+  jira-subtask-type:
+    description: Jira issue type used for case sub-tasks.
+    required: false
+    default: Sub-task
+  max-cases:
+    description: Safety cap on cases per spec; P2 cases are dropped first beyond it.
+    required: false
+    default: "80"
   dry-run:
     description: Do not publish; write the report to the job summary only.
     required: false

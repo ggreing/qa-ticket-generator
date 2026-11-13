@@ -174,35 +174,42 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 ### Inputs
 
 <!-- inputs:start -->
-| Input               | 필수 | 기본값                            | 설명                                                             |
-| ------------------- | ---- | --------------------------------- | ---------------------------------------------------------------- |
-| `anthropic-api-key` | ✅   | —                                 | Anthropic API 키.                                                |
-| `github-token`      |      | `${{ github.token }}`             | PR을 읽고 코멘트를 쓸 때 사용.                                   |
-| `model`             |      | `claude-opus-5-5`                 | Claude 모델 ID.                                                  |
-| `effort`            |      | `high`                            | `low`, `medium`, `high`, `xhigh`, `max`. 낮을수록 싸고 빠릅니다. |
-| `language`          |      | `en`                              | `en`, `ko`, `ja`, `zh-CN` (`kr`, `jp`, `cn`, `zh`도 됨).         |
-| `trigger-label`     |      | `needs-ai-qa`                     | 실행을 시작하는 라벨.                                            |
-| `rerun-on-push`     |      | `true`                            | 라벨이 붙어 있는 동안 새 커밋마다 다시 실행.                     |
-| `require-prd`       |      | `false`                           | 연결된 티켓을 못 읽으면 체크 실패.                               |
-| `token-budget`      |      | `150000`                          | 모델 호출 1번의 입력 토큰. 큰 PR은 여러 번으로 나눔.             |
-| `max-cost-usd`      |      | `2.00`                            | 실행당 비용 상한. 넘으면 덜 중요한 파일부터 뺌.                  |
-| `max-scenarios`     |      | `8`                               | 코멘트에 넣을 테스트 케이스 최대 개수.                           |
-| `comment-author`    |      | —                                 | 커스텀 GitHub App 토큰을 쓸 때만 지정. 예: `my-app[bot]`.        |
-| `pr-comment`        |      | `true`                            | PR 코멘트를 남기고 계속 갱신.                                    |
-| `slack-bot-token`   |      | —                                 | Slack bot 토큰(`xoxb-`). 메시지 수정과 스레드를 쓸 수 있음.      |
-| `slack-channel`     |      | —                                 | bot이 쓸 채널 ID나 `#이름`.                                      |
-| `slack-webhook-url` |      | —                                 | bot 토큰이 없을 때 쓰는 incoming webhook.                        |
-| `jira-base-url`     |      | —                                 | 예: `https://acme.atlassian.net`.                                |
-| `jira-email`        |      | —                                 | Jira 계정 이메일.                                                |
-| `jira-api-token`    |      | —                                 | Jira API 토큰. URL, 이메일, 토큰이 다 있어야 Jira를 씀.          |
-| `jira-project-keys` |      | —                                 | `KEY-123`만 써도 인식할 프로젝트 키를 쉼표로. 예: `PROJ,WEB`.    |
-| `notion-token`      |      | —                                 | Notion integration 토큰.                                         |
-| `config-path`       |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일. base 브랜치에서 읽음.                            |
-| `fail-on`           |      | `none`                            | 정합성이 `partial`이나 `misaligned`면 체크 실패.                 |
-| `fail-on-error`     |      | `false`                           | 내부 오류 시 체크 실패. 기본은 경고만 남김.                      |
-| `allow-fork-prs`    |      | `false`                           | fork PR 허용. 옵트인 워크플로에서만 쓰세요.                      |
-| `server-fallback`   |      | `true`                            | Opus가 요청을 거절하면 Anthropic이 다른 모델로 재시도.           |
-| `dry-run`           |      | `false`                           | Job Summary에만 리포트를 씀.                                     |
+| Input                   | 필수 | 기본값                            | 설명                                                                          |
+| ----------------------- | ---- | --------------------------------- | ----------------------------------------------------------------------------- |
+| `anthropic-api-key`     | ✅   | —                                 | Anthropic API 키.                                                             |
+| `github-token`          |      | `${{ github.token }}`             | PR을 읽고 코멘트를 쓸 때 사용.                                                |
+| `model`                 |      | `claude-opus-5-5`                 | Claude 모델 ID.                                                               |
+| `effort`                |      | `high`                            | `low`, `medium`, `high`, `xhigh`, `max`. 낮을수록 싸고 빠릅니다.              |
+| `language`              |      | `en`                              | `en`, `ko`, `ja`, `zh-CN` (`kr`, `jp`, `cn`, `zh`도 됨).                      |
+| `trigger-label`         |      | `needs-ai-qa`                     | 실행을 시작하는 라벨.                                                         |
+| `rerun-on-push`         |      | `true`                            | 라벨이 붙어 있는 동안 새 커밋마다 다시 실행.                                  |
+| `require-prd`           |      | `false`                           | 연결된 티켓을 못 읽으면 체크 실패.                                            |
+| `token-budget`          |      | `150000`                          | 모델 호출 1번의 입력 토큰. 큰 PR은 여러 번으로 나눔.                          |
+| `max-cost-usd`          |      | `2.00`                            | 실행당 비용 상한. 넘으면 덜 중요한 파일부터 뺌.                               |
+| `max-scenarios`         |      | `8`                               | 코멘트에 넣을 테스트 케이스 최대 개수.                                        |
+| `comment-author`        |      | —                                 | 커스텀 GitHub App 토큰을 쓸 때만 지정. 예: `my-app[bot]`.                     |
+| `pr-comment`            |      | `true`                            | PR 코멘트를 남기고 계속 갱신.                                                 |
+| `slack-bot-token`       |      | —                                 | Slack bot 토큰(`xoxb-`). 메시지 수정과 스레드를 쓸 수 있음.                   |
+| `slack-channel`         |      | —                                 | bot이 쓸 채널 ID나 `#이름`.                                                   |
+| `slack-webhook-url`     |      | —                                 | bot 토큰이 없을 때 쓰는 incoming webhook.                                     |
+| `jira-base-url`         |      | —                                 | 예: `https://acme.atlassian.net`.                                             |
+| `jira-email`            |      | —                                 | Jira 계정 이메일.                                                             |
+| `jira-api-token`        |      | —                                 | Jira API 토큰. URL, 이메일, 토큰이 다 있어야 Jira를 씀.                       |
+| `jira-project-keys`     |      | —                                 | `KEY-123`만 써도 인식할 프로젝트 키를 쉼표로. 예: `PROJ,WEB`.                 |
+| `notion-token`          |      | —                                 | Notion integration 토큰.                                                      |
+| `config-path`           |      | `.github/qa-ticket-generator.yml` | 레포 설정 파일. base 브랜치에서 읽음.                                         |
+| `fail-on`               |      | `none`                            | 정합성이 `partial`이나 `misaligned`면 체크 실패.                              |
+| `fail-on-error`         |      | `false`                           | 내부 오류 시 체크 실패. 기본은 경고만 남김.                                   |
+| `allow-fork-prs`        |      | `false`                           | fork PR 허용. 옵트인 워크플로에서만 쓰세요.                                   |
+| `server-fallback`       |      | `true`                            | Opus가 요청을 거절하면 Anthropic이 다른 모델로 재시도.                        |
+| `mode`                  |      | `auto`                            | `auto`는 이벤트로 판단, `plan`은 기획서로 QA 케이스 생성, `verify`는 PR 대조. |
+| `spec`                  |      | —                                 | 수동 실행 시 기획서: 이슈 번호, Jira 키, Notion URL.                          |
+| `plan-label`            |      | `needs-qa-plan`                   | 기획 단계를 시작하는 이슈 라벨.                                               |
+| `sinks`                 |      | `github-issue,file`               | 케이스 티켓을 만들 곳: `jira`, `github-issue`, `notion`, `file`.              |
+| `notion-qa-database-id` |      | —                                 | QA 케이스를 담을 Notion 데이터베이스.                                         |
+| `jira-subtask-type`     |      | `Sub-task`                        | 케이스 하위 작업에 쓸 Jira 이슈 타입.                                         |
+| `max-cases`             |      | `80`                              | 기획서당 안전 상한. 넘으면 P2부터 뺌.                                         |
+| `dry-run`               |      | `false`                           | Job Summary에만 리포트를 씀.                                                  |
 <!-- inputs:end -->
 
 ### Outputs
