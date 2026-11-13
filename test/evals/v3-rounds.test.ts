@@ -683,3 +683,232 @@ describe('Korean review pack and calibration for the plan eval (SPEC v3 §8)', (
     });
   });
 });
+
+describe('scoring saved sheets again: plan --rejudge and --regrade (docs/quality/RUBRIC.md "Scoring")', () => {
+  /** A judged Korean round 0, kept. Returns the shared store and the path of its raw results. */
+  async function keptRound0(world: Partial<World> = {}) {
+    const base = harness({ coverage: 1, uncoveredRisk: 0, ...world });
+    await runPlanEval([...KO, '--round', '0', '--change', 'baseline'], base.deps);
+    await runPlanEval(['--round', '0', '--decision', 'keep'], harness({}, base.store).deps);
+    return { base, raw: 'evals/rounds/v3/0/raw/plan.ko.json' };
+  }
+  /** Counts judge calls by kind, on top of a harness's judge double. */
+  function counting(h: ReturnType<typeof harness>) {
+    const seen = { rubric: 0, coverage: 0 };
+    const inner = h.deps.createRubricClient('k');
+    const deps: V3Deps = {
+      ...h.deps,
+      createRubricClient: () => ({
+        messages: {
+          parse: (body) => {
+            if (body.system === COVERAGE_SYSTEM) seen.coverage++;
+            else seen.rubric++;
+            return inner.messages.parse(body);
+          },
+        },
+      }),
+    };
+    return { deps, seen };
+  }
+
+  it('--rejudge quotes the cost first, then scores every stored sheet again without generating or re-checking must-cover', async () => {
+    const { base, raw } = await keptRound0();
+    const before = JSON.parse(base.files[raw] as string) as PlanResults;
+
+    const dry = harness({ coverage: 2 }, base.store);
+    const quoted = await runPlanEval(['--rejudge', raw], dry.deps);
+    expect(quoted).toMatchObject({ exitCode: 0, executed: false });
+    expect(quoted.estimateUsd).toBeGreaterThan(0);
+    expect(dry.lines[0]).toBe('Re-judge plan — rubric v3 (the file was scored with rubric v3)');
+    expect(dry.out()).toContain(
+      `  source: ${raw}   prompt ${before.promptVersion}   language: ko   sheets: 2 of 2`,
+    );
+    expect(dry.out()).toContain('  estimated run cost:   $0.00 (no sheet is generated)');
+    expect(dry.out()).toMatch(
+      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5 rubric judge; the must-cover verdicts are kept\)/,
+    );
+    expect(dry.lines.at(-1)).toBe('Nothing was sent to the API. Re-run with --yes to execute.');
+    expect(Object.keys(base.files).filter((f) => f.includes('rejudged'))).toEqual([]);
+
+    // The judge now gives coverage 2 where it gave 1.
+    const live = harness({ coverage: 2 }, base.store);
+    const { deps, seen } = counting(live);
+    const outcome = await runPlanEval(['--rejudge', raw, '--yes'], deps);
+    expect(outcome).toMatchObject({ exitCode: 0, executed: true });
+    expect(seen).toEqual({ rubric: 2, coverage: 0 });
+    expect(live.calls).toHaveLength(0); // nothing was generated
+    expect(outcome.resultsPath?.replace(/\\/g, '/')).toMatch(/^evals\/results\/.+-plan-rejudged\.json$/);
+    expect(base.files[raw]).toBe(`${JSON.stringify(before, null, 2)}\n`); // the source is untouched
+
+    const after = outcome.plan as PlanResults;
+    expect(after.runs.map((r) => r.cases)).toEqual(before.runs.map((r) => r.cases));
+    expect(after.rubric?.criteria.coverage).toBe(2);
+    expect(before.rubric?.criteria.coverage).toBe(1);
+    expect(after.rubric?.overall).toBeGreaterThan(before.rubric?.overall as number);
+    // The coverage judge's verdicts are the ones given when the sheet was written.
+    expect(after.runs.map((r) => r.grade?.mustCover)).toEqual(before.runs.map((r) => r.grade?.mustCover));
+    expect(after.summary.mustCoverRecallJudge).toBe(before.summary.mustCoverRecallJudge);
+    expect(after.costUsd).toBe(before.costUsd); // what the run cost does not change
+    expect(live.out()).toMatch(/ {2}coupon-expiry-missing: overall \d\.\d\d \(was \d\.\d\d\)/);
+    expect(live.out()).toMatch(/The re-judge cost \$\d+\.\d\d\./);
+  });
+
+  it('--rejudge --round replaces the round in place, keeps its change text and decision, and later rounds compare with the new scores', async () => {
+    const { base, raw } = await keptRound0();
+    const original = base.files[raw] as string;
+    const again = harness({ coverage: 2 }, base.store);
+    const outcome = await runPlanEval(['--rejudge', raw, '--round', '0', '--yes'], again.deps);
+    expect(outcome.resultsPath?.replace(/\\/g, '/')).toMatch(/rounds\/v3\/0\/raw\/plan\.ko\.json$/);
+    expect(again.out()).toMatch(/is replaced; what it holds now is copied to .+\.bak-<time> first/);
+    const backup = Object.keys(base.files).find((f) => f.startsWith(`${raw}.bak-`)) as string;
+    expect(base.files[backup]).toBe(original);
+
+    const [record] = JSON.parse(base.files['evals/rounds/v3/index.json'] as string) as RoundRecordV3[];
+    expect(record).toMatchObject({ round: 0, change: 'baseline', decision: 'keep', rubricVersion: 3 });
+    expect(record?.rescored).toMatchObject({ what: 'judge' });
+    expect(record?.criteria.coverage).toBe(2);
+    expect(again.out()).toContain(
+      'Round 0 recorded in evals/rounds/v3/0/summary.ko.md and evals/ROUNDS.v3.md (decision: keep).',
+    );
+    expect(base.files['evals/rounds/v3/0/summary.ko.md']).toMatch(
+      /- Scored again on 2026-11-13: rubric judge \(rubric v3\) and deterministic metrics\. The sheets are the ones written on the date above\./,
+    );
+    // A round written with the same judge is no better than the re-judged baseline.
+    const next = harness({ coverage: 2 }, base.store);
+    await runPlanEval([...KO, '--round', '1', '--change', 'no real change'], next.deps);
+    expect(next.out()).toContain('| Spec coverage (0–2) (context) | 2.00 | 2.00 | same |');
+    expect(next.lines.at(-1)).not.toMatch(/KEEP/);
+  });
+
+  it('--regrade recounts style violations with the lint as it is now: offline, and the rubric scores stay', async () => {
+    const { base, raw } = await keptRound0({ sloppy: true });
+    const before = JSON.parse(base.files[raw] as string) as PlanResults;
+    expect(before.summary.styleViolationsPer100).toBeGreaterThan(0);
+
+    // The lint was fixed and no longer flags these lines. No key, and any model call would throw.
+    const offline = harness({}, base.store);
+    const outcome = await runPlanEval(['--regrade', raw, '--round', '0'], {
+      ...offline.deps,
+      env: {},
+      lint: () => [],
+      createRubricClient: () => {
+        throw new Error('offline');
+      },
+      createProvider: () => {
+        throw new Error('offline');
+      },
+    });
+    expect(outcome).toMatchObject({ exitCode: 0, executed: false, estimateUsd: 0 });
+    expect(offline.lines[0]).toBe(
+      'Regrade plan — deterministic metrics only (style lint, keyword must-cover, requirements with a case)',
+    );
+    expect(offline.out()).toContain('  estimated judge cost: $0.00 (no model is called)');
+    const after = outcome.plan as PlanResults;
+    expect(after.summary.styleViolationsPer100).toBe(0);
+    expect(after.rubric).toEqual(before.rubric);
+    expect(after.runs.map((r) => r.rubric)).toEqual(before.runs.map((r) => r.rubric));
+    expect(after.summary.mustCoverRecallJudge).toBe(before.summary.mustCoverRecallJudge);
+    expect(after.judgeCostUsd).toBe(before.judgeCostUsd);
+
+    const [record] = JSON.parse(base.files['evals/rounds/v3/index.json'] as string) as RoundRecordV3[];
+    expect(record).toMatchObject({
+      round: 0,
+      decision: 'keep',
+      styleViolationsPer100: 0,
+      change: 'baseline',
+    });
+    expect(record?.rescored).toMatchObject({ what: 'deterministic' });
+    expect(base.files['evals/rounds/v3/0/summary.ko.md']).toContain(
+      'deterministic metrics only (style lint, keyword must-cover)',
+    );
+    // The next round is now compared with the recounted baseline, not with the old lint's figure.
+    const next = harness({ coverage: 2 }, base.store);
+    await runPlanEval([...KO, '--round', '1', '--change', 'tidy'], { ...next.deps, lint: () => [] });
+    expect(next.out()).toContain('| Style viol./100 | 0.0 | 0.0 | same |');
+  });
+
+  it('--cases re-judges only the named sheets in place, and refuses to mix two rubric versions in one file', async () => {
+    const { base, raw } = await keptRound0();
+    const before = JSON.parse(base.files[raw] as string) as PlanResults;
+    const part = harness({ coverage: 2 }, base.store);
+    const { deps, seen } = counting(part);
+    const outcome = await runPlanEval(['--rejudge', raw, '--cases', 'rbac-export-role', '--yes'], deps);
+    expect(seen.rubric).toBe(1);
+    expect(outcome.resultsPath).toBe(raw);
+    const after = JSON.parse(base.files[raw] as string) as PlanResults;
+    const sheet = (r: PlanResults, id: string) => r.runs.find((x) => x.caseId === id)?.rubric?.sheet.coverage;
+    expect([sheet(after, 'coupon-expiry-missing'), sheet(after, 'rbac-export-role')]).toEqual([1, 2]);
+    expect(Object.keys(base.files).some((f) => f.startsWith(`${raw}.bak-`))).toBe(true);
+
+    base.files[raw] = JSON.stringify({ ...before, rubricVersion: 2 });
+    const mixed = harness({}, base.store);
+    expect(
+      await runPlanEval(['--rejudge', raw, '--cases', 'rbac-export-role', '--yes'], mixed.deps),
+    ).toMatchObject({ exitCode: 2 });
+    expect(mixed.out()).toBe(
+      `Cannot re-judge part of ${raw}: it was scored with rubric v2 and the rubric is now v3. Re-judge the whole file (drop --cases).`,
+    );
+  });
+
+  it('a sheet the judge cannot score loses its old score, and a sheet whose spec changed is left out', async () => {
+    const { base, raw } = await keptRound0();
+    const before = JSON.parse(base.files[raw] as string) as PlanResults;
+    const down = harness({}, base.store);
+    const outcome = await runPlanEval(['--rejudge', raw, '--yes'], {
+      ...down.deps,
+      createRubricClient: () => ({ messages: { parse: () => Promise.reject(new Error('overloaded')) } }),
+    });
+    expect(outcome.plan?.rubric).toBeNull();
+    expect(outcome.plan?.runs.every((r) => r.rubric === undefined && r.judge?.error !== undefined)).toBe(
+      true,
+    );
+    expect(down.out()).toContain('2 sheet(s) have no rubric score and are left out of the rubric means');
+
+    const stale = {
+      ...before,
+      runs: before.runs.map((r, i) => (i === 0 ? { ...r, inputHash: 'changed' } : r)),
+    };
+    base.files['stale.json'] = JSON.stringify(stale);
+    const s = harness({ coverage: 2 }, base.store);
+    const partial = await runPlanEval(['--rejudge', 'stale.json', '--yes'], s.deps);
+    expect(s.out()).toContain(
+      `  left out, the spec changed since the sheet was written: ${before.runs[0]?.caseId}`,
+    );
+    expect(s.out()).toContain('sheets: 1 of 2');
+    // The left-out sheet keeps no score from the earlier judging in a whole-file re-judge.
+    expect(partial.plan?.runs[0]?.rubric).toBeUndefined();
+    expect(partial.plan?.rubric?.judged).toBe(1);
+  });
+
+  it('says what is wrong with arguments it cannot use', async () => {
+    const { base, raw } = await keptRound0();
+    const run = async (argv: string[]) => {
+      const h = harness({}, base.store);
+      return { outcome: await runPlanEval(argv, h.deps), out: h.out() };
+    };
+    expect((await run(['--rejudge', 'nope.json'])).out).toBe(
+      'Cannot re-judge: nope.json is not a readable plan results file.',
+    );
+    expect((await run(['--regrade', 'nope.json'])).out).toBe(
+      'Cannot regrade: nope.json is not a readable plan results file.',
+    );
+    const absent = await run(['--rejudge', raw, '--cases', 'search-page-cap']);
+    expect(absent.outcome.exitCode).toBe(2);
+    expect(absent.out).toBe(`Cannot re-judge: ${raw} has no sheet for search-page-cap.`);
+    expect((await run(['--rejudge', raw, '--regrade', raw])).out).toContain(
+      '--rejudge and --regrade cannot be combined',
+    );
+    expect((await run(['--rejudge', raw, '--round', '0', '--decision', 'keep'])).out).toContain(
+      '--decision cannot be combined with --rejudge or --regrade.',
+    );
+    // A round that was never recorded has no change text to keep.
+    const fresh = await run(['--regrade', raw, '--round', '7']);
+    expect(fresh.out).toContain('Round 7 (ko) has no record yet, so there is no change text to keep.');
+    expect(Object.keys(base.files)).not.toContain('evals/rounds/v3/7/summary.ko.md');
+    const noKey = harness({}, base.store);
+    expect(await runPlanEval(['--rejudge', raw, '--yes'], { ...noKey.deps, env: {} })).toMatchObject({
+      exitCode: 1,
+      executed: false,
+    });
+  });
+});

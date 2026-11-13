@@ -20,7 +20,11 @@ import type {
   PreprocessOutput,
 } from '../../src/core/contracts';
 import { QtgError } from '../../src/core/errors';
-import { EXPECTED_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from '../../src/core/limits';
+import {
+  EXPECTED_OUTPUT_TOKENS,
+  MAX_OUTPUT_TOKENS,
+  PLAN_EXPECTED_OUTPUT_TOKENS,
+} from '../../src/core/limits';
 import { generatePlan, type PlanDiagnostics, planPlanRun } from '../../src/llm/plan';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import { PLAN_PROMPT_VERSION } from '../../src/llm/prompts/plan';
@@ -42,6 +46,7 @@ import {
   type VerifySummary,
   withCoverageVerdicts,
 } from './grade';
+import { rescorePlan } from './rejudge';
 import { buildReviewPackV3, calibrateV3 } from './review';
 import { decideRoundV3, recordRoundV3, roundResultsPath } from './rounds';
 import {
@@ -57,8 +62,8 @@ import {
 const EFFORTS: readonly Effort[] = ['low', 'medium', 'high', 'xhigh', 'max'];
 /** Code-derived cases asked for per pull request in the verify eval. */
 const MAX_NEW_CASES = 10;
-/** Cases a requirement is assumed to yield, for sizing the judge estimate before any call. */
-const CASES_PER_REQUIREMENT = 6;
+/** Cases a requirement is assumed to yield, for sizing the judge estimate before any call (round 0: 12–18). */
+const CASES_PER_REQUIREMENT = 15;
 const ZERO: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
 export interface V3Deps {
@@ -98,6 +103,10 @@ export interface V3Options {
   out: string | null;
   /** [ratings.json, plan-results.json] */
   calibrate: [string, string] | null;
+  /** plan: score the sheets of this results file again with the rubric judge. */
+  rejudge: string | null;
+  /** plan: recompute the deterministic metrics of this results file. Offline. */
+  regrade: string | null;
   yes: boolean;
   help: boolean;
 }
@@ -118,6 +127,12 @@ plan only:
   --round <n>           record the run as improvement round n, 0 for the baseline
                         (evals/rounds/v3/<n>/, evals/ROUNDS.v3.md); prints a keep/revert recommendation
   --change "<text>"     what changed in this round (required with --round)
+plan, scoring saved sheets again (nothing is generated):
+  --rejudge <plan-results.json> [--round <n>] [--cases <id,id>]
+                        rubric judge again, with the rubric as it is now; needs --yes like a run.
+                        With --round the round's record is replaced and keeps its decision.
+  --regrade <plan-results.json> [--round <n>] [--cases <id,id>]
+                        style lint and keyword must-cover again; offline, no key
 plan, offline (no API call, no key):
   --round <n> --decision keep|revert     record the decision for a round
   --review-pack <plan-results.json> [--sample <n>] [--out <path>]
@@ -149,6 +164,8 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     sample: 5,
     out: null,
     calibrate: null,
+    rejudge: null,
+    regrade: null,
     yes: false,
     help: false,
   };
@@ -169,6 +186,8 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     else if (flag === '--no-coverage-judge') o.coverageJudge = false;
     else if (flag === '--change') o.change = value();
     else if (flag === '--review-pack') o.reviewPack = value();
+    else if (flag === '--rejudge') o.rejudge = value();
+    else if (flag === '--regrade') o.regrade = value();
     else if (flag === '--out') o.out = value();
     else if (flag === '--calibrate') o.calibrate = [value(), value()];
     else if (flag === '--round' || flag === '--sample') {
@@ -205,7 +224,12 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     } else throw new Error(`Unknown option ${flag}.`);
   }
   if (o.decision && o.round === null) throw new Error('--decision needs --round <n>.');
-  if (o.round !== null && !o.decision && o.change.trim() === '') {
+  if (o.rejudge !== null && o.regrade !== null)
+    throw new Error('--rejudge and --regrade cannot be combined; --rejudge regrades as well.');
+  const rescore = o.rejudge !== null || o.regrade !== null;
+  if (rescore && o.decision) throw new Error('--decision cannot be combined with --rejudge or --regrade.');
+  // A round scored again keeps the change text it was recorded with.
+  if (o.round !== null && !o.decision && !rescore && o.change.trim() === '') {
     throw new Error('--round needs --change "<what changed in this round>".');
   }
   return o;
@@ -479,6 +503,8 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   if (options.calibrate !== null) return none(calibrateV3(options.calibrate[0], options.calibrate[1], deps));
   if (options.decision !== null && options.round !== null)
     return none(decideRoundV3(options.round, options.decision, deps));
+  if (options.rejudge !== null) return rescorePlan(options.rejudge, 'rejudge', options, deps);
+  if (options.regrade !== null) return rescorePlan(options.regrade, 'regrade', options, deps);
   const withSpec = s.cases.filter((c) => c.prdDocuments.length > 0);
   const withoutSpec = s.cases.filter((c) => c.prdDocuments.length === 0).map((c) => c.id);
   if (withSpec.length === 0) {
@@ -487,7 +513,8 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   }
 
   const pricing = { estimateCostUsd: (usage: LlmUsage) => estimateCostUsd(options.model, usage) };
-  const guard = { maxCostUsd: cfg.maxCostUsd, expectedOutputTokens: EXPECTED_OUTPUT_TOKENS };
+  // The same figure the plan pipeline estimates with (measured in round 0: 13k–23k per call).
+  const guard = { maxCostUsd: cfg.maxCostUsd, expectedOutputTokens: PLAN_EXPECTED_OUTPUT_TOKENS };
   const planned = withSpec.map((evalCase) => {
     const req = planRequestFor(evalCase, cfg);
     const plan = planPlanRun(req, pricing, guard);
@@ -536,7 +563,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     `  estimated judge cost: ~$${judgeUsd.toFixed(2)} (${judges.length > 0 ? judges.join(' + ') : 'no judge'}${options.judge ? '' : '; add --judge for rubric scores'})`,
   );
   print(`  estimated total:      ~$${estimateUsd.toFixed(2)}`);
-  print(`  The run estimate assumes ${EXPECTED_OUTPUT_TOKENS} output tokens per call.`);
+  print(`  The run estimate assumes ${PLAN_EXPECTED_OUTPUT_TOKENS} output tokens per call.`);
   if (!options.yes) {
     print('Nothing was sent to the API. Re-run with --yes to execute.');
     return { exitCode: 0, executed: false, estimateUsd, estimate };
@@ -691,7 +718,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
 }
 
 /** Counts for a spec without ground truth, so its sheet length and style still reach the summary. */
-function fallbackGrade(run: PlanRun): PlanGrade {
+export function fallbackGrade(run: PlanRun): PlanGrade {
   return {
     caseId: run.caseId,
     cases: run.cases.length,

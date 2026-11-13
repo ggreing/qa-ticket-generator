@@ -49,6 +49,8 @@ export interface RoundRecordV3 {
   costUsd: number;
   judgeCostUsd: number;
   decision: 'pending' | 'keep' | 'revert';
+  /** Set when the stored sheets were scored again after the run: when, and which part. */
+  rescored?: { at: string; what: 'judge' | 'deterministic' };
 }
 
 const root = (deps: V3Deps): string => join(deps.evalsRoot, 'rounds', 'v3');
@@ -343,6 +345,11 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
     `- Must-cover checked by: ${record.mustCoverBy === 'judge' ? 'coverage judge (any language)' : 'keywords (mostly English)'}`,
     `- Style violations counted by: ${r.lintSource === 'cases' ? 'lintCaseStyle' : 'stand-in lint'}`,
     `- Decision: ${record.decision}`,
+    ...(record.rescored
+      ? [
+          `- Scored again on ${record.rescored.at.slice(0, 10)}: ${record.rescored.what === 'judge' ? `rubric judge (rubric v${record.rubricVersion}) and deterministic metrics` : 'deterministic metrics only (style lint, keyword must-cover)'}. The sheets are the ones written on the date above.`,
+        ]
+      : []),
     '',
     '## Run',
     '',
@@ -431,16 +438,35 @@ function writeIndex(records: RoundRecordV3[], deps: V3Deps): void {
 export const roundResultsPath = (deps: V3Deps, round: number, language: string): string =>
   join(root(deps), String(round), 'raw', `plan${suffix(language)}.json`);
 
-/** Records a finished plan run as a round, replacing an earlier record of the same round and language. */
+/**
+ * Records a finished plan run as a round, replacing an earlier record of the same round and language.
+ *
+ * With `rescored` the sheets are those of an earlier run, scored again: the round keeps the change
+ * text and the keep/revert decision it already has, unless a new change text is given.
+ */
 export function recordRoundV3(
   round: number,
   change: string,
   r: PlanResults,
   table: string,
   deps: V3Deps,
+  rescored?: { at: string; what: 'judge' | 'deterministic' },
 ): void {
-  const record = toRecordV3(round, change, r);
-  const others = readIndex(deps).filter((x) => !same(x, record));
+  const all = readIndex(deps);
+  const earlier = rescored ? all.find((x) => x.round === round && x.language === r.language) : undefined;
+  const text = change.trim() || earlier?.change || '';
+  if (text === '') {
+    deps.print(
+      `Round ${round} (${r.language}) has no record yet, so there is no change text to keep. Add --change "<what changed in this round>" to record it.`,
+    );
+    return;
+  }
+  const record: RoundRecordV3 = {
+    ...toRecordV3(round, text, r),
+    ...(earlier ? { decision: earlier.decision } : {}),
+    ...(rescored ? { rescored } : {}),
+  };
+  const others = all.filter((x) => !same(x, record));
   const comparison = formatComparisonV3(round, compareV3(record, others));
   const file = `summary${suffix(record.language)}.md`;
   deps.writeFile(
@@ -449,7 +475,7 @@ export function recordRoundV3(
   );
   writeIndex([...others, record], deps);
   deps.print(
-    `Round ${round} recorded in evals/rounds/v3/${round}/${file} and evals/ROUNDS.v3.md (decision: pending).`,
+    `Round ${round} recorded in evals/rounds/v3/${round}/${file} and evals/ROUNDS.v3.md (decision: ${record.decision}).`,
   );
   deps.print('');
   for (const line of comparison) deps.print(line);
