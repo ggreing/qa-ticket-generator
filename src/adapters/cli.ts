@@ -1,9 +1,10 @@
 /** CLI entry point: `qa-ticket-generator run --repo o/r --pr 12`. OWNERSHIP: control session. */
 import { writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { getOctokit } from '@actions/github';
 import type { Logger } from '../core/contracts';
 import { toQtgError } from '../core/errors';
+import { FILE_NAMES } from '../sinks/file';
 import { CliUsageError, cliInputReader, parseArgs, USAGE } from './cli-args';
 import { execute } from './wire';
 
@@ -63,6 +64,7 @@ export async function main(argv: string[]): Promise<number> {
           ? { name: 'workflow_dispatch' }
           : { name: 'workflow_dispatch', dispatchPrNumber: args.pr as number },
       caseFileDir: resolve(args.outDir ?? '.'),
+      defaultPreviousCases: join(resolve(args.outDir ?? '.'), FILE_NAMES.json),
       owner,
       repo,
       octokit: getOctokit(token),

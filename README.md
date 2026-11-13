@@ -181,42 +181,43 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 ### Inputs
 
 <!-- inputs:start -->
-| Input                   | Required | Default                           | Description                                                                             |
-| ----------------------- | -------- | --------------------------------- | --------------------------------------------------------------------------------------- |
-| `anthropic-api-key`     | ✅       | —                                 | Anthropic API key.                                                                      |
-| `github-token`          |          | `${{ github.token }}`             | Used to read the PR and write the comment.                                              |
-| `model`                 |          | `claude-opus-5-5`                 | Claude model id.                                                                        |
-| `effort`                |          | `high`                            | `low`, `medium`, `high`, `xhigh` or `max`. Lower is cheaper and faster.                 |
-| `language`              |          | `en`                              | `en`, `ko`, `ja` or `zh-CN` (`kr`, `jp`, `cn`, `zh` work too).                          |
-| `trigger-label`         |          | `needs-ai-qa`                     | The label that starts a run.                                                            |
-| `rerun-on-push`         |          | `true`                            | Run again on new commits while the label is on the PR.                                  |
-| `require-prd`           |          | `false`                           | Fail the check when no linked ticket can be read.                                       |
-| `token-budget`          |          | `150000`                          | Input tokens per model call. Bigger PRs are split into several calls.                   |
-| `max-cost-usd`          |          | `2.00`                            | Cost ceiling per run. Less important files are dropped to stay under it.                |
-| `max-scenarios`         |          | `8`                               | Maximum number of test cases in the comment.                                            |
-| `comment-author`        |          | —                                 | Only needed with a custom GitHub App token, e.g. `my-app[bot]`.                         |
-| `pr-comment`            |          | `true`                            | Post (and keep updating) the PR comment.                                                |
-| `slack-bot-token`       |          | —                                 | Slack bot token (`xoxb-`). Gives you update-in-place and threads.                       |
-| `slack-channel`         |          | —                                 | Channel id or `#name` for the bot.                                                      |
-| `slack-webhook-url`     |          | —                                 | Incoming webhook, used when there is no bot token.                                      |
-| `jira-base-url`         |          | —                                 | e.g. `https://acme.atlassian.net`.                                                      |
-| `jira-email`            |          | —                                 | Jira account email.                                                                     |
-| `jira-api-token`        |          | —                                 | Jira API token. Jira is used when URL, email and token are all set.                     |
-| `jira-project-keys`     |          | —                                 | Comma-separated keys to recognize bare `KEY-123` references, e.g. `PROJ,WEB`.           |
-| `notion-token`          |          | —                                 | Notion integration token.                                                               |
-| `config-path`           |          | `.github/qa-ticket-generator.yml` | Repository config file, read from the base branch.                                      |
-| `fail-on`               |          | `none`                            | Fail the check when alignment is `partial` or `misaligned`.                             |
-| `fail-on-error`         |          | `false`                           | Fail the check on internal errors. By default they only show as a warning.              |
-| `allow-fork-prs`        |          | `false`                           | Allow fork PRs. Only use this with the opt-in workflow.                                 |
-| `server-fallback`       |          | `true`                            | Let Anthropic retry on another model if Opus declines a request.                        |
-| `mode`                  |          | `auto`                            | `auto` decides from the event, `plan` turns a spec into QA cases, `verify` checks a PR. |
-| `spec`                  |          | —                                 | Spec for a manual plan run: issue number, Jira key or Notion URL.                       |
-| `plan-label`            |          | `needs-qa-plan`                   | Issue label that starts the plan phase.                                                 |
-| `sinks`                 |          | `github-issue,file`               | Where case tickets go: `jira`, `github-issue`, `notion`, `file`.                        |
-| `notion-qa-database-id` |          | —                                 | Notion database for QA cases.                                                           |
-| `jira-subtask-type`     |          | `Sub-task`                        | Jira issue type for case sub-tasks.                                                     |
-| `max-cases`             |          | `80`                              | Safety cap per spec. P2 cases go first.                                                 |
-| `dry-run`               |          | `false`                           | Write the report to the job summary only.                                               |
+| Input                   | Required | Default                           | Description                                                                                            |
+| ----------------------- | -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `anthropic-api-key`     | ✅       | —                                 | Anthropic API key.                                                                                     |
+| `github-token`          |          | `${{ github.token }}`             | Used to read the PR and write the comment.                                                             |
+| `model`                 |          | `claude-opus-5-5`                 | Claude model id.                                                                                       |
+| `effort`                |          | `high`                            | `low`, `medium`, `high`, `xhigh` or `max`. Lower is cheaper and faster.                                |
+| `language`              |          | `en`                              | `en`, `ko`, `ja` or `zh-CN` (`kr`, `jp`, `cn`, `zh` work too).                                         |
+| `trigger-label`         |          | `needs-ai-qa`                     | The label that starts a run.                                                                           |
+| `rerun-on-push`         |          | `true`                            | Run again on new commits while the label is on the PR.                                                 |
+| `require-prd`           |          | `false`                           | Fail the check when no linked ticket can be read.                                                      |
+| `token-budget`          |          | `150000`                          | Input tokens per model call. Bigger PRs are split into several calls.                                  |
+| `max-cost-usd`          |          | `2.00`                            | Cost ceiling per run. Less important files are dropped to stay under it.                               |
+| `max-scenarios`         |          | `8`                               | Maximum number of test cases in the comment.                                                           |
+| `comment-author`        |          | —                                 | Only needed with a custom GitHub App token, e.g. `my-app[bot]`.                                        |
+| `pr-comment`            |          | `true`                            | Post (and keep updating) the PR comment.                                                               |
+| `slack-bot-token`       |          | —                                 | Slack bot token (`xoxb-`). Gives you update-in-place and threads.                                      |
+| `slack-channel`         |          | —                                 | Channel id or `#name` for the bot.                                                                     |
+| `slack-webhook-url`     |          | —                                 | Incoming webhook, used when there is no bot token.                                                     |
+| `jira-base-url`         |          | —                                 | e.g. `https://acme.atlassian.net`.                                                                     |
+| `jira-email`            |          | —                                 | Jira account email.                                                                                    |
+| `jira-api-token`        |          | —                                 | Jira API token. Jira is used when URL, email and token are all set.                                    |
+| `jira-project-keys`     |          | —                                 | Comma-separated keys to recognize bare `KEY-123` references, e.g. `PROJ,WEB`.                          |
+| `notion-token`          |          | —                                 | Notion integration token.                                                                              |
+| `config-path`           |          | `.github/qa-ticket-generator.yml` | Repository config file, read from the base branch.                                                     |
+| `fail-on`               |          | `none`                            | Fail the check when alignment is `partial` or `misaligned`.                                            |
+| `fail-on-error`         |          | `false`                           | Fail the check on internal errors. By default they only show as a warning.                             |
+| `allow-fork-prs`        |          | `false`                           | Allow fork PRs. Only use this with the opt-in workflow.                                                |
+| `server-fallback`       |          | `true`                            | Let Anthropic retry on another model if Opus declines a request.                                       |
+| `mode`                  |          | `auto`                            | `auto` decides from the event, `plan` turns a spec into QA cases, `verify` checks a PR.                |
+| `spec`                  |          | —                                 | Spec for a manual plan run: issue number, Jira key or Notion URL.                                      |
+| `plan-label`            |          | `needs-qa-plan`                   | Issue label that starts the plan phase.                                                                |
+| `sinks`                 |          | `github-issue,file`               | Where case tickets go: `jira`, `github-issue`, `notion`, `file`.                                       |
+| `notion-qa-database-id` |          | —                                 | Notion database for QA cases.                                                                          |
+| `jira-subtask-type`     |          | `Sub-task`                        | Jira issue type for case sub-tasks.                                                                    |
+| `max-cases`             |          | `80`                              | Safety cap per spec. P2 cases go first.                                                                |
+| `previous-cases`        |          | —                                 | `qa-cases.json` from an earlier run, e.g. a downloaded artifact. The file sink keeps case IDs from it. |
+| `dry-run`               |          | `false`                           | Write the report to the job summary only.                                                              |
 <!-- inputs:end -->
 
 ### Outputs

@@ -83,6 +83,8 @@ export interface QtgConfig {
   notionQaDatabaseId: string | null;
   jiraSubtaskType: string;
   maxCases: number;
+  /** SPEC v3 §5 — `qa-cases.json` of an earlier run; the file sink continues from it. */
+  previousCases: string | null;
   preprocess: PreprocessOptions;
   repoInstructions: {
     extraInstructions?: string;
@@ -217,6 +219,7 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
     notionQaDatabaseId: input('notion-qa-database-id').trim() || null,
     jiraSubtaskType: input('jira-subtask-type').trim() || DEFAULTS.jiraSubtaskType,
     maxCases: num(input('max-cases'), 'max-cases', DEFAULTS.maxCases, 1, 300),
+    previousCases: input('previous-cases').trim() || null,
     preprocess: {
       tokenBudget: num(input('token-budget'), 'token-budget', DEFAULTS.tokenBudget, 20_000, 900_000),
       exclude: repo.filters.exclude ?? [],
