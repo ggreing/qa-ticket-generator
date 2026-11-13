@@ -118,31 +118,37 @@ describe('SPEC v3 §5 file sink', () => {
     expect([read(FILE_NAMES.json), read(FILE_NAMES.csv), read(FILE_NAMES.markdown)]).toEqual(first);
   });
 
-  it('SPEC v3 §4.4 a case the spec drops is kept as obsolete in every file', async () => {
+  it('SPEC v3 §4.4 a spec case the plan drops is kept as obsolete in every file; code cases stay', async () => {
     await runOnce(sink(null), cases);
     const previous = join(dir, 'previous.json');
     writeFileSync(previous, read(FILE_NAMES.json));
-    const s = sink(previous);
-    const existing = await s.list(SPEC, signal);
-    const { cases: next } = reconcileCases(SPEC.id, existing, [
+    const replan = [
       planned('만료 1초 지난 쿠폰 적용 시 거부', 'SHOP-101-C01', { priority: 'P0', acLabels: ['AC3'] }),
-      planned('같은 쿠폰 두 번째 적용 시 거부', 'SHOP-101-C02', { technique: 'idempotency' }),
-    ]);
+    ];
+    const s = sink(previous);
+    const { cases: next } = reconcileCases(SPEC.id, await s.list(SPEC, signal), replan);
+    // C01 replanned, C03 (origin code) kept by the plan re-run, C02 (spec) dropped.
     const ops = await runOnce(s, next);
-    expect(ops.map((o) => `${o.op}`)).toEqual(['unchanged', 'unchanged', 'obsolete']);
+    expect(ops.map((o) => `${o.op}:${'case' in o ? o.case.caseId : o.ticket.caseId}`)).toEqual([
+      'unchanged:SHOP-101-C01',
+      'unchanged:SHOP-101-C03',
+      'obsolete:SHOP-101-C02',
+    ]);
     const json = JSON.parse(read(FILE_NAMES.json)) as CasesFile;
-    expect(json.cases.find((x) => x.case.caseId === 'SHOP-101-C03')?.case.lifecycle).toBe('obsolete');
+    const lifecycle = (id: string) => json.cases.find((x) => x.case.caseId === id)?.case.lifecycle;
+    expect([lifecycle('SHOP-101-C01'), lifecycle('SHOP-101-C02'), lifecycle('SHOP-101-C03')]).toEqual([
+      'active',
+      'obsolete',
+      'active',
+    ]);
     expect(read(FILE_NAMES.markdown)).toContain('## 해당 없음');
-    expect(read(FILE_NAMES.markdown)).toContain('\\[해당 없음\\]\\[P2\\]');
-    expect(read(FILE_NAMES.csv)).toMatch(/\r\nSHOP-101-C03,[\s\S]*,obsolete,기획과 상충\r\n$/);
+    expect(read(FILE_NAMES.markdown)).toContain('\\[해당 없음\\]\\[P1\\]');
+    expect(read(FILE_NAMES.csv)).toMatch(/\r\nSHOP-101-C02,[\s\S]*,obsolete,\r\n$/);
 
     // Third run: still obsolete, nothing to do.
     writeFileSync(previous, read(FILE_NAMES.json));
     const s3 = sink(previous);
-    const again = reconcileCases(SPEC.id, await s3.list(SPEC, signal), [
-      planned('만료 1초 지난 쿠폰 적용 시 거부', 'SHOP-101-C01', { priority: 'P0', acLabels: ['AC3'] }),
-      planned('같은 쿠폰 두 번째 적용 시 거부', 'SHOP-101-C02', { technique: 'idempotency' }),
-    ]);
+    const again = reconcileCases(SPEC.id, await s3.list(SPEC, signal), replan);
     expect((await runOnce(s3, again.cases)).map((o) => o.op)).toEqual([
       'unchanged',
       'unchanged',
