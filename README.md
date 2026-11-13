@@ -6,9 +6,9 @@
 
 > 🚧 pre-v0.1. It works on our test repos, but inputs and the comment layout can still change.
 
-A GitHub Action that reads a pull request together with the ticket it is supposed to implement, and writes
-the QA notes a tester would: which requirements are covered, which ones are missing, and a short list of
-test cases worth running before you merge.
+A GitHub Action that reads a spec (a GitHub issue, a Jira story or a Notion page) and writes the test cases
+a QA person would run, one ticket per case, including the ones that are easy to miss. When the pull request
+for that spec comes in, it checks the code against those cases and tells you which ones look implemented.
 
 ## Why
 
@@ -16,42 +16,76 @@ On small teams there is usually no dedicated QA person, and the reviewer rarely 
 next to the diff. So a PR gets approved, the tests pass, and a week later someone notices that one of the
 acceptance criteria never got built.
 
-This action does that cross-check for you. Put the ticket link in the PR description, add the
-`needs-ai-qa` label, and a minute or two later the PR has a comment from Claude that compares the code with
-the requirements. It is not a code reviewer and it won't comment on style. It only cares whether the change
-does what the spec says, and what you should test to find out.
+This action does the QA groundwork for you. It reads the spec before anyone writes code and turns every
+acceptance criterion into concrete test cases, the boundary and failure cases included. Later it reads the
+PR and checks each case against the code. It is not a code reviewer and it won't comment on style. It only
+cares whether the change does what the spec says, and what you should test to find out.
+
+## How it works
+
+1. Plan. Add the `needs-qa-plan` label to a spec issue, or run the workflow by hand with a Jira key or a
+   Notion URL. Claude goes through each acceptance criterion with the usual test techniques (boundaries,
+   invalid input, permissions, concurrency, time zones and so on) and writes the cases, including the
+   things the spec doesn't say.
+2. Case tickets. Each case becomes a ticket where your team already works: a GitHub issue, a Jira sub-task
+   under the story, or a row in a Notion database. You also get `qa-cases.md`, `.csv` and `.json` files;
+   the CSV imports into TestRail or a spreadsheet. The spec gets one comment that lists the cases.
+3. PR check. Add `needs-ai-qa` to a PR that links the spec. Every case gets a code status (implemented,
+   possibly missing, contradicts the spec, or can't tell from the code), risks that only show up in the
+   diff become new cases, and the PR gets a summary with a P0 checklist. If the spec hasn't been planned
+   yet, this step plans it first.
+
+Running it again is safe. A case keeps its ID and its ticket, so nothing is duplicated. Results,
+assignees, comments and labels your team adds are never overwritten. If someone edited a ticket's text, the
+tool leaves it alone and posts the change it would have made as a comment. Cases that drop out of the spec
+are marked as obsolete, not closed or deleted.
+
+Setting up Jira or Notion takes a few extra minutes:
+[`docs/setup/jira-subtasks.md`](docs/setup/jira-subtasks.md) and
+[`docs/setup/notion-qa-database.md`](docs/setup/notion-qa-database.md).
 
 ## What you get
 
-Roughly what the comment looks like (the layout is still being polished for v0.1):
+One case ticket, as the tool writes it (titled `[P0][Boundary] Apply a coupon that expired one second ago`):
 
 ```markdown
-## 🧪 AI QA — 4e2455c · ⚠️ Partially aligned
+### Preconditions
 
-**Needs attention (2)**
+- Coupon EXP1 issued, expires 2026-11-13 23:59:59
+- Cart subtotal 30,000 KRW
 
-- ❌ AC2 Expired coupons are rejected: nothing compares `expiresAt` with the current time (`src/coupon.ts`)
-- ❌ AC4 Percent discounts are capped at 10,000 KRW: no cap is applied
+### Test data
 
-**P0 checklist**
+- Coupon code EXP1
+- Clock 2026-11-14 00:00:00
 
-- [ ] TC-01 Coupon that expired one second ago → rejected, no usage recorded
-- [ ] TC-02 Same user applies the same coupon twice at once → only one succeeds
-- [ ] TC-03 10% coupon on a 200,000 KRW order → discount is 10,000, not 20,000
+### Steps
 
-<details><summary>TC-01 Reject an expired coupon [P0 · AC2]</summary>
-Setup: user-A has never used EXP1, cart subtotal is 30,000 KRW
-Data: code = EXP1, expiresAt = now - 1s
-Steps: 1. open checkout 2. apply EXP1
-Expected: CouponError "Coupon has expired", no usage record for (user-A, EXP1)
-</details>
+1. Open checkout
+2. Enter EXP1 and apply
 
-<details><summary>P1 / P2 cases (9)</summary>…</details>
+### Expected result
+
+- **Toast "This coupon has expired"**
+- Total stays 30,000 KRW
+
+### Why it is easy to miss
+
+The spec does not say whether the expiry second itself is still valid
+
+### Related AC
+
+AC3
 ```
 
-When you push more commits, the same comment is updated instead of a new one being added. Pushes that only
-touch lockfiles or build output are ignored. If you connect Slack, a short summary goes to a channel and the
-test cases go into its thread.
+On the PR, the comment starts with how well the change matches the spec, then lists the cases the code
+seems to miss or contradict and a P0 checklist, each linked to its ticket. When you push more commits, the
+same comment is updated instead of a new one being added, and pushes that only touch lockfiles or build
+output are ignored.
+
+A PR that links no spec still gets a comment: requirements are inferred from the code, with a short list of
+test cases and a note that there was no spec to compare with. If you connect Slack, a short summary of this
+comment goes to a channel and the test cases go into its thread.
 
 Here is how a run flows, if you are curious:
 
@@ -62,38 +96,53 @@ Here is how a run flows, if you are curious:
 You need an Anthropic API key and about five minutes.
 
 1. Add the key as a repository secret named `ANTHROPIC_API_KEY`.
-2. Create a label called `needs-ai-qa`.
-3. Add this workflow as `.github/workflows/qa-ticket-generator.yml`:
+2. Create two labels: `needs-qa-plan` for specs and `needs-ai-qa` for PRs.
+3. Add this workflow as `.github/workflows/qa-cases.yml`:
 
 ```yaml
-name: AI QA
+name: QA cases
 on:
+  issues:
+    types: [labeled]
   pull_request:
     types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      spec: { description: "Issue number, Jira key or Notion URL", required: false }
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
-  issues: read
-
-concurrency:
-  group: qa-ticket-generator-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   qa:
-    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-qa-plan') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'needs-ai-qa'))
+    concurrency:
+      group: qa-cases-${{ github.event.issue.number || github.event.pull_request.number || inputs.spec }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      # No actions/checkout here on purpose: the action reads the PR through the API.
-      - uses: ggreing/qa-ticket-generator@v0
+      # No actions/checkout here on purpose: the action reads everything through the API.
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: steps.qa.outputs.cases-dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-cases
+          path: ${{ steps.qa.outputs.cases-dir }}
 ```
 
-That's it. Label a PR and wait for the comment. If your specs live in Jira or Notion, or you want Slack
-messages, the full example in [`docs/examples/workflow.yml`](docs/examples/workflow.yml) shows the extra
-inputs. Output in Korean, Japanese or Chinese is one line: `language: ko` (or `ja`, `zh-CN`).
+That's it. Label a spec issue and the case issues appear, then label the PR that implements it. The
+commented version in [`docs/examples/workflow-v3.yml`](docs/examples/workflow-v3.yml) shows the Jira and
+Notion inputs. If you only want the PR comment, without case tickets, use
+[`docs/examples/workflow.yml`](docs/examples/workflow.yml). Output in Korean, Japanese or Chinese is one
+line: `language: ko` (or `ja`, `zh-CN`).
 
 Fork PRs are skipped by default, because GitHub doesn't give them your secrets. There is an opt-in
 workflow in [`docs/examples/workflow-fork-opt-in.yml`](docs/examples/workflow-fork-opt-in.yml); please read
@@ -101,7 +150,8 @@ the warning at the top before using it.
 
 ## Linking the spec
 
-The action looks for ticket links in the PR description:
+For planning, the spec is the issue you label or the `spec` you give a manual run. For the PR check, the
+action looks for the spec link in the PR description:
 
 - GitHub issues: `#123`, `owner/repo#123`, a full issue URL, or `Closes #123`
 - Jira Cloud: `https://your-site.atlassian.net/browse/PROJ-123`, or just `PROJ-123` if you list `PROJ` in
@@ -118,10 +168,13 @@ No ticket linked? It still runs, works from the code alone, and says so at the t
 
 ## Running it locally
 
-The same thing runs as a CLI. By default it only prints the report and doesn't post anything:
+The same thing runs as a CLI. By default it doesn't post anything: `plan` only writes the `qa-cases`
+files and `run` only prints the report.
 
 ```bash
 export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123                                # files only
+npx qa-ticket-generator plan --repo owner/repo --spec 42 --sinks github-issue --publish       # create tickets
 npx qa-ticket-generator run --repo owner/repo --pr 123            # dry run (default)
 npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
 npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # write the PR comment / Slack message
@@ -139,6 +192,11 @@ sandbox PR, so treat it as a ballpark.
 Bigger PRs are split into several calls and cost more, so every run has a ceiling: `max-cost-usd`, $2 by
 default. If a run would go over it, the least important files are left out and the comment lists them. The
 estimated cost of each run is printed at the bottom of the comment.
+
+Planning a spec is a bigger job, because the cases are written a few acceptance criteria at a time and then
+merged. We expect about $0.5 to $2 per spec, but we haven't measured it yet. The same `max-cost-usd`
+ceiling applies, and `max-cases` (80 by default) caps how many cases one spec can produce; P2 cases are the
+first to go.
 
 ## Where your code goes
 
@@ -167,12 +225,18 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 - Labeling a PR that was opened _before_ you added the workflow may do nothing. GitHub doesn't refresh that
   PR's merge commit, so it never sees the new workflow. Update the branch (the "Update branch" button or
   `gh pr update-branch <number>`) and the next push starts a run.
+- Slack only hears about PRs that link no spec. Plan runs and PR checks against case tickets don't post
+  there yet.
 - Slack incoming webhooks can only post, so each run adds a new message. For update-in-place and threads,
   use a bot token (`slack-bot-token` and `slack-channel`).
 - The default `GITHUB_TOKEN` can't read issues in other private repositories. Pass a personal access token
   or GitHub App token as `github-token` if your specs live elsewhere.
 - Jira Cloud only (no Server or Data Center), and github.com only (no GitHub Enterprise Server) for now.
 - Notion pages have to be shared with your integration (page menu → Connections).
+- Jira sub-tasks need a Jira story to hang under. With a spec written as a GitHub issue or a Notion page,
+  the Jira sink is skipped and the run log says so.
+- Notion gets the case rows but no list of cases per spec, because one database holds the cases of every
+  spec. The spec's GitHub issue or Jira story gets that list instead.
 - The model only sees the changed files. If a requirement is handled in a file the PR doesn't touch, it may
   be reported as missing; the comment lists that kind of assumption at the end.
 

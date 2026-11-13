@@ -6,8 +6,9 @@
 
 > 🚧 pre-v0.1입니다. 테스트 레포에서는 잘 돌아가지만, input 이름이나 코멘트 모양은 아직 바뀔 수 있어요.
 
-PR과 그 PR이 구현해야 할 티켓을 같이 읽고, QA 담당자가 남길 법한 메모를 써 주는 GitHub Action입니다.
-어떤 요구사항이 구현됐고 어떤 게 빠졌는지, 머지 전에 어떤 테스트를 돌려 보면 좋을지를 PR에 남겨 줍니다.
+기획서(GitHub 이슈, Jira 스토리, Notion 페이지)를 읽고 QA 담당자가 돌려 볼 테스트 케이스를 케이스마다
+티켓으로 써 주는 GitHub Action입니다. 놓치기 쉬운 케이스까지 챙깁니다. 그 기획서를 구현한 PR이 올라오면
+코드와 케이스를 대조해서 어떤 케이스가 구현된 것 같은지 알려 줍니다.
 
 ## Why
 
@@ -15,40 +16,73 @@ PR과 그 PR이 구현해야 할 티켓을 같이 읽고, QA 담당자가 남길
 그러다 보니 리뷰 승인 나고 테스트도 다 통과했는데, 일주일 뒤에야 인수 조건 하나가 아예 구현이 안 됐다는 걸
 알게 되는 일이 생깁니다.
 
-이 액션이 그 대조 작업을 대신합니다. PR 본문에 티켓 링크를 넣고 `needs-ai-qa` 라벨을 붙이면, 1\~2분 뒤
-Claude가 코드와 요구사항을 비교한 코멘트를 남깁니다. 코드 리뷰 봇은 아니라서 스타일 같은 건 보지 않습니다.
-이 변경이 기획서대로 동작하는지, 그걸 확인하려면 뭘 테스트해야 하는지만 봅니다.
+이 액션이 그 QA 준비 작업을 대신합니다. 코드가 나오기 전에 기획서를 읽고, 인수 조건마다 경계값이나 실패
+상황까지 포함한 구체적인 테스트 케이스를 만듭니다. 나중에 PR이 올라오면 케이스 하나하나를 코드와 대조합니다.
+코드 리뷰 봇은 아니라서 스타일 같은 건 보지 않습니다. 이 변경이 기획서대로 동작하는지, 그걸 확인하려면 뭘
+테스트해야 하는지만 봅니다.
+
+## How it works
+
+1. 기획. 기획서 이슈에 `needs-qa-plan` 라벨을 붙이거나, Jira 키나 Notion URL을 넣고 워크플로를 직접
+   실행합니다. Claude가 인수 조건마다 흔히 쓰는 테스트 기법(경계값, 잘못된 입력, 권한, 동시성, 시간대 등)을
+   적용해 보고 케이스를 씁니다. 기획서에 안 적힌 부분도 케이스로 만듭니다.
+2. 케이스 티켓. 케이스마다 팀이 이미 쓰는 곳에 티켓이 생깁니다. GitHub 이슈, 스토리 아래 Jira 하위 작업,
+   Notion 데이터베이스의 행 중에서 고르면 됩니다. `qa-cases.md`, `.csv`, `.json` 파일도 같이 나오고, CSV는
+   TestRail이나 스프레드시트로 가져올 수 있어요. 기획서에는 케이스 목록 코멘트가 하나 달립니다.
+3. PR 대조. 기획서를 링크한 PR에 `needs-ai-qa`를 붙입니다. 케이스마다 코드 상태(구현 확인됨, 미구현 의심,
+   기획과 상충, 코드로 판단 불가)가 매겨지고, diff에서만 보이는 위험은 새 케이스로 추가됩니다. PR에는
+   P0 체크리스트가 들어간 요약 코멘트가 남습니다. 아직 케이스를 뽑지 않은 기획서라면 이 단계에서 먼저
+   뽑습니다.
+
+다시 돌려도 괜찮습니다. 같은 케이스는 ID와 티켓이 그대로라서 중복이 생기지 않습니다. 팀이 남긴 실행 결과,
+담당자, 코멘트, 라벨은 절대 덮어쓰지 않습니다. 누가 티켓 내용을 고쳤다면 그대로 두고, 도구가 바꾸려던 내용을
+코멘트로 남깁니다. 기획서에서 빠진 케이스는 닫거나 지우지 않고 해당 없음으로 표시합니다.
+
+Jira나 Notion을 쓰려면 설정이 조금 더 필요합니다:
+[`setup/jira-subtasks.md`](setup/jira-subtasks.md),
+[`setup/notion-qa-database.md`](setup/notion-qa-database.md).
 
 ## What you get
 
-코멘트는 대략 이런 모양입니다(v0.1 전까지 다듬는 중이에요):
+도구가 쓰는 케이스 티켓 하나는 이렇게 생겼습니다(제목은 `[P0][경계값] 만료 1초 지난 쿠폰 적용 시 거부`):
 
 ```markdown
-## 🧪 AI QA — 4e2455c · ⚠️ 부분 일치
+### 전제 조건
 
-**조치 필요 (2)**
+- 쿠폰 EXP1 발급됨, 만료 2026-11-13 23:59:59
+- 주문 금액 30,000원 장바구니
 
-- ❌ AC2 만료된 쿠폰은 거부한다: `expiresAt`을 현재 시각과 비교하는 코드가 없음 (`src/coupon.ts`)
-- ❌ AC4 정률 할인은 최대 10,000원: 상한이 적용되지 않음
+### 테스트 데이터
 
-**P0 체크리스트**
+- 쿠폰 코드 EXP1
+- 현재 시각 2026-11-14 00:00:00
 
-- [ ] TC-01 1초 전에 만료된 쿠폰 → 거부, 사용 기록 남지 않음
-- [ ] TC-02 같은 사용자가 같은 쿠폰을 동시에 두 번 적용 → 한 번만 성공
-- [ ] TC-03 200,000원 주문에 10% 쿠폰 → 할인액 10,000원 (20,000원 아님)
+### 단계
 
-<details><summary>TC-01 만료된 쿠폰 거부 [P0 · AC2]</summary>
-전제: user-A는 EXP1을 쓴 적 없음, 장바구니 소계 30,000원
-데이터: code = EXP1, expiresAt = 현재 - 1초
-단계: 1. 결제 화면 열기 2. EXP1 적용
-기대: "Coupon has expired" CouponError, (user-A, EXP1) 사용 기록 없음
-</details>
+1. 결제 화면 진입
+2. 쿠폰 EXP1 입력 후 적용
 
-<details><summary>P1 / P2 케이스 (9)</summary>…</details>
+### 기대 결과
+
+- **"만료된 쿠폰입니다" 토스트 노출**
+- 결제 금액 30,000원 유지
+
+### 놓치기 쉬운 이유
+
+기획서에 만료 시각 포함 여부(이하/미만) 정의 없음
+
+### 관련 AC
+
+AC3
 ```
 
-커밋을 더 push하면 새 코멘트를 다는 대신 같은 코멘트를 고칩니다. lock 파일이나 빌드 결과물만 바뀐 push는
-무시합니다. Slack을 연결하면 채널에는 짧은 요약이, 그 스레드에는 테스트 케이스가 올라갑니다.
+PR 코멘트는 변경이 기획서와 얼마나 맞는지로 시작하고, 코드가 놓쳤거나 기획과 어긋나 보이는 케이스와 P0
+체크리스트를 티켓 링크와 함께 보여 줍니다. 커밋을 더 push하면 새 코멘트를 다는 대신 같은 코멘트를 고치고,
+lock 파일이나 빌드 결과물만 바뀐 push는 무시합니다.
+
+기획서를 링크하지 않은 PR도 코멘트를 받습니다. 이때는 코드에서 요구사항을 추정해 짧은 테스트 케이스 목록을
+쓰고, 대조할 기획서가 없었다는 점을 함께 적습니다. Slack을 연결하면 채널에는 이 코멘트의 짧은 요약이, 그
+스레드에는 테스트 케이스가 올라갑니다.
 
 내부 흐름이 궁금하면 아래 그림을 보세요.
 
@@ -59,37 +93,51 @@ Claude가 코드와 요구사항을 비교한 코멘트를 남깁니다. 코드 
 Anthropic API 키 하나와 5분 정도면 됩니다.
 
 1. 레포 secret에 `ANTHROPIC_API_KEY`라는 이름으로 키를 넣습니다.
-2. `needs-ai-qa` 라벨을 만듭니다.
-3. 아래 워크플로를 `.github/workflows/qa-ticket-generator.yml`로 추가합니다.
+2. 라벨 두 개를 만듭니다. 기획서용 `needs-qa-plan`, PR용 `needs-ai-qa`.
+3. 아래 워크플로를 `.github/workflows/qa-cases.yml`로 추가합니다.
 
 ```yaml
-name: AI QA
+name: QA cases
 on:
+  issues:
+    types: [labeled]
   pull_request:
     types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      spec: { description: "Issue number, Jira key or Notion URL", required: false }
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
-  issues: read
-
-concurrency:
-  group: qa-ticket-generator-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   qa:
-    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-qa-plan') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'needs-ai-qa'))
+    concurrency:
+      group: qa-cases-${{ github.event.issue.number || github.event.pull_request.number || inputs.spec }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      # 일부러 actions/checkout을 넣지 않습니다. PR 내용은 API로 읽습니다.
-      - uses: ggreing/qa-ticket-generator@v0
+      # 일부러 actions/checkout을 넣지 않습니다. 모든 내용은 API로 읽습니다.
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: steps.qa.outputs.cases-dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-cases
+          path: ${{ steps.qa.outputs.cases-dir }}
 ```
 
-이게 전부입니다. PR에 라벨을 붙이고 코멘트를 기다리면 돼요. 기획서가 Jira나 Notion에 있거나 Slack으로도
-받고 싶다면 [`examples/workflow.yml`](examples/workflow.yml)에 추가 input이 다 나와 있습니다. 결과를
+이게 전부입니다. 기획서 이슈에 라벨을 붙이면 케이스 이슈가 생기고, 그 기획서를 구현한 PR에 라벨을 붙이면
+됩니다. Jira와 Notion input은 주석과 함께 [`examples/workflow-v3.yml`](examples/workflow-v3.yml)에 있습니다.
+케이스 티켓 없이 PR 코멘트만 원하면 [`examples/workflow.yml`](examples/workflow.yml)을 쓰세요. 결과를
 한국어로 받으려면 `language: ko` 한 줄만 넣으면 됩니다.
 
 fork에서 온 PR은 기본적으로 건너뜁니다. GitHub가 fork PR에는 secret을 넘겨주지 않기 때문입니다. 꼭 필요하면
@@ -98,7 +146,8 @@ fork에서 온 PR은 기본적으로 건너뜁니다. GitHub가 fork PR에는 se
 
 ## Linking the spec
 
-액션은 PR 본문에서 티켓 링크를 찾습니다.
+기획 단계에서는 라벨을 붙인 이슈나 직접 실행할 때 넣은 `spec`이 기획서입니다. PR 대조 단계에서는 PR 본문에서
+기획서 링크를 찾습니다.
 
 - GitHub 이슈: `#123`, `owner/repo#123`, 이슈 URL, `Closes #123`
 - Jira Cloud: `https://your-site.atlassian.net/browse/PROJ-123`, 또는 `jira-project-keys`에 `PROJ`를
@@ -115,10 +164,13 @@ fork에서 온 PR은 기본적으로 건너뜁니다. GitHub가 fork PR에는 se
 
 ## Running it locally
 
-같은 기능을 CLI로도 쓸 수 있습니다. 기본은 리포트를 출력만 하고 아무 데도 올리지 않습니다.
+같은 기능을 CLI로도 쓸 수 있습니다. 기본은 아무 데도 올리지 않습니다. `plan`은 `qa-cases` 파일만 쓰고, `run`은
+리포트를 출력만 합니다.
 
 ```bash
 export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123                                # 파일만
+npx qa-ticket-generator plan --repo owner/repo --spec 42 --sinks github-issue --publish       # 티켓 생성
 npx qa-ticket-generator run --repo owner/repo --pr 123            # 드라이런(기본)
 npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
 npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR 코멘트 / Slack에 게시
@@ -135,6 +187,10 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR 코멘트
 큰 PR은 여러 번에 나눠 호출하니까 비용이 더 듭니다. 그래서 실행마다 상한이 있습니다. `max-cost-usd`이고
 기본값은 $2예요. 넘을 것 같으면 덜 중요한 파일부터 빼고, 뭘 뺐는지 코멘트에 적습니다. 매 실행의 예상 비용은
 코멘트 맨 아래에 나옵니다.
+
+기획서에서 케이스를 뽑는 일은 더 큽니다. 인수 조건 몇 개씩 나눠서 케이스를 쓴 뒤 합치기 때문입니다. 기획서
+하나에 $0.5\~2 정도로 예상하지만 아직 재 보지는 않았습니다. 같은 `max-cost-usd` 상한이 적용되고,
+`max-cases`(기본 80)로 기획서 하나의 케이스 수도 제한합니다. 넘으면 P2부터 뺍니다.
 
 ## Where your code goes
 
@@ -160,12 +216,18 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 - 워크플로를 추가하기 _전에_ 열린 PR은 라벨을 붙여도 아무 일이 없을 수 있습니다. GitHub가 그 PR의 merge
   커밋을 갱신하지 않아서 새 워크플로를 못 보기 때문이에요. 브랜치를 갱신하면("Update branch" 버튼이나
   `gh pr update-branch <number>`) 다음 push부터 실행됩니다.
+- Slack에는 기획서를 링크하지 않은 PR만 올라갑니다. 기획 실행과 케이스 티켓 대조 결과는 아직 Slack으로
+  보내지 않습니다.
 - Slack incoming webhook은 게시만 할 수 있어서 실행할 때마다 새 메시지가 쌓입니다. 같은 메시지를 고치고
   스레드를 쓰려면 bot 토큰(`slack-bot-token`, `slack-channel`)을 쓰세요.
 - 기본 `GITHUB_TOKEN`으로는 다른 private 레포의 이슈를 읽지 못합니다. 기획서가 다른 레포에 있다면 PAT나
   GitHub App 토큰을 `github-token`으로 넘기세요.
 - 아직 Jira는 Cloud만(Server, Data Center 미지원), GitHub는 github.com만(GHES 미지원) 됩니다.
 - Notion 페이지는 integration에 공유해야 읽을 수 있습니다(페이지 메뉴 → 연결).
+- Jira 하위 작업은 매달릴 Jira 스토리가 있어야 합니다. 기획서가 GitHub 이슈나 Notion 페이지면 Jira 쪽은
+  건너뛰고 실행 로그에 그렇게 적습니다.
+- Notion에는 케이스 행은 생기지만 기획서별 케이스 목록은 없습니다. 데이터베이스 하나에 모든 기획서의 케이스가
+  들어가기 때문입니다. 그 목록은 기획서의 GitHub 이슈나 Jira 스토리에 달립니다.
 - 모델은 바뀐 파일만 봅니다. PR이 건드리지 않은 파일에서 처리하는 요구사항은 "누락"으로 나올 수 있고,
   그런 가정은 코멘트 끝에 따로 적습니다.
 

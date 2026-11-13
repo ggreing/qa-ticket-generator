@@ -1,0 +1,65 @@
+# .github/workflows/qa-cases.yml
+#
+# Spec to QA cases (SPEC v3). One workflow covers the whole loop:
+# - plan: add the `needs-qa-plan` label to a spec issue, or start the workflow by hand with a
+#   Jira key / Notion URL in `spec`. Every test case becomes its own ticket.
+# - verify: add `needs-ai-qa` to a PR that links the spec. The case tickets get a code status and
+#   the PR gets a summary comment. A PR that links no spec gets the plain PR review comment.
+#
+# Do NOT add actions/checkout: the action reads everything through the APIs.
+name: QA cases
+on:
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      spec: { description: "Spec to plan from: issue number, Jira key or Notion URL", required: false }
+      pr-number: { description: "PR to check against its cases", required: false }
+
+permissions:
+  contents: read # read file contents for function-level context
+  issues: write # create and update the case issues, labels and summary comments
+  pull-requests: write # create / update the PR summary comment
+
+jobs:
+  qa:
+    # Only start a runner for the two labels and manual runs (the action checks again).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-qa-plan') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'needs-ai-qa'))
+    # On the job, not the workflow: a run skipped by `if` (another label added to the spec issue)
+    # must not cancel a plan run. Plan runs are left to finish; a newer push replaces a PR check.
+    concurrency:
+      group: qa-cases-${{ github.event.issue.number || github.event.pull_request.number || inputs.spec || inputs.pr-number }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          language: en
+          # github-issue: one issue per case. file: qa-cases.md / .csv / .json for the artifact below.
+          # Add jira and/or notion here once they are set up (docs/setup/).
+          sinks: github-issue,file
+          # Jira sub-tasks (docs/setup/jira-subtasks.md):
+          # jira-base-url: https://acme.atlassian.net
+          # jira-email: ${{ secrets.JIRA_EMAIL }}
+          # jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          # jira-subtask-type: Sub-task
+          # Notion case database (docs/setup/notion-qa-database.md):
+          # notion-token: ${{ secrets.NOTION_TOKEN }}
+          # notion-qa-database-id: 0123456789abcdef0123456789abcdef
+      # Plan runs also write the cases as files; keep them with the run.
+      # Pin this action to a full commit SHA in your own workflow.
+      - name: Upload QA case files
+        if: steps.qa.outputs.cases-dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-cases
+          path: ${{ steps.qa.outputs.cases-dir }}
+          if-no-files-found: ignore
