@@ -3,7 +3,7 @@
  * a code status per case, the cases only the code reveals, and the requirement alignment come out.
  *
  * Block order: system (method, style) → language style → <spec> → <cases> → <code_changes> →
- * <skipped_files> → <case_index> → <task>. System, spec and cases are the same for every call of
+ * <skipped_files> → <changed_since_last_check> → <case_index> → <task>. System, spec and cases are the same for every call of
  * a run. <case_index> lists the whole sheet and goes only to the call that may write new cases:
  * a pull request is verified again on every push, and a call that sees only its own batch of
  * cases writes the code-derived cases of the last run a second time in other words.
@@ -12,11 +12,12 @@
  */
 import type { QaCase, VerifyRequest } from '../../core/cases';
 import type { CodeChunk, SkippedFile } from '../../core/contracts';
+import { type ResolvedScope, scopeCodeFiles } from '../scope';
 import { guardSpec, type Requirement } from './plan';
 import { STYLE_GUIDE } from './style';
 import { attr, buildCodeSection, buildSkippedSection } from './user';
 
-export const VERIFY_PROMPT_VERSION = '2026-11-13.4';
+export const VERIFY_PROMPT_VERSION = '2026-11-13.5';
 
 export const VERIFY_SYSTEM = `You are a senior QA engineer. A spec already has a sheet of test cases, and a pull request that implements the spec has arrived. You read the code change and do three things: say for each case whether the code makes it pass, add the cases that only the code reveals, and say for each requirement whether the change meets it. A program reads your answer, so it is a single JSON object that follows the provided schema.
 
@@ -73,6 +74,17 @@ Every new case starts with \`sameAsCaseId\`, and you fill it before you write th
 
 Most of what the code reveals is found the first time a pull request is checked. On a later run, an empty \`newCases\` is the normal answer, and it is the right one whenever the index already has every risk you can point to.
 
+# When this pull request was checked before
+
+Sometimes the message also holds <changed_since_last_check>: the lines that were pushed since this check last ran. The statuses and the requirement findings do not change because of it. Judge them on the whole pull request in <code_changes>, exactly as described above. Only the search for new cases narrows:
+
+- A new case is allowed only for a risk that those pushed lines create or change. In its \`whyEasyToMiss\`, name the changed file with its path exactly as written there, and the function the change is in.
+- A risk that was already in the code at the last check is not new now, even when no case covers it and even when you can see it plainly. The team decided this: tickets appear when the code changes, not each time the same code is read again.
+- Lines that change no behavior create no risk: comments, blank lines, formatting, reordered imports, a renamed local. When that is all that was pushed, \`newCases\` is empty.
+- Files listed there without their lines changed only in comments or formatting, or are not shown to you. No new case can come from them.
+
+A program checks each new case against the pushed lines and discards the ones that point elsewhere.
+
 # Requirement alignment
 
 Write exactly one finding per requirement of the spec, starting with the requirement's label:
@@ -123,6 +135,50 @@ export function buildCaseIndex(cases: QaCase[]): string {
   return `<case_index>\nid | requirements | technique | origin | title | code location (code-derived cases)\n${rows.length > 0 ? rows.join('\n') : '(none)'}\n</case_index>`;
 }
 
+/** Longest patch shown per file, and in total, in <changed_since_last_check>. The same lines are in <code_changes>. */
+const SCOPE_FILE_CHARS = 8_000;
+const SCOPE_TOTAL_CHARS = 40_000;
+const SCOPE_PATHS_LISTED = 50;
+
+const cutAtLine = (text: string, limit: number): string => {
+  if (text.length <= limit) return text;
+  const end = text.lastIndexOf('\n', limit);
+  return `${text.slice(0, end > 0 ? end : limit)}\n(cut here; the rest of this change is in <code_changes>)`;
+};
+const listed = (paths: string[]): string =>
+  paths.length <= SCOPE_PATHS_LISTED
+    ? paths.map((p) => guardSpec(p)).join(', ')
+    : `${paths
+        .slice(0, SCOPE_PATHS_LISTED)
+        .map((p) => guardSpec(p))
+        .join(', ')} and ${paths.length - SCOPE_PATHS_LISTED} more`;
+
+/**
+ * `<changed_since_last_check>` for one call: the pushed lines of this chunk's files that can
+ * change behavior, and the names of the files no new case can come from.
+ */
+export function buildScopeBlock(scope: ResolvedScope, chunk: CodeChunk): string {
+  const inChunk = new Set(chunk.files.map((f) => f.path));
+  const code = scopeCodeFiles(scope, chunk);
+  const cosmetic = scope.files.filter((f) => f.kind === 'cosmetic' && inChunk.has(f.path)).map((f) => f.path);
+  const hidden = scope.files.filter((f) => f.kind === 'hidden').map((f) => f.path);
+  const lines: string[] = [];
+  let left = SCOPE_TOTAL_CHARS;
+  for (const file of code) {
+    const patch =
+      left > 0
+        ? // Guarded before it is cut, so the note about the cut keeps its own tag name readable.
+          cutAtLine(guardSpec(file.patch), Math.min(SCOPE_FILE_CHARS, left))
+        : '(not shown here; see this file in <code_changes>)';
+    left -= patch.length;
+    lines.push(`<changed_file path="${attr(file.path)}">\n${patch}\n</changed_file>`);
+  }
+  if (code.length === 0) lines.push('No line that can change behavior was pushed to the files shown to you.');
+  if (cosmetic.length > 0) lines.push(`Changed in comments or formatting only: ${listed(cosmetic)}`);
+  if (hidden.length > 0) lines.push(`Changed, but not shown to you: ${listed(hidden)}`);
+  return `<changed_since_last_check since="${attr(scope.sinceSha.slice(0, 12))}">\n${lines.join('\n')}\n</changed_since_last_check>`;
+}
+
 function specBlock(req: VerifyRequest, requirements: Requirement[]): string {
   const listed = requirements.filter((r) => r.text !== '');
   const reqs =
@@ -156,6 +212,8 @@ export interface VerifyTaskOptions {
   caseCount: number;
   /** Every case of the sheet, across all batches. Shown as an index when new cases are asked for. */
   sheet?: QaCase[];
+  /** Set after the first check of a pull request: new cases only from these pushed lines. */
+  scope?: ResolvedScope | null;
 }
 
 /** Everything after the shared prefix: the code of this call and what to do with it. */
@@ -169,9 +227,16 @@ export function buildVerifyTail(
       ? 'Judge the pull request above.'
       : `Judge this part of the pull request. The change is too large for one pass, so it was split: you are seeing one part, and the other parts are judged separately. When the code a case depends on is not in this part, answer "unknown" and say it may be in another part; answer "missing" only when this part contains the place where the behavior would have to be. Apply the same rule to the requirement findings, with "unclear" in place of "unknown".`;
   const statuses = `Return one status for each of the ${options.caseCount} cases in <cases>, with the case ids exactly as given.`;
-  const extras = options.withCodeCases
-    ? `Then add at most ${options.maxNewCases} new ${options.maxNewCases === 1 ? 'case' : 'cases'} for risks that only the code reveals and that no case in <case_index> already covers, most important first, and one finding per requirement. When the index covers them all, return an empty \`newCases\`.`
-    : 'Leave `newCases` and the findings empty in this answer; another call handles them.';
+  const narrowed = options.withCodeCases && options.scope ? options.scope : null;
+  const count = `at most ${options.maxNewCases} new ${options.maxNewCases === 1 ? 'case' : 'cases'}`;
+  const extras = !options.withCodeCases
+    ? 'Leave `newCases` and the findings empty in this answer; another call handles them.'
+    : narrowed === null
+      ? `Then add ${count} for risks that only the code reveals and that no case in <case_index> already covers, most important first, and one finding per requirement. When the index covers them all, return an empty \`newCases\`.`
+      : scopeCodeFiles(narrowed, chunk).length === 0
+        ? 'Return an empty `newCases`: this pull request was checked before, and nothing that can change behavior was pushed since. Then give one finding per requirement.'
+        : `This pull request was checked before. Then add ${count}, only for risks that the lines in <changed_since_last_check> create or change and that no case in <case_index> already covers, most important first, and one finding per requirement. When those lines create no such risk, return an empty \`newCases\`.`;
+  const pushed = narrowed ? `${buildScopeBlock(narrowed, chunk)}\n` : '';
   const index = options.withCodeCases ? `${buildCaseIndex(options.sheet ?? [])}\n` : '';
-  return `${buildCodeSection(chunk)}\n${buildSkippedSection(skipped)}\n${index}<task>\n${scope} ${statuses} ${extras}\n</task>`;
+  return `${buildCodeSection(chunk)}\n${buildSkippedSection(skipped)}\n${pushed}${index}<task>\n${scope} ${statuses} ${extras}\n</task>`;
 }
