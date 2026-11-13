@@ -68,6 +68,24 @@ export async function main(): Promise<void> {
       return;
     }
 
+    if (result.kind === 'verified') {
+      const o = result.outcome;
+      const active = o.cases.filter((c) => c.lifecycle === 'active');
+      core.setOutput('case-count', String(active.length));
+      core.setOutput('alignment-status', o.alignment?.status ?? '');
+      core.setOutput('cost-usd', o.costUsd.toFixed(4));
+      if (o.failed) {
+        core.setFailed(
+          o.status === 'error'
+            ? `QA check failed: ${o.error?.message ?? 'unknown error'}`
+            : `PRD alignment is "${o.alignment?.status}" (fail-on: ${result.config.failOn}).`,
+        );
+      } else if (o.status === 'error') {
+        core.warning(`QA check did not complete: ${o.error?.message ?? 'unknown error'}`);
+      }
+      return;
+    }
+
     const { final, failed } = result.outcome;
     core.setOutput('scenario-count', String(final.report?.scenarios.length ?? 0));
     core.setOutput('alignment-status', final.report?.prdAlignment.status ?? '');

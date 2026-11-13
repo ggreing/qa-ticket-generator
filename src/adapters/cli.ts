@@ -88,6 +88,11 @@ export async function main(argv: string[]): Promise<number> {
       if (o.status === 'error') err(`error: ${o.error?.message ?? 'unknown error'}`);
       return o.status === 'error' ? 1 : 0;
     }
+    if (result.kind === 'verified') {
+      const o = result.outcome;
+      if (o.status === 'error') err(`error: ${o.error?.message ?? 'unknown error'}`);
+      return o.failed || o.status === 'error' ? 1 : 0;
+    }
     const { final, failed } = result.outcome;
     if (final.status === 'error') err(`error: ${final.error?.message ?? 'unknown error'}`);
     return failed || final.status === 'error' ? 1 : 0;

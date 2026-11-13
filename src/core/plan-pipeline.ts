@@ -78,6 +78,24 @@ export interface PlanOutcome {
   error?: { code: string; message: string };
 }
 
+/**
+ * §5 — sinks that can hold cases for this spec. Jira cases are sub-tasks of the spec story, so
+ * the Jira sink only applies to Jira specs; for other specs it is skipped with a warning.
+ */
+export function usableSinks(sinks: CaseSink[], spec: PrdRef, warnings: Warning[]): CaseSink[] {
+  return sinks.filter((s) => {
+    if (!s.isConfigured()) return false;
+    if (s.kind === 'jira' && spec.source !== 'jira') {
+      warnings.push({
+        code: 'other',
+        message: `The jira sink was skipped: ${spec.raw} is not a Jira issue, and case sub-tasks need a Jira story.`,
+      });
+      return false;
+    }
+    return true;
+  });
+}
+
 /** §5 — the sink whose tickets are the source of existing cases: jira > notion > github-issue > file. */
 export function primarySink(sinks: CaseSink[]): CaseSink | null {
   const order: SinkKind[] = ['jira', 'notion', 'github-issue', 'file'];
@@ -116,7 +134,7 @@ export async function runPlan(
   };
 
   try {
-    const sinks = deps.sinks.filter((s) => s.isConfigured());
+    const sinks = usableSinks(deps.sinks, specRef, warnings);
     if (sinks.length === 0)
       throw new QtgError('config_invalid', 'No configured sink. Check the "sinks" input.');
 

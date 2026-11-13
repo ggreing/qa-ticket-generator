@@ -37,7 +37,14 @@ import type {
 } from './contracts';
 import { toQtgError } from './errors';
 import { EXPECTED_OUTPUT_TOKENS, PRD_TIMEOUT_MS } from './limits';
-import { type PlanDeps, type PlanOutcome, primarySink, type SinkOutcome, syncSink } from './plan-pipeline';
+import {
+  type PlanDeps,
+  type PlanOutcome,
+  primarySink,
+  type SinkOutcome,
+  syncSink,
+  usableSinks,
+} from './plan-pipeline';
 import type { QaReport } from './schema';
 
 /** What the verify summary renderer needs (mirrors src/delivery VerifySummaryInput). */
@@ -136,7 +143,7 @@ export async function runVerify(
     body: deps.redactText(pr.body).text,
   };
   const sinks = cfg.dryRun ? deps.sinks.filter((s) => s.kind === 'file') : deps.sinks;
-  const configured = sinks.filter((s) => s.isConfigured());
+  const configured = usableSinks(sinks, refs[0] as PrdRef, warnings);
 
   let commentId: number | null = null;
   let state: DeliveryState = { v: 1 };

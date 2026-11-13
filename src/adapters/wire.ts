@@ -4,7 +4,7 @@
  * OWNERSHIP: control session.
  */
 
-import { lintCaseStyle, planSync, reconcileCases, renderCase } from '../cases';
+import { applyVerify, lintCaseStyle, planSync, reconcileCases, renderCase } from '../cases';
 import { createGitHubReader } from '../context/github';
 import { createGitHubIssueProvider } from '../context/prd/github-issue';
 import { createJiraProvider } from '../context/prd/jira';
@@ -19,14 +19,17 @@ import { astExtensionsFor } from '../core/languages';
 import { MAX_OUTPUT_TOKENS } from '../core/limits';
 import type { Octokit } from '../core/octokit';
 import { type PipelineOutcome, runPipeline } from '../core/pipeline';
-import { type PlanOutcome, runPlan } from '../core/plan-pipeline';
+import { type PlanDeps, type PlanOutcome, runPlan } from '../core/plan-pipeline';
+import { runVerify, type VerifyOutcome } from '../core/verify-pipeline';
 import { createPrCommentStore } from '../delivery/comment-store';
 import { renderPrComment } from '../delivery/render/markdown';
+import { renderVerifyComment, renderVerifySummaryMarkdown } from '../delivery/render/verify-summary';
 import { createSlackDeliverer } from '../delivery/slack';
 import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
 import { createAnthropicProvider } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
 import { generatePlan } from '../llm/plan';
+import { verifyCases } from '../llm/verify';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
 import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
 import { createFileCaseSink } from '../sinks/file';
@@ -57,7 +60,8 @@ export interface ExecuteRequest {
 export type ExecuteResult =
   | { kind: 'skipped'; reason: TriggerSkipReason }
   | { kind: 'ran'; outcome: PipelineOutcome; config: QtgConfig }
-  | { kind: 'planned'; outcome: PlanOutcome; config: QtgConfig };
+  | { kind: 'planned'; outcome: PlanOutcome; config: QtgConfig }
+  | { kind: 'verified'; outcome: Extract<VerifyOutcome, { kind: 'verified' }>; config: QtgConfig };
 
 const SKIP_TEXT: Record<TriggerSkipReason, string> = {
   irrelevant_label: 'A different label was added.',
@@ -125,30 +129,58 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
   const cfg = resolveConfig(input, parseRepoConfig(await reader.getRepoConfigText(pr, early.configPath)));
 
   const preprocessEngine = await createPreprocessEngine({ astLanguages: cfg.preprocess.astLanguages });
-  const llm = createAnthropicProvider(
-    {
-      apiKey: cfg.anthropicApiKey,
-      model: cfg.model,
-      effort: cfg.effort,
-      serverFallback: cfg.serverFallback,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-    },
-    { logger },
-  );
+  const llm = buildLlm(cfg, logger);
+  const prdProviders = buildPrdProviders(req, cfg);
+  const commentStore = createPrCommentStore(req.octokit, {
+    logger,
+    ...(cfg.commentAuthor ? { trustedAuthor: cfg.commentAuthor } : {}),
+  });
 
+  // SPEC v3 §2.2 — a PR that links a spec is checked against that spec's QA cases.
+  const sinks = buildSinks(req, cfg);
+  const verified = await runVerify(
+    {
+      logger,
+      github: reader,
+      commentStore,
+      prdProviders,
+      extractPrdRefs,
+      collectPrdDocuments,
+      preprocessEngine,
+      isNoisePath,
+      redactText,
+      llm,
+      verifyCases,
+      applyVerify,
+      planSync,
+      renderCase,
+      sinks,
+      runPlan: (spec, signal) => runPlan(planDeps(req, cfg, llm, sinks), cfg, spec, signal),
+      renderComment: renderVerifyComment,
+      renderSummary: renderVerifySummaryMarkdown,
+      writeSummary: (markdown) => req.sink.writeMarkdown(markdown),
+      now: () => Date.now(),
+    },
+    cfg,
+    pr,
+    event,
+    req.signal,
+  );
+  if (verified.kind === 'verified') return { kind: 'verified', outcome: verified, config: cfg };
+  if (verified.kind === 'skipped') {
+    await req.sink.writeMarkdown(
+      `### 🧪 QA cases — skipped\n\n${SKIP_TEXT.no_logic_change} (\`no_logic_change\`)\n`,
+    );
+    return { kind: 'skipped', reason: 'no_logic_change' };
+  }
+
+  // No spec linked: the v2 risk comment.
   const outcome = await runPipeline(
     {
       logger,
       github: reader,
-      commentStore: createPrCommentStore(req.octokit, {
-        logger,
-        ...(cfg.commentAuthor ? { trustedAuthor: cfg.commentAuthor } : {}),
-      }),
-      prdProviders: [
-        createGitHubIssueProvider(req.octokit),
-        createJiraProvider(cfg.jira),
-        createNotionProvider(cfg.notionToken),
-      ],
+      commentStore,
+      prdProviders,
       extractPrdRefs,
       collectPrdDocuments,
       preprocessEngine,
@@ -169,6 +201,87 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
   return { kind: 'ran', outcome, config: cfg };
 }
 
+function buildLlm(cfg: QtgConfig, logger: Logger) {
+  return createAnthropicProvider(
+    {
+      apiKey: cfg.anthropicApiKey,
+      model: cfg.model,
+      effort: cfg.effort,
+      serverFallback: cfg.serverFallback,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+    },
+    { logger },
+  );
+}
+
+function buildPrdProviders(req: ExecuteRequest, cfg: QtgConfig) {
+  return [
+    createGitHubIssueProvider(req.octokit),
+    createJiraProvider(cfg.jira),
+    createNotionProvider(cfg.notionToken),
+  ];
+}
+
+/** SPEC v3 §5 — the configured case sinks. Dry-run keeps only the file sink. */
+function buildSinks(req: ExecuteRequest, cfg: QtgConfig): CaseSink[] {
+  const { logger } = req;
+  const ctx = { logger, language: cfg.language };
+  const kinds = cfg.dryRun ? (['file'] as const) : cfg.sinks;
+  if (cfg.dryRun && cfg.sinks.some((k) => k !== 'file')) {
+    logger.info(
+      'Dry-run: writing qa-cases files only. Pass --publish (CLI) or dry-run: false to create tickets.',
+    );
+  }
+  return kinds.map((kind) => {
+    switch (kind) {
+      case 'jira':
+        return createJiraCaseSink(cfg.jira ? { ...cfg.jira, subtaskType: cfg.jiraSubtaskType } : null, ctx);
+      case 'github-issue':
+        return createGitHubIssueCaseSink(
+          req.octokit,
+          {
+            owner: req.owner,
+            repo: req.repo,
+            ...(cfg.commentAuthor ? { trustedAuthor: cfg.commentAuthor } : {}),
+          },
+          ctx,
+        );
+      case 'notion':
+        return createNotionCaseSink(
+          cfg.notionToken && cfg.notionQaDatabaseId
+            ? { token: cfg.notionToken, databaseId: cfg.notionQaDatabaseId }
+            : null,
+          ctx,
+        );
+      case 'file':
+        return createFileCaseSink({ dir: req.caseFileDir, previous: null }, ctx);
+      default:
+        throw new QtgError('config_invalid', `Unknown sink "${String(kind)}".`);
+    }
+  });
+}
+
+function planDeps(
+  req: ExecuteRequest,
+  cfg: QtgConfig,
+  llm: ReturnType<typeof buildLlm>,
+  sinks: CaseSink[],
+): PlanDeps {
+  return {
+    logger: req.logger,
+    prdProviders: buildPrdProviders(req, cfg),
+    collectPrdDocuments,
+    redactText,
+    llm,
+    generatePlan,
+    reconcileCases,
+    planSync,
+    renderCase,
+    lintCaseStyle,
+    sinks,
+  };
+}
+
 async function executePlan(req: ExecuteRequest, early: QtgConfig, spec: PrdRef): Promise<ExecuteResult> {
   const { input, logger } = req;
   // Repo config from the default branch: a plan run has no PR base to read it from.
@@ -185,68 +298,8 @@ async function executePlan(req: ExecuteRequest, early: QtgConfig, spec: PrdRef):
     repoInfo.default_branch,
   );
   const cfg = resolveConfig(input, parseRepoConfig(repoText));
-  const ctx = { logger, language: cfg.language };
-
-  // Dry-run publishes nothing outside the run: only the file sink stays.
-  const kinds = cfg.dryRun ? (['file'] as const) : cfg.sinks;
-  if (cfg.dryRun && cfg.sinks.some((k) => k !== 'file')) {
-    logger.info(
-      'Dry-run: writing qa-cases files only. Pass --publish (CLI) or dry-run: false to create tickets.',
-    );
-  }
-  const sinks: CaseSink[] = kinds.map((kind) => {
-    switch (kind) {
-      case 'jira':
-        return createJiraCaseSink(cfg.jira ? { ...cfg.jira, subtaskType: cfg.jiraSubtaskType } : null, ctx);
-      case 'github-issue':
-        return createGitHubIssueCaseSink(req.octokit, { owner: req.owner, repo: req.repo }, ctx);
-      case 'notion':
-        return createNotionCaseSink(
-          cfg.notionToken && cfg.notionQaDatabaseId
-            ? { token: cfg.notionToken, databaseId: cfg.notionQaDatabaseId }
-            : null,
-          ctx,
-        );
-      case 'file':
-        return createFileCaseSink({ dir: req.caseFileDir, previous: null }, ctx);
-      default:
-        throw new QtgError('config_invalid', `Unknown sink "${String(kind)}".`);
-    }
-  });
-
-  const llm = createAnthropicProvider(
-    {
-      apiKey: cfg.anthropicApiKey,
-      model: cfg.model,
-      effort: cfg.effort,
-      serverFallback: cfg.serverFallback,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-    },
-    { logger },
-  );
-
-  const outcome = await runPlan(
-    {
-      logger,
-      prdProviders: [
-        createGitHubIssueProvider(req.octokit),
-        createJiraProvider(cfg.jira),
-        createNotionProvider(cfg.notionToken),
-      ],
-      collectPrdDocuments,
-      redactText,
-      llm,
-      generatePlan,
-      reconcileCases,
-      planSync,
-      renderCase,
-      lintCaseStyle,
-      sinks,
-    },
-    cfg,
-    spec,
-    req.signal,
-  );
+  const llm = buildLlm(cfg, logger);
+  const outcome = await runPlan(planDeps(req, cfg, llm, buildSinks(req, cfg)), cfg, spec, req.signal);
   await req.sink.writeMarkdown(renderPlanSummary(outcome));
   return { kind: 'planned', outcome, config: cfg };
 }
