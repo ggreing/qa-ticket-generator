@@ -159,6 +159,10 @@ function makeDeps(sink: CaseSink, over: Partial<VerifyDeps> = {}) {
     } as unknown as VerifyDeps['preprocessEngine'],
     isNoisePath: () => false,
     redactText: (t: string) => ({ text: t, redactions: [] }),
+    redactPatch: (t: string) => ({
+      text: t.replace('ghp_SECRET', '[REDACTED:github_token]'),
+      redactions: [],
+    }),
     llm: { id: 'fake', generateReport: vi.fn(), mergeReports: vi.fn(), estimateCostUsd: () => 0 },
     verifyCases: vi.fn(async () => verifyResult()),
     applyVerify,
@@ -363,5 +367,29 @@ describe('runVerify new-case scope (SPEC v3 §2.2)', () => {
     unknown.deps.github.getChangesBetween = vi.fn(async () => null);
     await runVerify(unknown.deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
     expect(vi.mocked(unknown.deps.verifyCases).mock.calls[0]?.[0].newCaseScope).toBeNull();
+  });
+});
+
+describe('runVerify scope hygiene (PRE-05)', () => {
+  it('masks secrets and drops noise files in the new-case scope before the model sees it', async () => {
+    const { deps } = makeDeps(memorySink([baseCase(1)]), {
+      commentStore: {
+        load: vi.fn(async () => ({
+          commentId: 1,
+          state: { v: 1 as const, sha: 'c'.repeat(40) },
+          warnings: [],
+        })),
+        save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+      },
+    });
+    deps.isNoisePath = (p: string) => p.endsWith('.lock');
+    deps.github.getChangesBetween = vi.fn(async () => [
+      { path: 'src/coupon.ts', patch: '+const t = "ghp_SECRET";' },
+      { path: 'yarn.lock', patch: '+x' },
+    ]);
+    await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(vi.mocked(deps.verifyCases).mock.calls[0]?.[0].newCaseScope?.changes).toEqual([
+      { path: 'src/coupon.ts', patch: '+const t = "[REDACTED:github_token]";' },
+    ]);
   });
 });

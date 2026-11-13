@@ -32,7 +32,7 @@ import { orchestrate } from '../llm/orchestrate';
 import { generatePlan } from '../llm/plan';
 import { verifyCases } from '../llm/verify';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
-import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
+import { finalizeRedactions, redactDiffBody, redactText as redactRaw } from '../preprocess/redact';
 import { createFileCaseSink, FILE_NAMES } from '../sinks/file';
 import { createGitHubIssueCaseSink } from '../sinks/github-issue';
 import { createJiraCaseSink } from '../sinks/jira';
@@ -159,6 +159,7 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
       redactText,
       llm,
       verifyCases,
+      redactPatch,
       applyVerify,
       planSync,
       renderCase,
@@ -350,6 +351,13 @@ export function renderPlanSummary(o: PlanOutcome): string {
     lines.push('', `Style check: ${o.styleViolations} phrases read as machine-written.`);
   }
   return `${lines.join('\n')}\n`;
+}
+
+/** PRE-05 for diff text outside the preprocess engine (the verify new-case scope). */
+export function redactPatch(text: string): { text: string; redactions: { type: string; count: number }[] } {
+  const counts = new Map<string, number>();
+  const out = finalizeRedactions(redactDiffBody(text), counts);
+  return { text: out, redactions: [...counts].map(([type, count]) => ({ type, count })) };
 }
 
 /** PRE-05 for the PR title/body, using the engine's own marker pipeline (spoof-proof counts). */

@@ -79,6 +79,8 @@ export interface VerifyDeps {
   preprocessEngine: PreprocessEngine;
   isNoisePath: IsNoisePath;
   redactText: RedactText;
+  /** PRE-05 for unified-diff text (keeps hunk headers); applied once to the new-case scope. */
+  redactPatch: RedactText;
   llm: LlmProvider;
   verifyCases: (
     req: VerifyRequest,
@@ -229,7 +231,15 @@ export async function runVerify(
     let newCaseScope: VerifyRequest['newCaseScope'] = null;
     if (state.sha && state.sha !== pr.headSha && event.name !== 'workflow_dispatch') {
       const changes = (await deps.github.getChangesBetween?.(pr, state.sha, pr.headSha)) ?? null;
-      if (changes) newCaseScope = { sinceSha: state.sha, changes };
+      if (changes) {
+        // Same rules as the PR chunks: no noise files, and secrets masked exactly once.
+        newCaseScope = {
+          sinceSha: state.sha,
+          changes: changes
+            .filter((c) => !deps.isNoisePath(c.path, cfg.preprocess))
+            .map((c) => ({ path: c.path, patch: deps.redactPatch(c.patch).text })),
+        };
+      }
     }
     const result = await logger.group('Check cases against the code', () =>
       deps.verifyCases(
