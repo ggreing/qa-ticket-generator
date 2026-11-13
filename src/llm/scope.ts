@@ -179,9 +179,9 @@ export type OutOfScopeReason =
   | 'unchanged_code_named';
 
 const WORD = '[A-Za-z0-9_$]';
-const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const hasWord = (text: string, word: string): boolean =>
-  new RegExp(`(?<!${WORD})${escape(word)}(?!${WORD})`).test(text);
+  new RegExp(`(?<!${WORD})${escapeRegExp(word)}(?!${WORD})`).test(text);
 const basename = (path: string): string => path.slice(path.lastIndexOf('/') + 1);
 
 /**
