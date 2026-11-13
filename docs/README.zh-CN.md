@@ -133,9 +133,8 @@ jobs:
         uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-      # 这一步 upload-artifact 可能会打印 Node 版本或 deprecation 警告,不影响上传。
       - if: steps.qa.outputs.cases-dir != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: qa-cases
           path: ${{ steps.qa.outputs.cases-dir }}
