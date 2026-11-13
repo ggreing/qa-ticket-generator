@@ -4,6 +4,7 @@
  * OWNERSHIP: control session.
  */
 
+import { existsSync } from 'node:fs';
 import { applyVerify, lintCaseStyle, planSync, reconcileCases, renderCase } from '../cases';
 import { createGitHubReader } from '../context/github';
 import { createGitHubIssueProvider } from '../context/prd/github-issue';
@@ -32,7 +33,7 @@ import { generatePlan } from '../llm/plan';
 import { verifyCases } from '../llm/verify';
 import { createPreprocessEngine, isNoisePath } from '../preprocess';
 import { finalizeRedactions, redactText as redactRaw } from '../preprocess/redact';
-import { createFileCaseSink } from '../sinks/file';
+import { createFileCaseSink, FILE_NAMES } from '../sinks/file';
 import { createGitHubIssueCaseSink } from '../sinks/github-issue';
 import { createJiraCaseSink } from '../sinks/jira';
 import { createNotionCaseSink } from '../sinks/notion';
@@ -55,6 +56,11 @@ export interface ExecuteRequest {
   bypassGate?: boolean;
   /** SPEC v3 §5 — where the file sink writes qa-cases.{md,csv,json}. */
   caseFileDir: string;
+  /**
+   * SPEC v3 §5 — `qa-cases.json` to continue from when the `previous-cases` input is empty, used only
+   * if the file exists. The CLI passes `<out-dir>/qa-cases.json` so a re-run in the same folder keeps ids.
+   */
+  defaultPreviousCases?: string;
 }
 
 export type ExecuteResult =
@@ -222,6 +228,20 @@ function buildPrdProviders(req: ExecuteRequest, cfg: QtgConfig) {
   ];
 }
 
+/** SPEC v3 §5 — the previous `qa-cases.json` for the file sink: the input, else an existing default. */
+export function previousCasesFor(
+  req: Pick<ExecuteRequest, 'defaultPreviousCases' | 'logger'>,
+  cfg: QtgConfig,
+): string | null {
+  if (cfg.previousCases) return cfg.previousCases;
+  const fallback = req.defaultPreviousCases;
+  if (fallback && existsSync(fallback)) {
+    req.logger.info(`Continuing from the earlier ${FILE_NAMES.json} in the output folder.`);
+    return fallback;
+  }
+  return null;
+}
+
 /** SPEC v3 §5 — the configured case sinks. Dry-run keeps only the file sink. */
 function buildSinks(req: ExecuteRequest, cfg: QtgConfig): CaseSink[] {
   const { logger } = req;
@@ -254,7 +274,7 @@ function buildSinks(req: ExecuteRequest, cfg: QtgConfig): CaseSink[] {
           ctx,
         );
       case 'file':
-        return createFileCaseSink({ dir: req.caseFileDir, previous: null }, ctx);
+        return createFileCaseSink({ dir: req.caseFileDir, previous: previousCasesFor(req, cfg) }, ctx);
       default:
         throw new QtgError('config_invalid', `Unknown sink "${String(kind)}".`);
     }

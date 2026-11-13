@@ -126,6 +126,9 @@ inputs:
     description: Safety cap on cases per spec; P2 cases are dropped first beyond it.
     required: false
     default: "80"
+  previous-cases:
+    description: Path to qa-cases.json from an earlier run (e.g. a downloaded artifact) so the file sink keeps case ids.
+    required: false
   dry-run:
     description: Do not publish; write the report to the job summary only.
     required: false

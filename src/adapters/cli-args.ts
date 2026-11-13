@@ -19,6 +19,8 @@ Options:
   --spec <ref>            Spec to plan from (plan)
   --sinks <list>          jira,github-issue,notion,file (plan, with --publish)
   --out-dir <path>        Where qa-cases.* files go (plan, default: .)
+  --previous <path>       qa-cases.json of an earlier run to continue from
+                          (plan, default: <out-dir>/qa-cases.json when it exists)
   --max-cases <n>         Safety cap on cases per spec (plan, default: 80)
   --pr <number>           Pull request number (run)
   --publish               Publish to the PR comment / Slack instead of dry-run
@@ -107,6 +109,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case 'out-dir':
         args.outDir = value;
+        break;
+      case 'previous':
+        args.inputs['previous-cases'] = value;
         break;
       default:
         if (name && INPUT_FLAGS.has(name)) args.inputs[name] = value;

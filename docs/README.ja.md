@@ -179,42 +179,43 @@ PR のタイトルと説明文も同じです。いくつマスクしたかは�
 ### Inputs
 
 <!-- inputs:start -->
-| Input                   | 必須 | デフォルト                        | 説明                                                                                |
-| ----------------------- | ---- | --------------------------------- | ----------------------------------------------------------------------------------- |
-| `anthropic-api-key`     | ✅   | —                                 | Anthropic の API キー。                                                             |
-| `github-token`          |      | `${{ github.token }}`             | PR の読み取りとコメントの書き込みに使用。                                           |
-| `model`                 |      | `claude-opus-5-5`                 | Claude のモデル ID。                                                                |
-| `effort`                |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。低いほど安くて速い。                       |
-| `language`              |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` も可)。                            |
-| `trigger-label`         |      | `needs-ai-qa`                     | 実行を始めるラベル。                                                                |
-| `rerun-on-push`         |      | `true`                            | ラベルが付いているあいだ、新しいコミットごとに再実行。                              |
-| `require-prd`           |      | `false`                           | 紐づいたチケットを読めなければチェックを失敗させる。                                |
-| `token-budget`          |      | `150000`                          | モデル呼び出し 1 回の入力トークン。大きな PR は複数回に分割。                       |
-| `max-cost-usd`          |      | `2.00`                            | 1 回あたりのコスト上限。超える分は重要度の低いファイルから外す。                    |
-| `max-scenarios`         |      | `8`                               | コメントに入れるテストケースの最大数。                                              |
-| `comment-author`        |      | —                                 | 独自の GitHub App トークンを使うときだけ指定。例: `my-app[bot]`。                   |
-| `pr-comment`            |      | `true`                            | PR コメントを投稿し、更新し続ける。                                                 |
-| `slack-bot-token`       |      | —                                 | Slack の bot トークン(`xoxb-`)。メッセージ更新とスレッドが使える。                  |
-| `slack-channel`         |      | —                                 | bot が投稿するチャンネル ID か `#名前`。                                            |
-| `slack-webhook-url`     |      | —                                 | bot トークンがないときに使う incoming webhook。                                     |
-| `jira-base-url`         |      | —                                 | 例: `https://acme.atlassian.net`。                                                  |
-| `jira-email`            |      | —                                 | Jira アカウントのメールアドレス。                                                   |
-| `jira-api-token`        |      | —                                 | Jira の API トークン。URL・メール・トークンがそろうと Jira を使う。                 |
-| `jira-project-keys`     |      | —                                 | `KEY-123` だけでも認識するプロジェクトキーをカンマ区切りで。例: `PROJ,WEB`。        |
-| `notion-token`          |      | —                                 | Notion のインテグレーショントークン。                                               |
-| `config-path`           |      | `.github/qa-ticket-generator.yml` | リポジトリの設定ファイル。base ブランチから読む。                                   |
-| `fail-on`               |      | `none`                            | 整合性が `partial` か `misaligned` ならチェックを失敗させる。                       |
-| `fail-on-error`         |      | `false`                           | 内部エラーでチェックを失敗させる。デフォルトは警告のみ。                            |
-| `allow-fork-prs`        |      | `false`                           | fork の PR を許可。オプトインのワークフローでのみ使ってください。                   |
-| `server-fallback`       |      | `true`                            | Opus がリクエストを断ったら Anthropic が別モデルで再試行。                          |
-| `mode`                  |      | `auto`                            | `auto` はイベントで判断、`plan` は仕様から QA ケースを作成、`verify` は PR を照合。 |
-| `spec`                  |      | —                                 | 手動実行時の仕様: issue 番号、Jira キー、Notion URL。                               |
-| `plan-label`            |      | `needs-qa-plan`                   | 計画フェーズを始める issue ラベル。                                                 |
-| `sinks`                 |      | `github-issue,file`               | ケースチケットの作成先: `jira`、`github-issue`、`notion`、`file`。                  |
-| `notion-qa-database-id` |      | —                                 | QA ケースを入れる Notion データベース。                                             |
-| `jira-subtask-type`     |      | `Sub-task`                        | ケースのサブタスクに使う Jira 課題タイプ。                                          |
-| `max-cases`             |      | `80`                              | 仕様ごとの安全上限。超えると P2 から外す。                                          |
-| `dry-run`               |      | `false`                           | レポートを Job Summary にだけ書く。                                                 |
+| Input                   | 必須 | デフォルト                        | 説明                                                                                                        |
+| ----------------------- | ---- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `anthropic-api-key`     | ✅   | —                                 | Anthropic の API キー。                                                                                     |
+| `github-token`          |      | `${{ github.token }}`             | PR の読み取りとコメントの書き込みに使用。                                                                   |
+| `model`                 |      | `claude-opus-5-5`                 | Claude のモデル ID。                                                                                        |
+| `effort`                |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。低いほど安くて速い。                                               |
+| `language`              |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` も可)。                                                    |
+| `trigger-label`         |      | `needs-ai-qa`                     | 実行を始めるラベル。                                                                                        |
+| `rerun-on-push`         |      | `true`                            | ラベルが付いているあいだ、新しいコミットごとに再実行。                                                      |
+| `require-prd`           |      | `false`                           | 紐づいたチケットを読めなければチェックを失敗させる。                                                        |
+| `token-budget`          |      | `150000`                          | モデル呼び出し 1 回の入力トークン。大きな PR は複数回に分割。                                               |
+| `max-cost-usd`          |      | `2.00`                            | 1 回あたりのコスト上限。超える分は重要度の低いファイルから外す。                                            |
+| `max-scenarios`         |      | `8`                               | コメントに入れるテストケースの最大数。                                                                      |
+| `comment-author`        |      | —                                 | 独自の GitHub App トークンを使うときだけ指定。例: `my-app[bot]`。                                           |
+| `pr-comment`            |      | `true`                            | PR コメントを投稿し、更新し続ける。                                                                         |
+| `slack-bot-token`       |      | —                                 | Slack の bot トークン(`xoxb-`)。メッセージ更新とスレッドが使える。                                          |
+| `slack-channel`         |      | —                                 | bot が投稿するチャンネル ID か `#名前`。                                                                    |
+| `slack-webhook-url`     |      | —                                 | bot トークンがないときに使う incoming webhook。                                                             |
+| `jira-base-url`         |      | —                                 | 例: `https://acme.atlassian.net`。                                                                          |
+| `jira-email`            |      | —                                 | Jira アカウントのメールアドレス。                                                                           |
+| `jira-api-token`        |      | —                                 | Jira の API トークン。URL・メール・トークンがそろうと Jira を使う。                                         |
+| `jira-project-keys`     |      | —                                 | `KEY-123` だけでも認識するプロジェクトキーをカンマ区切りで。例: `PROJ,WEB`。                                |
+| `notion-token`          |      | —                                 | Notion のインテグレーショントークン。                                                                       |
+| `config-path`           |      | `.github/qa-ticket-generator.yml` | リポジトリの設定ファイル。base ブランチから読む。                                                           |
+| `fail-on`               |      | `none`                            | 整合性が `partial` か `misaligned` ならチェックを失敗させる。                                               |
+| `fail-on-error`         |      | `false`                           | 内部エラーでチェックを失敗させる。デフォルトは警告のみ。                                                    |
+| `allow-fork-prs`        |      | `false`                           | fork の PR を許可。オプトインのワークフローでのみ使ってください。                                           |
+| `server-fallback`       |      | `true`                            | Opus がリクエストを断ったら Anthropic が別モデルで再試行。                                                  |
+| `mode`                  |      | `auto`                            | `auto` はイベントで判断、`plan` は仕様から QA ケースを作成、`verify` は PR を照合。                         |
+| `spec`                  |      | —                                 | 手動実行時の仕様: issue 番号、Jira キー、Notion URL。                                                       |
+| `plan-label`            |      | `needs-qa-plan`                   | 計画フェーズを始める issue ラベル。                                                                         |
+| `sinks`                 |      | `github-issue,file`               | ケースチケットの作成先: `jira`、`github-issue`、`notion`、`file`。                                          |
+| `notion-qa-database-id` |      | —                                 | QA ケースを入れる Notion データベース。                                                                     |
+| `jira-subtask-type`     |      | `Sub-task`                        | ケースのサブタスクに使う Jira 課題タイプ。                                                                  |
+| `max-cases`             |      | `80`                              | 仕様ごとの安全上限。超えると P2 から外す。                                                                  |
+| `previous-cases`        |      | —                                 | 前回実行の `qa-cases.json` のパス(例: ダウンロードしたアーティファクト)。file sink がケース ID を引き継ぐ。 |
+| `dry-run`               |      | `false`                           | レポートを Job Summary にだけ書く。                                                                         |
 <!-- inputs:end -->
 
 ### Outputs
