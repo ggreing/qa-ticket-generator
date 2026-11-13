@@ -76,7 +76,9 @@ export type TriggerSkipReason =
   | 'closed'
   | 'fork_pr'
   | 'unsupported_event'
-  | 'no_logic_change';
+  | 'no_logic_change'
+  /** SPEC v3 §2.2 — this commit was already checked against the cases (label re-added, reopened). */
+  | 'already_checked';
 
 export interface TriggerDecision {
   run: boolean;

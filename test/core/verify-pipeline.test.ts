@@ -313,3 +313,21 @@ describe('runVerify spec-side summary (SPEC v3 §2.2)', () => {
     expect(summary.cases.find((c) => c.caseId === 'shop-12-C03')?.url).toBe('https://t/shop-12-C03');
   });
 });
+
+describe('runVerify on an already-checked commit (SPEC v3 §2.2)', () => {
+  const checked = () => ({
+    load: vi.fn(async () => ({ commentId: 1, state: { v: 1 as const, sha: pr.headSha }, warnings: [] })),
+    save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+  });
+
+  it('skips a label re-add on the same head SHA, but a manual run checks again', async () => {
+    const { deps } = makeDeps(memorySink([baseCase(1)]), { commentStore: checked() });
+    const skip = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'labeled' }, signal);
+    expect(skip).toEqual({ kind: 'skipped', reason: 'already_checked' });
+    expect(deps.verifyCases).not.toHaveBeenCalled();
+
+    const manual = makeDeps(memorySink([baseCase(1)]), { commentStore: checked() });
+    const ran = await runVerify(manual.deps, cfg(), pr, { name: 'workflow_dispatch' }, signal);
+    expect(ran.kind).toBe('verified');
+  });
+});

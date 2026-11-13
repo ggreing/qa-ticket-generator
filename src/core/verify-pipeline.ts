@@ -100,7 +100,7 @@ export interface VerifyDeps {
 
 export type VerifyOutcome =
   | { kind: 'no_spec' }
-  | { kind: 'skipped'; reason: 'no_logic_change' }
+  | { kind: 'skipped'; reason: 'no_logic_change' | 'already_checked' }
   | {
       kind: 'verified';
       status: 'ok' | 'error';
@@ -153,6 +153,12 @@ export async function runVerify(
     commentId = loaded.commentId;
     state = loaded.state;
     warnings.push(...loaded.warnings);
+  }
+
+  // §2.2 — re-checking the same commit only adds reworded code cases. Manual runs still re-check.
+  if (state.sha === pr.headSha && event.name !== 'workflow_dispatch') {
+    logger.info(`${pr.headSha.slice(0, 7)} was already checked against the cases; skipping.`);
+    return { kind: 'skipped', reason: 'already_checked' };
   }
 
   // TRG-04 — pushes that touched only noise files since the last analyzed SHA.

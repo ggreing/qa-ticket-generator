@@ -78,6 +78,8 @@ const SKIP_TEXT: Record<TriggerSkipReason, string> = {
     'Fork PRs are skipped by default because secrets are not available to them. See docs/examples/workflow-fork-opt-in.yml to opt in.',
   unsupported_event: 'This event does not trigger a QA run.',
   no_logic_change: 'Only non-logic files changed since the last analysis.',
+  already_checked:
+    'This commit was already checked against the QA cases. Run the workflow by hand to check it again.',
 };
 
 export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
@@ -175,9 +177,9 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
   if (verified.kind === 'verified') return { kind: 'verified', outcome: verified, config: cfg };
   if (verified.kind === 'skipped') {
     await req.sink.writeMarkdown(
-      `### 🧪 QA cases — skipped\n\n${SKIP_TEXT.no_logic_change} (\`no_logic_change\`)\n`,
+      `### 🧪 QA cases — skipped\n\n${SKIP_TEXT[verified.reason]} (\`${verified.reason}\`)\n`,
     );
-    return { kind: 'skipped', reason: 'no_logic_change' };
+    return { kind: 'skipped', reason: verified.reason };
   }
 
   // No spec linked: the v2 risk comment.
