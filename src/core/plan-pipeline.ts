@@ -187,11 +187,21 @@ export async function runPlan(
       outcome.cases = existing.map((t) => t.lastWritten).filter((c): c is QaCase => c !== null);
       // The file sink starts empty on every Action run: write the unchanged cases again so the
       // artifact (and the next run's previous-cases) still exists.
+      // The file sink only writes what it was told this run, so feed it the cases first.
       for (const sink of sinks.filter((s) => s.kind === 'file')) {
         const urls = new Map<string, string>();
+        for (const t of existing) if (t.url) urls.set(t.caseId, t.url);
         try {
-          const known = sink === primary ? existing : await sink.list(specRef, signal);
-          for (const t of known) if (t.url) urls.set(t.caseId, t.url);
+          await syncSink(
+            sink,
+            sink === primary ? existing : null,
+            outcome.cases,
+            (c) => deps.renderCase(c, cfg.language),
+            specRef,
+            urls,
+            deps,
+            signal,
+          );
           await sink.publishSummary(
             specRef,
             buildSummary(specRef, spec.title, cfg.language, outcome.cases, urls, deps.llm, 0),

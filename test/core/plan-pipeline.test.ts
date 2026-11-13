@@ -300,6 +300,7 @@ describe('spec digest edge cases (SPEC v3 §4)', () => {
     const file = fakeSink('file');
     const out = await runPlan(makeDeps([jira.sink, file.sink]), cfg({ sinks: 'jira,file' }), spec, signal);
     expect(out.skipped).toBe('spec_unchanged');
+    expect(file.calls).toEqual(['create:PROJ-123-C01']);
     expect(file.sink.publishSummary).toHaveBeenCalledOnce();
     expect(jira.sink.publishSummary).not.toHaveBeenCalled();
   });
