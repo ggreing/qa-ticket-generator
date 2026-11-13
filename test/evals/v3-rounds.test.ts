@@ -224,7 +224,10 @@ function harness(world: Partial<World> = {}, shared?: Pick<V3Deps, 'writeFile' |
     if (req.what === 'merge') {
       const rows = [...req.tail.matchAll(/^(\d+) \| .* \| 중복 확인 케이스 \| /gm)].map((m) => Number(m[1]));
       return done({
-        duplicates: rows.length > 1 ? [{ keep: rows[0], drop: rows.slice(1) }] : [],
+        duplicates:
+          rows.length > 1
+            ? [{ reason: '같은 준비 상태에서 같은 결과 확인', keep: rows[0], drop: rows.slice(1) }]
+            : [],
         priorities: [],
       });
     }
@@ -359,6 +362,7 @@ describe('plan eval records what the coverage judge and the merge step did (SPEC
         technique: 'permission',
         priority: 'P1',
         keptTitle: '중복 확인 케이스',
+        reason: '같은 준비 상태에서 같은 결과 확인',
         by: 'merge',
       },
     ]);
@@ -367,7 +371,10 @@ describe('plan eval records what the coverage judge and the merge step did (SPEC
     expect(h.out()).toContain(
       'The merge call removed 1 case(s) as duplicates. Check that each repeats the case it was folded into:',
     );
-    expect(h.out()).toContain('  coupon-expiry-missing: "중복 확인 케이스" -> "중복 확인 케이스"');
+    // The merge call's own reason is printed beside the pair, so a wrong call can be seen at a glance.
+    expect(h.out()).toContain(
+      '  coupon-expiry-missing: "중복 확인 케이스" -> "중복 확인 케이스" (같은 준비 상태에서 같은 결과 확인)',
+    );
     expect(h.out()).toMatch(/\| Merged away \| Cost \|/);
   });
 });
@@ -433,7 +440,7 @@ describe('v3 round records (docs/quality/RUBRIC.md "Scoring")', () => {
     expect(summary).toContain('- coupon-expiry-missing: AC2 / concurrency: two requests at once');
     expect(summary).toContain('## Cases the merge step removed');
     expect(summary).toContain(
-      '- coupon-expiry-missing: "중복 확인 케이스" removed as a repeat of "중복 확인 케이스" (merge)',
+      '- coupon-expiry-missing: "중복 확인 케이스" removed as a repeat of "중복 확인 케이스" (merge: 같은 준비 상태에서 같은 결과 확인)',
     );
     expect(summary).toMatch(
       /\n\n## Compared with the last kept round\n\nNo recommendation for round 0: Round 0 is the baseline\./,
@@ -624,7 +631,7 @@ describe('Korean review pack and calibration for the plan eval (SPEC v3 §8)', (
       expect.stringMatching(/^- `SHOP-101-C01` \[P1\]\[경계값\] 댓글 1,000자 입력 시 등록$/),
       expect.stringMatching(/^- `SHOP-101-C02` \[P1\]/),
     ]);
-    expect(md).toContain('기획 확인 필요: 두 번째 탭의 북마크 해제 여부');
+    expect(md).toContain('기획 확인 필요: 두 번째 탭 시 북마크 유지(1건) 또는 해제(0건)');
     expect(md).not.toContain('OLD');
     const run = (caseId: string, overall?: number): PlanRun =>
       ({ caseId, rubric: overall === undefined ? undefined : { overall } }) as PlanRun;

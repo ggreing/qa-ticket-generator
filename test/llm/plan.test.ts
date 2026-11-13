@@ -7,9 +7,11 @@ import type { PlanOutput } from '../../src/core/schema';
 import {
   AC_GROUP_SIZE,
   applyMerge,
+  applyMergeDetailed,
   generatePlan,
   normalizePlanned,
   type PlanMerge,
+  PlanMergeSchema,
   planPlanRun,
 } from '../../src/llm/plan';
 import { estimateCostUsd } from '../../src/llm/pricing';
@@ -234,16 +236,20 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
     const p = provider(
       (labels) =>
         labels.map((label) => draft(`Limit reached for ${label}`, { acLabels: [label], priority: 'P2' })),
-      { duplicates: [{ keep: 0, drop: [3] }], priorities: [{ index: 1, priority: 'P0' }] },
+      {
+        duplicates: [{ reason: 'Both add an item to a full list and read the message.', keep: 0, drop: [3] }],
+        priorities: [{ index: 1, priority: 'P0' }],
+      },
     );
     const result = await run(request(), p);
     const merge = p.calls.at(-1) as Call;
     expect(merge.system).toEqual([PLAN_MERGE_SYSTEM]);
     expect(merge.tail).toContain(
-      'index | requirements | technique | priority | title | first expected result',
+      'index | requirements | technique | priority | title | setup | first expected result',
     );
+    // The setup column carries the state and the data, which is where look-alike cases differ.
     expect(merge.tail).toContain(
-      '0 | AC1 | boundary | P2 | Limit reached for AC1 | "Wish list is full" shown',
+      '0 | AC1 | boundary | P2 | Limit reached for AC1 | Signed in; items = 100 | "Wish list is full" shown',
     );
     expect(merge.tail).not.toContain('Add one more item'); // steps are not in the index
     expect(merge.prefix).toEqual([p.planCalls()[0]?.prefix[0]]);
@@ -449,9 +455,9 @@ describe('normalizePlanned and applyMerge', () => {
     }));
     const merged = applyMerge(cases, {
       duplicates: [
-        { keep: 0, drop: [2, 0, 9, -1] },
-        { keep: 1, drop: [0] }, // 0 is kept by the first group, so it stays
-        { keep: 7, drop: [3] }, // no such case to keep: nothing is dropped
+        { reason: 'Same setup and result.', keep: 0, drop: [2, 0, 9, -1] },
+        { reason: 'Same setup and result.', keep: 1, drop: [0] }, // 0 is kept by the first group, so it stays
+        { reason: 'Same setup and result.', keep: 7, drop: [3] }, // no such case to keep: nothing is dropped
       ],
       priorities: [
         { index: 3, priority: 'P0' },
@@ -463,6 +469,136 @@ describe('normalizePlanned and applyMerge', () => {
     expect(merged[0]).toMatchObject({ reuseCaseId: 'SHOP-900-C05', acLabels: ['AC1', 'AC3'] });
     expect(merged[2]?.priority).toBe('P0');
     expect(cases[3]?.priority).toBe('P1'); // the input is not mutated
+  });
+});
+
+describe('round 1: what round 0 showed (duplicates 0.57, honesty 1.43)', () => {
+  const requirements = requirementsOf(spec(SEVEN));
+
+  it('a duplicate group is applied only when it says what the cases share, and the reason is recorded', () => {
+    const cases: PlannedCase[] = ['a', 'b', 'c', 'd'].map((t) => ({
+      ...draft(t),
+      origin: 'spec' as const,
+      reuseCaseId: null,
+    }));
+    const applied = applyMergeDetailed(cases, {
+      duplicates: [
+        { reason: '  Both cancel a PAID order as another customer and read the 403.  ', keep: 0, drop: [1] },
+        { reason: '   ', keep: 2, drop: [3] },
+      ],
+      priorities: [],
+    });
+    expect(applied.cases.map((c) => c.title)).toEqual(['a', 'c', 'd']);
+    expect(applied.mergedAway).toEqual([
+      expect.objectContaining({
+        title: 'b',
+        keptTitle: 'a',
+        by: 'merge',
+        reason: 'Both cancel a PAID order as another customer and read the 403.',
+      }),
+    ]);
+    expect(applied.unexplainedGroups).toBe(1);
+  });
+
+  it('the merge call is told that state, actor, data condition and what is observed keep two cases apart', () => {
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'Read the setup column before you decide, because titles hide the difference.',
+    );
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'the state they start from (a PAID order and a PENDING order are two cases)',
+    );
+    expect(PLAN_MERGE_SYSTEM).toContain('the actor (');
+    expect(PLAN_MERGE_SYSTEM).toContain('the data condition (');
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'A case whose title names no state is not covered by one that names a specific state unless their setups agree.',
+    );
+    expect(PLAN_MERGE_SYSTEM).toContain('first write the reason');
+    expect(PLAN_MERGE_SYSTEM).toContain('A group without a reason is not applied.');
+    expect(PLAN_MERGE_SYSTEM).toContain('When in doubt, keep both');
+    // The reason comes before the choice in the schema, so it is written before the choice is made.
+    const shape = PlanMergeSchema.shape.duplicates.element.shape;
+    expect(Object.keys(shape)).toEqual(['reason', 'keep', 'drop']);
+  });
+
+  it('the setup shown to the merge call is cut to a fixed length, so a long case cannot crowd the index', async () => {
+    const p = provider((labels) =>
+      labels.map((label) =>
+        draft(`Limit reached for ${label}`, { acLabels: [label], preconditions: ['x'.repeat(600)] }),
+      ),
+    );
+    await run(request(), p);
+    const row = (p.calls.at(-1) as Call).tail.split('\n').find((line) => line.startsWith('0 | ')) as string;
+    expect(row.split(' | ')[5]).toHaveLength(240);
+  });
+
+  it('a happy path has no gap to name: its whyEasyToMiss is emptied, every other technique keeps its own', () => {
+    const cases = normalizePlanned(
+      {
+        cases: [
+          draft('Item added', { technique: 'happy_path', whyEasyToMiss: 'AC1 does not define the message.' }),
+          draft('Limit reached'),
+          draft('Stated refusal', { technique: 'invalid_input', whyEasyToMiss: '' }),
+        ],
+      },
+      requirements,
+      new Set(),
+      new Set(),
+    );
+    expect(cases.map((c) => c.whyEasyToMiss)).toEqual([
+      '',
+      'The spec gives the limit without saying whether it is included.',
+      '',
+    ]);
+  });
+
+  it('the prompt asks for one case per intent: no data-only variants, no re-filing under another technique', () => {
+    expect(PLAN_SYSTEM).toContain('# One intent, one case');
+    expect(PLAN_SYSTEM).toContain('a tester who ran the first would learn nothing from the second');
+    expect(PLAN_SYSTEM).toContain('Another value of the same kind is not another case.');
+    // Boundary sets stay: the two sides of a limit are separate cases.
+    expect(PLAN_SYSTEM).toContain(
+      'the last value that passes and the first value that fails are separate cases',
+    );
+    expect(PLAN_SYSTEM).toContain('A further value on the same side with the same result is not.');
+    expect(PLAN_SYSTEM).toContain('The techniques are ways of finding cases, not slots to fill.');
+    expect(PLAN_SYSTEM).toContain('is one case that lists every requirement it touches');
+  });
+
+  it('an outcome the spec leaves open is named as a question, not asserted, and compatibility stays inside the spec', () => {
+    expect(PLAN_SYSTEM).toContain('In such a case the outcome is not yours to decide.');
+    expect(PLAN_SYSTEM).toContain('write only what has to hold whichever way the team decides');
+    expect(PLAN_SYSTEM).toContain('It is an empty string for a case the spec states outright');
+    expect(PLAN_SYSTEM).toContain(
+      'what happens while the release is being deployed, is not a case of this spec',
+    );
+    for (const language of ['en', 'ko', 'ja', 'zh-CN'] as const) {
+      const block = planLanguageBlock(language);
+      expect(block).toContain('the expected lines hold only what must be true whichever way it is decided');
+      expect(block).not.toContain('the result you would hold the product to');
+      // The example no longer shows a guess above the decision line: one neutral line, then the question.
+      const [, repeated] = styleExamples(language);
+      expect(repeated?.expected).toHaveLength(2);
+      expect(repeated?.expected[1]?.startsWith(`${SPEC_DECISION_LABEL[language]}:`)).toBe(true);
+    }
+    // Input that is itself an emoji or a greeting is data, and is written so the style lint reads it as data.
+    expect(PLAN_SYSTEM).toContain('goes in test data as "name = value" or inside quotation marks');
+  });
+
+  it('parallel calls are told who writes the whole-feature cases, so each is written once', () => {
+    const groups = [requirements.slice(0, 3), requirements.slice(3, 5), requirements.slice(5)];
+    const tails = groups.map((g) => buildPlanTask(g, requirements));
+    expect(tails[0]).toContain('are written in this call: each once, listing the requirements it touches.');
+    for (const tail of tails.slice(1)) {
+      expect(tail).toContain('are written by the call that covers the first requirements.');
+      expect(tail).toContain('only where one of these requirements changes what is observed');
+      expect(tail).not.toContain('are written in this call');
+    }
+    for (const tail of tails) {
+      expect(tail).toContain('run at the same time and cannot see your answer');
+      expect(tail).toContain('belongs to the call whose list has the earlier of the two in spec order');
+    }
+    // A single call needs none of this.
+    expect(buildPlanTask(requirements.slice(0, 3), requirements.slice(0, 3))).not.toContain('whole feature');
   });
 });
 
@@ -608,7 +744,7 @@ describe('generatePlan diagnostics — what the merge step removed (merge-misjud
         draft('Shared check', { acLabels: [labels[0] as string], technique: 'permission' }),
       ],
       {
-        duplicates: [{ keep: 0, drop: [4, 4] }],
+        duplicates: [{ reason: 'Both fill the list and read the message.', keep: 0, drop: [4, 4] }],
         priorities: [
           { index: 1, priority: 'P0' },
           { index: 2, priority: 'P2' },
@@ -626,7 +762,12 @@ describe('generatePlan diagnostics — what the merge step removed (merge-misjud
     // Index 4 of the sheet the merge call saw; naming it twice removes it once.
     const byMerge = d.mergedAway.filter((m) => m.by === 'merge');
     expect(byMerge).toHaveLength(1);
-    expect(byMerge[0]).toMatchObject({ keptTitle: 'Limit reached for AC1', priority: 'P2' });
+    expect(byMerge[0]).toMatchObject({
+      keptTitle: 'Limit reached for AC1',
+      priority: 'P2',
+      reason: 'Both fill the list and read the message.',
+    });
+    expect(d.unexplainedGroups).toBe(0);
     expect(d.afterMerge).toBe(d.generated - d.mergedAway.length);
     expect(result.cases).toHaveLength(d.afterMerge);
     expect(d.priorityChanges).toBe(1); // index 2 was already P2
@@ -640,6 +781,7 @@ describe('generatePlan diagnostics — what the merge step removed (merge-misjud
       mergedAway: [],
       priorityChanges: 0,
       mergeRan: false,
+      unexplainedGroups: 0,
     });
     const failed = await run(
       request(),

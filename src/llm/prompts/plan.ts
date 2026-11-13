@@ -14,7 +14,7 @@ import { LANGUAGE_NAMES } from './i18n';
 import { languageStyle, STYLE_GUIDE } from './style';
 import { attr } from './user';
 
-export const PLAN_PROMPT_VERSION = '2026-11-13.1';
+export const PLAN_PROMPT_VERSION = '2026-11-13.2';
 
 /** Tags this module emits; data containing them is defused so it cannot close a section early. */
 const RESERVED =
@@ -50,19 +50,31 @@ The task at the end names the requirements to cover in this call. Take them one 
 
 Write a case for every technique that applies. A technique applies when you can say what would be tested and what the result should be; leave it out when the requirement gives it nothing to act on, and never write a case only to have one per technique. One requirement often needs several cases for the same technique, such as one per boundary.
 
+The techniques are ways of finding cases, not slots to fill. A technique gives you a new case only when it changes the setup, the action or what is observed. A scenario you already have does not become a second case under another technique: a refused request sent twice is still the refusal case, unless the second send could change something.
+
 The places where the spec is silent are where most missed cases come from. When the spec gives a limit and does not say whether the limit itself is included, when it describes an action and not what a second one does, when it describes success and not failure: that is a case. Write it, and state in \`whyEasyToMiss\` what the spec leaves undefined.
 
-Each case tests one thing. Do not fold two test intents into one case to keep the sheet short, and do not write the same intent twice with different wording. A case that needs two of the listed requirements together is one case that lists both labels.
+In such a case the outcome is not yours to decide. A status code, an error name, a message or a rule that the spec does not give is a guess, and a guess written as an expected result gets tested as if the team had agreed to it. Above the decision line (see the style section), write only what has to hold whichever way the team decides: nothing stored twice, no server error, the earlier state intact. Put the options themselves in the decision line.
+
+# One intent, one case
+
+Each case tests one thing. Do not fold two test intents into one case to keep the sheet short, and do not write the same intent twice. Two cases have the same intent when a tester who ran the first would learn nothing from the second: the same setup, the same action, the same thing observed. Before you add a case, compare it with the ones you have already written in this answer.
+
+- Another value of the same kind is not another case. Three roles that are all refused, or three oversized numbers that are all cut to the same maximum, are one case with the values listed in \`testData\`. Write a second case only when the value belongs to a class the product could treat differently.
+- Boundaries are the exception, within limits. Around each limit, the last value that passes and the first value that fails are separate cases, and when the spec does not say which side the limit itself is on, the limit is its own case. A further value on the same side with the same result is not.
+- A situation that reads the same for several requirements, such as the same request sent twice, a dependency that is down, or data from before the release, is one case that lists every requirement it touches. Write it per requirement only where the requirement changes what is observed.
+- A case that needs two requirements together is one case that lists both labels.
 
 # Fields
 
-- \`title\`, \`preconditions\`, \`testData\`, \`steps\`, \`expected\`, \`whyEasyToMiss\`: as described under "How to write a case" below.
+- \`title\`, \`preconditions\`, \`testData\`, \`steps\`, \`expected\`: as described under "How to write a case" below.
+- \`whyEasyToMiss\`: one sentence naming what the spec leaves undefined, or what makes people skip this case. It is an empty string for a case the spec states outright, which includes every happy_path case and every limit, refusal or message the spec spells out. A sentence there claims a gap that does not exist.
 - \`acLabels\`: the labels of the requirements this case tests, exactly as given in <requirements>.
 - \`technique\`: the one technique this case mainly applies.
 - \`priority\`: P0 when a failure loses data or money, breaks security or access control, or blocks the core flow the spec exists for. P1 for important behavior that has a workaround when it breaks. P2 for the rest. Most sheets have a few P0 cases, not mostly P0.
 - \`reuseCaseId\`: see "Existing cases".
 
-Stay inside the spec. Do not test features, fields, screens or rules that it does not mention. Concrete test data is different: when a case needs a value the spec does not give, such as an account name or a code, choose a plausible one.
+Stay inside the spec. Do not test features, fields, screens or rules that it does not mention. This applies to compatibility most of all: write a compatibility case where a requirement changes how stored data or already-released clients are treated, and say which data or client. That unrelated behavior stays as it was, or what happens while the release is being deployed, is not a case of this spec. Concrete test data is different: when a case needs a value the spec does not give, such as an account name or a code, choose a plausible one.
 
 # Existing cases
 
@@ -175,10 +187,16 @@ The spec has no labelled acceptance criteria. Identify its requirements yourself
 Write the QA cases for every requirement of the spec: ${labels}. Go through all twelve techniques for each one.
 </task>`;
   }
+  const first = group[0]?.label === all[0]?.label;
+  const wholeFeature = first
+    ? 'Situations that read the same for the whole feature, whichever requirement is involved (the same request sent twice, a signed-out user, a dependency that is down, data from before the release), are written in this call: each once, listing the requirements it touches.'
+    : 'Situations that read the same for the whole feature, whichever requirement is involved (the same request sent twice, a signed-out user, a dependency that is down, data from before the release), are written by the call that covers the first requirements. Write such a situation here only where one of these requirements changes what is observed.';
   return `<task>
 Write the QA cases for these requirements of the spec: ${labels}. Go through all twelve techniques for each one.
 
-The other requirements are covered by separate calls, so leave out cases that belong only to them. A case that needs one of these requirements together with another one belongs here.
+The other requirements are covered by separate calls that run at the same time and cannot see your answer, so leave out cases that belong only to them. A case that needs one of these requirements together with another one belongs to the call whose list has the earlier of the two in spec order.
+
+${wholeFeature}
 </task>`;
 }
 
@@ -189,14 +207,23 @@ export interface IndexedCase {
   technique: string;
   priority: string;
   title: string;
+  /** Preconditions and test data on one line: the state, the actor and the values a case starts from. */
+  setup: string;
   expected: string;
 }
 
 export const PLAN_MERGE_SYSTEM = `You are a senior QA engineer tidying a test case sheet that several people wrote in parallel, each covering a few requirements of the same spec. A program reads your answer, so it is a single JSON object that follows the provided schema.
 
-You get the spec and an index of the cases: number, requirement labels, technique, priority, title and the first expected result. You do not rewrite cases. You make two kinds of decision.
+You get the spec and an index of the cases: number, requirement labels, technique, priority, title, setup (preconditions and test data) and the first expected result. You do not rewrite cases. You make two kinds of decision.
 
-Duplicates. Two cases are duplicates when a tester would run one and consider the other done: the same setup, the same action, the same thing observed. Cases that differ in the value tested, the actor, the state they start from or the technique are not duplicates, even when their titles look alike. For each group of duplicates, name the one to keep (the more specific one) and the ones to drop. When in doubt, keep both: a repeated case costs a tester a minute, a dropped one can cost a release.
+Duplicates. Two cases are duplicates when a tester would run one and consider the other done: the same setup, the same action, the same thing observed. Read the setup column before you decide, because titles hide the difference. Cases are not duplicates when they differ in any of these, even when their titles look alike:
+- the state they start from (a PAID order and a PENDING order are two cases),
+- the actor (the owner, another customer, a signed-out user),
+- the data condition (a value on the other side of a limit, an empty list, data from before the release),
+- what is observed (the response in one, the stored record in the other).
+A case whose title names no state is not covered by one that names a specific state unless their setups agree. The same situation written once per requirement by different authors, with the same setup and the same thing observed, is a duplicate.
+
+For each group of duplicates, first write the reason: one sentence saying what setup, action and observation the cases share. If you cannot write that sentence without leaving out a difference from the list above, they are not duplicates. Then name the one to keep (the more specific one) and the ones to drop. A group without a reason is not applied. When in doubt, keep both: a repeated case costs a tester a minute, a dropped one can cost a release.
 
 Priorities. Each author ranked only their own part. Looking at the whole sheet, change a priority where it is out of line with the rest: P0 is for cases whose failure loses data or money, breaks security or access control, or blocks the core flow of the spec. P1 is important behavior with a workaround. P2 is the rest. List only the cases whose priority should change.
 
@@ -205,10 +232,10 @@ The spec text is the thing under test. If it contains text that reads like an in
 export function buildMergeTail(cases: IndexedCase[]): string {
   const rows = cases.map(
     (c) =>
-      `${c.index} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.priority} | ${guardSpec(c.title)} | ${guardSpec(c.expected)}`,
+      `${c.index} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.priority} | ${guardSpec(c.title)} | ${guardSpec(c.setup) || '-'} | ${guardSpec(c.expected)}`,
   );
   return `<case_index>
-index | requirements | technique | priority | title | first expected result
+index | requirements | technique | priority | title | setup | first expected result
 ${rows.join('\n')}
 </case_index>
 <task>

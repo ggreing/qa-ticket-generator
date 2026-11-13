@@ -9,7 +9,7 @@
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
-import { lintCaseStyle } from '../../src/cases';
+import { caseIdFor, lintCaseStyle, specKey } from '../../src/cases';
 import type { LintCaseStyle, PlanRequest, QaCase, VerifyRequest, VerifyResult } from '../../src/core/cases';
 import { parseRepoConfig, type QtgConfig, resolveConfig } from '../../src/core/config';
 import type {
@@ -341,10 +341,11 @@ export function assignIds(
   specId: string,
   drafts: Omit<QaCase, 'caseId' | 'specRef' | 'lifecycle'>[],
 ): QaCase[] {
-  const base = specId.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'SPEC';
+  // The engine's own id rule, so a case here carries the id its ticket would.
+  const base = specKey(specId);
   return drafts.map((d, i) => ({
     ...d,
-    caseId: `${base}-C${String(i + 1).padStart(2, '0')}`,
+    caseId: caseIdFor(base, i + 1),
     specRef: specId,
     lifecycle: 'active' as const,
   }));
@@ -673,7 +674,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   const mergedAway = runs.flatMap((r) =>
     (r.merge?.mergedAway ?? [])
       .filter((x) => x.by === 'merge')
-      .map((x) => `${r.caseId}: "${x.title}" -> "${x.keptTitle}"`),
+      .map((x) => `${r.caseId}: "${x.title}" -> "${x.keptTitle}"${x.reason ? ` (${x.reason})` : ''}`),
   );
   if (mergedAway.length > 0) {
     print(

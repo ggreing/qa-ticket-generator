@@ -404,7 +404,8 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
     lines.push('## What the rubric judge found missing', '', ...gaps.slice(0, 60).map((m) => `- ${m}`), '');
   const merged = r.runs.flatMap((run) =>
     (run.merge?.mergedAway ?? []).map(
-      (m) => `${run.caseId}: "${cell(m.title)}" removed as a repeat of "${cell(m.keptTitle)}" (${m.by})`,
+      (m) =>
+        `${run.caseId}: "${cell(m.title)}" removed as a repeat of "${cell(m.keptTitle)}" (${m.by}${m.reason ? `: ${cell(m.reason)}` : ''})`,
     ),
   );
   if (merged.length > 0) {
