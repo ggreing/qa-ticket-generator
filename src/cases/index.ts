@@ -16,6 +16,7 @@ export {
 } from './labels';
 export { caseIdFor, caseNumber, compareCaseIds, reconcileCases, specKey, toQaCase } from './reconcile';
 export { MAX_TITLE_LENGTH, mdSafe, plainTitle, renderCase, renderTitle, toolTextHash } from './render';
+export { sameRiskKey, titleTokens } from './similar';
 export { type CaseTextField, displayLength, lintCaseStyle, STYLE_RULES, type StyleRule } from './style';
 export { planSync } from './sync';
 export { applyVerify } from './verify-merge';

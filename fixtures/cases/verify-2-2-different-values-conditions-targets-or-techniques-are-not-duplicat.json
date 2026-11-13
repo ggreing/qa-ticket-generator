@@ -1,0 +1,794 @@
+{
+  "name": "SPEC v3 §2.2 different values, conditions, targets or techniques are not duplicates",
+  "kind": "verify",
+  "input": {
+    "cases": [
+      {
+        "title": "expiresAt 잘못된 날짜 쿠폰 적용 시 처리",
+        "acLabels": [],
+        "technique": "invalid_input",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "caseId": "SHOP-101-C07",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "displayName 30자 입력 시 저장",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "caseId": "SHOP-101-C08",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "만료 1초 전 쿠폰 적용 시 성공",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "caseId": "SHOP-101-C09",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "결제 실패 시 쿠폰 복구",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "caseId": "SHOP-101-C10",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "쿠폰 처리",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code",
+        "caseId": "SHOP-101-C11",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "프로모션 쿠폰 중복 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "caseId": "SHOP-101-C12",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete"
+      }
+    ],
+    "result": {
+      "statuses": [],
+      "newCases": [
+        {
+          "title": "expiresAt 과거 날짜 쿠폰 적용 시 거부",
+          "acLabels": [],
+          "technique": "invalid_input",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "expiresAt null 쿠폰 적용 시 거부",
+          "acLabels": [],
+          "technique": "invalid_input",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "expiresAt 잘못된 날짜 포인트 적용 시 처리",
+          "acLabels": [],
+          "technique": "invalid_input",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "expiresAt Invalid Date 쿠폰 적용 시 거부",
+          "acLabels": [],
+          "technique": "boundary",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "displayName 31자 입력 시 거부",
+          "acLabels": [],
+          "technique": "boundary",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "displayName 30자 이모지 포함 입력 시 저장",
+          "acLabels": [],
+          "technique": "boundary",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "만료 1초 후 쿠폰 적용 시 거부",
+          "acLabels": [],
+          "technique": "boundary",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "결제 성공 시 쿠폰 복구",
+          "acLabels": [],
+          "technique": "failure",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "쿠폰 거부",
+          "acLabels": [],
+          "technique": "failure",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        },
+        {
+          "title": "프로모션 쿠폰 중복 적용 시 거부",
+          "acLabels": [],
+          "technique": "idempotency",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec"
+        }
+      ]
+    },
+    "sha": "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432",
+    "specRef": "SHOP-101"
+  },
+  "expected": {
+    "cases": [
+      {
+        "caseId": "SHOP-101-C07",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "expiresAt 잘못된 날짜 쿠폰 적용 시 처리",
+        "acLabels": [],
+        "technique": "invalid_input",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C08",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "displayName 30자 입력 시 저장",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C09",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "만료 1초 전 쿠폰 적용 시 성공",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C10",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "결제 실패 시 쿠폰 복구",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C11",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "쿠폰 처리",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C12",
+        "specRef": "SHOP-101",
+        "lifecycle": "obsolete",
+        "title": "프로모션 쿠폰 중복 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      },
+      {
+        "caseId": "SHOP-101-C13",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "expiresAt 과거 날짜 쿠폰 적용 시 거부",
+        "acLabels": [],
+        "technique": "invalid_input",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C14",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "expiresAt null 쿠폰 적용 시 거부",
+        "acLabels": [],
+        "technique": "invalid_input",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C15",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "expiresAt 잘못된 날짜 포인트 적용 시 처리",
+        "acLabels": [],
+        "technique": "invalid_input",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C16",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "expiresAt Invalid Date 쿠폰 적용 시 거부",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C17",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "displayName 31자 입력 시 거부",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C18",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "displayName 30자 이모지 포함 입력 시 저장",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C19",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "만료 1초 후 쿠폰 적용 시 거부",
+        "acLabels": [],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C20",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "결제 성공 시 쿠폰 복구",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C21",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "쿠폰 거부",
+        "acLabels": [],
+        "technique": "failure",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      },
+      {
+        "caseId": "SHOP-101-C22",
+        "specRef": "SHOP-101",
+        "lifecycle": "active",
+        "title": "프로모션 쿠폰 중복 적용 시 거부",
+        "acLabels": [],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "code"
+      }
+    ],
+    "warnings": []
+  }
+}

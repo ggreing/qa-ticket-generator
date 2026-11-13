@@ -564,6 +564,9 @@ const codeCase = qaCase('SHOP-101-C04', '부분 환불 합계가 결제 금액 �
   acLabels: [],
   technique: 'data_integrity',
 });
+const codeOf = (caseId: string, title: string, technique: QaCase['technique']): QaCase =>
+  qaCase(caseId, title, { origin: 'code', acLabels: [], technique });
+const newCode = (title: string, technique: QaCase['technique']) => draft(title, { technique, acLabels: [] });
 const status = (
   caseId: string,
   s: 'implemented' | 'missing' | 'contradicts' | 'unknown',
@@ -660,6 +663,62 @@ export const VERIFY: GoldenSource[] = [
           draft('환불 웹훅 서명 불일치 시 401', { technique: 'permission', acLabels: [] }),
           draft('새 위험', { technique: 'failure', acLabels: [] }),
           draft('새 위험', { technique: 'failure', acLabels: [] }),
+        ],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  // Safety net for rephrased duplicates (src/cases/similar.ts). Seen in the sandbox E2E: a verify
+  // re-run proposed "expiresAt Invalid Date 쿠폰 적용 시 거부" next to "expiresAt 잘못된 날짜 쿠폰 적용 시 처리".
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 a rephrased duplicate is dropped with a warning; an obsolete one is revived',
+    input: {
+      cases: [
+        c1,
+        codeOf('SHOP-101-C07', 'expiresAt 잘못된 날짜 쿠폰 적용 시 처리', 'invalid_input'),
+        obsolete(codeOf('SHOP-101-C06', '환불 웹훅 서명 불일치 시 401', 'permission')),
+      ],
+      result: {
+        statuses: [],
+        newCases: [
+          newCode('expiresAt Invalid Date 쿠폰 적용 시 거부', 'invalid_input'),
+          newCode('환불 웹훅의 서명 불일치 시 401 반환', 'permission'),
+          newCode('만료 1초 지난 쿠폰을 적용 시 거부', 'boundary'),
+          newCode('Invalid expiresAt coupon on apply rejected', 'invalid_input'),
+          newCode('Malformed expiresAt coupon on apply handled', 'invalid_input'),
+        ],
+      },
+      sha: SHA,
+      specRef: 'SHOP-101',
+    },
+  },
+  {
+    kind: 'verify',
+    name: 'SPEC v3 §2.2 different values, conditions, targets or techniques are not duplicates',
+    input: {
+      cases: [
+        codeOf('SHOP-101-C07', 'expiresAt 잘못된 날짜 쿠폰 적용 시 처리', 'invalid_input'),
+        codeOf('SHOP-101-C08', 'displayName 30자 입력 시 저장', 'boundary'),
+        codeOf('SHOP-101-C09', '만료 1초 전 쿠폰 적용 시 성공', 'boundary'),
+        codeOf('SHOP-101-C10', '결제 실패 시 쿠폰 복구', 'failure'),
+        codeOf('SHOP-101-C11', '쿠폰 처리', 'failure'),
+        obsolete(qaCase('SHOP-101-C12', '프로모션 쿠폰 중복 적용 시 거부', { technique: 'idempotency' })),
+      ],
+      result: {
+        statuses: [],
+        newCases: [
+          newCode('expiresAt 과거 날짜 쿠폰 적용 시 거부', 'invalid_input'),
+          newCode('expiresAt null 쿠폰 적용 시 거부', 'invalid_input'),
+          newCode('expiresAt 잘못된 날짜 포인트 적용 시 처리', 'invalid_input'),
+          newCode('expiresAt Invalid Date 쿠폰 적용 시 거부', 'boundary'),
+          newCode('displayName 31자 입력 시 거부', 'boundary'),
+          newCode('displayName 30자 이모지 포함 입력 시 저장', 'boundary'),
+          newCode('만료 1초 후 쿠폰 적용 시 거부', 'boundary'),
+          newCode('결제 성공 시 쿠폰 복구', 'failure'),
+          newCode('쿠폰 거부', 'failure'),
+          newCode('프로모션 쿠폰 중복 적용 시 거부', 'idempotency'),
         ],
       },
       sha: SHA,
