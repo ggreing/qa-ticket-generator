@@ -1,0 +1,121 @@
+{
+  "name": "SPEC v3 §3.1 ko: AI-style phrasing is flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "만료된 쿠폰이 올바르게 거부되는지 확인하는 테스트",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "사용자는 로그인할 수 있어야 합니다"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "먼저 사용자는 결제 화면으로 이동해야 합니다",
+        "사용자는 쿠폰을 입력합니다"
+      ],
+      "expected": [
+        "시스템이 적절하게 오류를 처리해야 합니다 — 결제 안정성을 보장합니다 🚀",
+        "정상적으로 처리되는지 확인"
+      ],
+      "whyEasyToMiss": "이 케이스는 매우 중요한 경계 조건을 다룹니다. 개발자가 놓치기 쉽습니다.",
+      "origin": "spec"
+    },
+    "language": "ko"
+  },
+  "expected": [
+    {
+      "rule": "verify-claim",
+      "text": "확인하는 테스트"
+    },
+    {
+      "rule": "whether-check",
+      "text": "는지 확인"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "올바르게"
+    },
+    {
+      "rule": "title-test-word",
+      "text": "테스트"
+    },
+    {
+      "rule": "must-be-able",
+      "text": "수 있어야 합니다"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "니다"
+    },
+    {
+      "rule": "should-statement",
+      "text": "해야 합니다"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "니다"
+    },
+    {
+      "rule": "step-sequencer",
+      "text": "먼저"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "니다"
+    },
+    {
+      "rule": "step-sequencer",
+      "text": "사용자는"
+    },
+    {
+      "rule": "emoji",
+      "text": "🚀"
+    },
+    {
+      "rule": "dash-explanation",
+      "text": "—"
+    },
+    {
+      "rule": "guarantee",
+      "text": "보장합니다"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "적절하게"
+    },
+    {
+      "rule": "should-statement",
+      "text": "해야 합니다"
+    },
+    {
+      "rule": "whether-check",
+      "text": "는지 확인"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "정상적으로"
+    },
+    {
+      "rule": "why-multi-sentence",
+      "text": "."
+    },
+    {
+      "rule": "meta-reference",
+      "text": "이 케이스는"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "니다."
+    },
+    {
+      "rule": "importance-claim",
+      "text": "매우 중요"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "name": "SPEC v3 §3.1 ja labels",
+  "kind": "render",
+  "input": {
+    "case": {
+      "title": "有効期限1秒過ぎたクーポン適用時に拒否",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "locale_time",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "결제 화면 진입",
+        "쿠폰 EXP1 입력 후 적용"
+      ],
+      "expected": [
+        "\"만료된 쿠폰입니다\" 토스트 노출",
+        "결제 금액 변화 없음"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "caseId": "7c1e4b2a-C01",
+      "specRef": "SHOP-101",
+      "lifecycle": "active"
+    },
+    "language": "ja"
+  },
+  "expected": {
+    "title": "[P1][タイムゾーン・ロケール] 有効期限1秒過ぎたクーポン適用時に拒否",
+    "markdown": "### 前提条件\n\n- 로그인 상태\n\n### テストデータ\n\n- 쿠폰 EXP1 / 만료 2026-11-13 23:59:59\n\n### 手順\n\n1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용\n\n### 期待結果\n\n- **\"만료된 쿠폰입니다\" 토스트 노출**\n- 결제 금액 변화 없음\n\n### 見落としやすい理由\n\n기획서에 만료 시각 포함 여부 정의 없음\n\n### 関連AC\n\nAC1",
+    "fields": {
+      "case_id": "7c1e4b2a-C01",
+      "spec_ref": "SHOP-101",
+      "title": "[P1][タイムゾーン・ロケール] 有効期限1秒過ぎたクーポン適用時に拒否",
+      "name": "有効期限1秒過ぎたクーポン適用時に拒否",
+      "priority": "P1",
+      "technique": "locale_time",
+      "technique_label": "タイムゾーン・ロケール",
+      "ac": "AC1",
+      "preconditions": "로그인 상태",
+      "test_data": "쿠폰 EXP1 / 만료 2026-11-13 23:59:59",
+      "steps": "1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용",
+      "expected": "\"만료된 쿠폰입니다\" 토스트 노출\n결제 금액 변화 없음",
+      "why_easy_to_miss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "lifecycle": "active",
+      "code_status": "",
+      "code_status_label": "",
+      "code_evidence": "",
+      "code_files": "",
+      "code_sha": ""
+    },
+    "hash": "6fac15de8267abeb8f0c379f1e97dbe05c870053912e2031025e1625de8cdc5a"
+  }
+}

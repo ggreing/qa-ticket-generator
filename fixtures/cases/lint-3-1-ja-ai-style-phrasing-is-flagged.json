@@ -1,0 +1,88 @@
+{
+  "name": "SPEC v3 §3.1 ja: AI-style phrasing is flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "期限切れクーポンが適切に拒否されることを検証するテスト",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "まずユーザーは決済画面に移動する必要があります"
+      ],
+      "expected": [
+        "システムは正しくエラーを処理できる必要があります。",
+        "決済の安全性を保証します"
+      ],
+      "whyEasyToMiss": "このテストは非常に重要です。",
+      "origin": "spec"
+    },
+    "language": "ja"
+  },
+  "expected": [
+    {
+      "rule": "verify-claim",
+      "text": "検証するテスト"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "適切に"
+    },
+    {
+      "rule": "title-test-word",
+      "text": "テスト"
+    },
+    {
+      "rule": "should-statement",
+      "text": "する必要があります"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "ます"
+    },
+    {
+      "rule": "step-sequencer",
+      "text": "まず"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "正しく"
+    },
+    {
+      "rule": "must-be-able",
+      "text": "できる必要があります"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "ます。"
+    },
+    {
+      "rule": "guarantee",
+      "text": "保証します"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "ます"
+    },
+    {
+      "rule": "meta-reference",
+      "text": "このテストは"
+    },
+    {
+      "rule": "polite-ending",
+      "text": "です。"
+    },
+    {
+      "rule": "importance-claim",
+      "text": "非常に重要"
+    }
+  ]
+}

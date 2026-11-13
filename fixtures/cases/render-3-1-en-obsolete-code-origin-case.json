@@ -1,0 +1,56 @@
+{
+  "name": "SPEC v3 §3.1 en: obsolete code-origin case",
+  "kind": "render",
+  "input": {
+    "case": {
+      "title": "Partial refund over the paid amount is rejected",
+      "acLabels": [],
+      "technique": "data_integrity",
+      "priority": "P2",
+      "preconditions": [],
+      "testData": [
+        "Payment 10,000, refunds 6,000 + 4,001"
+      ],
+      "steps": [
+        "Refund 6,000",
+        "Refund 4,001"
+      ],
+      "expected": [
+        "Second refund rejected with REFUND_EXCEEDS_PAYMENT"
+      ],
+      "whyEasyToMiss": "The spec only covers full refunds.",
+      "origin": "code",
+      "caseId": "shop-12-C04",
+      "specRef": "SHOP-101",
+      "lifecycle": "obsolete"
+    },
+    "language": "en"
+  },
+  "expected": {
+    "title": "[Obsolete][P2][Data integrity] Partial refund over the paid amount is rejected",
+    "markdown": "### Test data\n\n- Payment 10,000, refunds 6,000 + 4,001\n\n### Steps\n\n1. Refund 6,000\n2. Refund 4,001\n\n### Expected result\n\n- **Second refund rejected with REFUND\\_EXCEEDS\\_PAYMENT**\n\n### Why it is easy to miss\n\nThe spec only covers full refunds.\n\n### Related AC\n\nFrom the code",
+    "fields": {
+      "case_id": "shop-12-C04",
+      "spec_ref": "SHOP-101",
+      "title": "[Obsolete][P2][Data integrity] Partial refund over the paid amount is rejected",
+      "name": "Partial refund over the paid amount is rejected",
+      "priority": "P2",
+      "technique": "data_integrity",
+      "technique_label": "Data integrity",
+      "ac": "",
+      "preconditions": "",
+      "test_data": "Payment 10,000, refunds 6,000 + 4,001",
+      "steps": "1. Refund 6,000\n2. Refund 4,001",
+      "expected": "Second refund rejected with REFUND_EXCEEDS_PAYMENT",
+      "why_easy_to_miss": "The spec only covers full refunds.",
+      "origin": "code",
+      "lifecycle": "obsolete",
+      "code_status": "",
+      "code_status_label": "",
+      "code_evidence": "",
+      "code_files": "",
+      "code_sha": ""
+    },
+    "hash": "925dfd4a2138d2f9329db7ea8e278d8b081d2af7d7c575b52bf665c09459c144"
+  }
+}

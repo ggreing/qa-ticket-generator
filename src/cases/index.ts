@@ -1,23 +1,20 @@
 /**
  * Case sync engine (SPEC v3 §4) and case text rendering (§3.1). Pure, no I/O.
  * Owner: qa-work-session-b.
+ *
+ * Shared with other modules: labels (sinks, prompts), STYLE_RULES (prompts), the Markdown subset
+ * and hash rule of renderCase (sinks; see src/cases/render.ts and src/cases/sync.ts).
  */
 
-import type { LintCaseStyle, PlanSync, QaCase, ReconcileCases, RenderedCase } from '../core/cases';
-import type { Language } from '../core/contracts';
-import { notImplemented } from '../core/stub';
-
-/** §4.1 — validate reused ids, assign new ones (`<specKey>-C<nn>`), carry obsolete cases. */
-export const reconcileCases: ReconcileCases = (_specRef, _existing, _planned) =>
-  notImplemented('cases/reconcileCases');
-
-/** §4.2–§4.5 — create / update / suggest / obsolete / unchanged ops for one sink. */
-export const planSync: PlanSync = (_existing, _next, _render) => notImplemented('cases/planSync');
-
-/** §3.1 — render a case for sinks (title, markdown body, fields, hash of tool-owned text). */
-export function renderCase(_c: QaCase, _language: Language): RenderedCase {
-  return notImplemented('cases/renderCase');
-}
-
-/** §3.1 — deterministic AI-style lint (banned phrases, explanatory voice). */
-export const lintCaseStyle: LintCaseStyle = (_c, _language) => notImplemented('cases/lintCaseStyle');
+export {
+  CODE_STATUS_LABELS,
+  OBSOLETE_LABEL,
+  PRIORITIES,
+  SECTION_LABELS,
+  SPEC_GAP_PREFIX,
+  TECHNIQUE_LABELS,
+} from './labels';
+export { caseIdFor, caseNumber, compareCaseIds, reconcileCases, specKey, toQaCase } from './reconcile';
+export { MAX_TITLE_LENGTH, mdSafe, plainTitle, renderCase, renderTitle, toolTextHash } from './render';
+export { type CaseTextField, lintCaseStyle, STYLE_RULES, type StyleRule } from './style';
+export { planSync } from './sync';

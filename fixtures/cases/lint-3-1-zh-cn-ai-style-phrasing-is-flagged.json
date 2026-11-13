@@ -1,0 +1,81 @@
+{
+  "name": "SPEC v3 §3.1 zh-CN: AI-style phrasing is flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "验证过期优惠券是否被正确地拒绝的测试",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "首先用户进入结算页",
+        "用户应该输入优惠券"
+      ],
+      "expected": [
+        "系统应该能够适当地处理错误",
+        "确保金额不变"
+      ],
+      "whyEasyToMiss": "本测试非常重要。它覆盖边界情况。",
+      "origin": "spec"
+    },
+    "language": "zh-CN"
+  },
+  "expected": [
+    {
+      "rule": "verify-claim",
+      "text": "验证过期优惠券是否"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "正确地"
+    },
+    {
+      "rule": "title-test-word",
+      "text": "测试"
+    },
+    {
+      "rule": "step-sequencer",
+      "text": "首先"
+    },
+    {
+      "rule": "should-statement",
+      "text": "应该"
+    },
+    {
+      "rule": "step-sequencer",
+      "text": "用户应该"
+    },
+    {
+      "rule": "must-be-able",
+      "text": "应该能够"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "适当地"
+    },
+    {
+      "rule": "ensure",
+      "text": "确保"
+    },
+    {
+      "rule": "why-multi-sentence",
+      "text": "。"
+    },
+    {
+      "rule": "meta-reference",
+      "text": "本测试"
+    },
+    {
+      "rule": "importance-claim",
+      "text": "非常重要"
+    }
+  ]
+}

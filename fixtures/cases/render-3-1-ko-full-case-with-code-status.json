@@ -1,0 +1,70 @@
+{
+  "name": "SPEC v3 §3.1 ko: full case with code status",
+  "kind": "render",
+  "input": {
+    "case": {
+      "title": "만료 1초 지난 쿠폰 적용 시 거부",
+      "acLabels": [
+        "AC3"
+      ],
+      "technique": "boundary",
+      "priority": "P0",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "결제 화면 진입",
+        "쿠폰 EXP1 입력 후 적용"
+      ],
+      "expected": [
+        "\"만료된 쿠폰입니다\" 토스트 노출",
+        "결제 금액 변화 없음",
+        "기획 확인 필요: 만료 시각 포함 여부"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "caseId": "SHOP-101-C01",
+      "specRef": "SHOP-101",
+      "lifecycle": "active",
+      "codeStatus": {
+        "status": "missing",
+        "evidence": "CouponService.apply()에서 expiresAt 미사용",
+        "files": [
+          "src/checkout/coupon-service.ts"
+        ],
+        "sha": "abcdef1234567"
+      }
+    },
+    "language": "ko"
+  },
+  "expected": {
+    "title": "[P0][경계값] 만료 1초 지난 쿠폰 적용 시 거부",
+    "markdown": "### 전제 조건\n\n- 로그인 상태\n\n### 테스트 데이터\n\n- 쿠폰 EXP1 / 만료 2026-11-13 23:59:59\n\n### 단계\n\n1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용\n\n### 기대 결과\n\n- **\"만료된 쿠폰입니다\" 토스트 노출**\n- 결제 금액 변화 없음\n- 기획 확인 필요: 만료 시각 포함 여부\n\n### 놓치기 쉬운 이유\n\n기획서에 만료 시각 포함 여부 정의 없음\n\n### 관련 AC\n\nAC3\n\n### 코드 상태\n\n**미구현 의심** (`abcdef1`)\n\nCouponService.apply()에서 expiresAt 미사용\n\n- `src/checkout/coupon-service.ts`",
+    "fields": {
+      "case_id": "SHOP-101-C01",
+      "spec_ref": "SHOP-101",
+      "title": "[P0][경계값] 만료 1초 지난 쿠폰 적용 시 거부",
+      "name": "만료 1초 지난 쿠폰 적용 시 거부",
+      "priority": "P0",
+      "technique": "boundary",
+      "technique_label": "경계값",
+      "ac": "AC3",
+      "preconditions": "로그인 상태",
+      "test_data": "쿠폰 EXP1 / 만료 2026-11-13 23:59:59",
+      "steps": "1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용",
+      "expected": "\"만료된 쿠폰입니다\" 토스트 노출\n결제 금액 변화 없음\n기획 확인 필요: 만료 시각 포함 여부",
+      "why_easy_to_miss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "lifecycle": "active",
+      "code_status": "missing",
+      "code_status_label": "미구현 의심",
+      "code_evidence": "CouponService.apply()에서 expiresAt 미사용",
+      "code_files": "src/checkout/coupon-service.ts",
+      "code_sha": "abcdef1234567"
+    },
+    "hash": "99cb3798aeec3257f53afdab1eb8e60a53880754b1d0e5b68bf832e435d0993a"
+  }
+}

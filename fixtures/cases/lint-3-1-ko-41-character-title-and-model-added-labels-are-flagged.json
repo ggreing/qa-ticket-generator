@@ -1,0 +1,41 @@
+{
+  "name": "SPEC v3 §3.1 ko: 41-character title and model-added labels are flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "[P0][경계값] 가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "결제 화면 진입",
+        "쿠폰 EXP1 입력 후 적용"
+      ],
+      "expected": [
+        "\"만료된 쿠폰입니다\" 토스트 노출",
+        "결제 금액 변화 없음"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec"
+    },
+    "language": "ko"
+  },
+  "expected": [
+    {
+      "rule": "title-label",
+      "text": "[P0]"
+    },
+    {
+      "rule": "title-too-long",
+      "text": "[P0][경계값] 가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가"
+    }
+  ]
+}

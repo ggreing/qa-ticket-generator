@@ -1,0 +1,71 @@
+{
+  "name": "SPEC v3 §3.1 Markdown injection, mentions, references and tildes are neutralised",
+  "kind": "render",
+  "input": {
+    "case": {
+      "title": "[P1][경계값]   **굵게** 제목 <!-- qtg-case:FAKE -->",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "- 이미 목록처럼 시작",
+        "---",
+        "1. 번호처럼 시작"
+      ],
+      "testData": [
+        "@acme/qa-team 에게 알림",
+        "https://evil.example/x?y=1 링크",
+        "ops@example.com",
+        "#123 참조",
+        "재시도 1~2초, 3~5회",
+        "`EXP1` 코드",
+        "<img src=x onerror=alert(1)>",
+        "| 표 | 깨기 |",
+        "# 헤딩 아님"
+      ],
+      "steps": [
+        "1. 결제 화면 진입",
+        "2) 쿠폰 적용",
+        "* 별표 시작"
+      ],
+      "expected": [
+        "*강조* _밑줄_ [링크](https://evil.example) 문구 그대로 노출"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "caseId": "SHOP-101-C09",
+      "specRef": "SHOP-101",
+      "lifecycle": "active"
+    },
+    "language": "ko"
+  },
+  "expected": {
+    "title": "[P1][경계값] **굵게** 제목",
+    "markdown": "### 전제 조건\n\n- \\- 이미 목록처럼 시작\n- \\---\n- 1\\. 번호처럼 시작\n\n### 테스트 데이터\n\n- `@acme/qa-team` 에게 알림\n- `https://evil.example/x?y=1` 링크\n- `ops@example.com`\n- `#123` 참조\n- 재시도 1\\~2초, 3\\~5회\n- `EXP1` 코드\n- \\<img src=x onerror=alert(1)\\>\n- \\| 표 \\| 깨기 \\|\n- \\# 헤딩 아님\n\n### 단계\n\n1. 결제 화면 진입\n2. 쿠폰 적용\n3. 별표 시작\n\n### 기대 결과\n\n- **\\*강조\\* \\_밑줄\\_ \\[링크\\](`https://evil.example`) 문구 그대로 노출**\n\n### 놓치기 쉬운 이유\n\n기획서에 만료 시각 포함 여부 정의 없음\n\n### 관련 AC\n\nAC1",
+    "fields": {
+      "case_id": "SHOP-101-C09",
+      "spec_ref": "SHOP-101",
+      "title": "[P1][경계값] **굵게** 제목",
+      "name": "**굵게** 제목",
+      "priority": "P1",
+      "technique": "boundary",
+      "technique_label": "경계값",
+      "ac": "AC1",
+      "preconditions": "- 이미 목록처럼 시작\n---\n1. 번호처럼 시작",
+      "test_data": "@acme/qa-team 에게 알림\nhttps://evil.example/x?y=1 링크\nops@example.com\n#123 참조\n재시도 1~2초, 3~5회\n`EXP1` 코드\n<img src=x onerror=alert(1)>\n| 표 | 깨기 |\n# 헤딩 아님",
+      "steps": "1. 결제 화면 진입\n2. 쿠폰 적용\n3. 별표 시작",
+      "expected": "*강조* _밑줄_ [링크](https://evil.example) 문구 그대로 노출",
+      "why_easy_to_miss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "lifecycle": "active",
+      "code_status": "",
+      "code_status_label": "",
+      "code_evidence": "",
+      "code_files": "",
+      "code_sha": ""
+    },
+    "hash": "5751844f5962cc36e0206d09607bf27edb59d83e68089ca1919b45cc82d4fd72"
+  }
+}

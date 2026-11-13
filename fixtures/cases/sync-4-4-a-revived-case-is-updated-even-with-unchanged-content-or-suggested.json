@@ -1,0 +1,153 @@
+{
+  "name": "SPEC v3 §4.4 a revived case is updated even with unchanged content, or suggested when edited",
+  "kind": "sync",
+  "input": {
+    "existing": [
+      {
+        "caseId": "SHOP-101-C01",
+        "ticketRef": "T-SHOP-101-C01",
+        "url": "https://tickets.example/SHOP-101-C01",
+        "lastWritten": {
+          "title": "만료 1초 지난 쿠폰 적용 시 거부",
+          "acLabels": [
+            "AC3"
+          ],
+          "technique": "boundary",
+          "priority": "P0",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec",
+          "caseId": "SHOP-101-C01",
+          "specRef": "SHOP-101",
+          "lifecycle": "obsolete"
+        },
+        "writtenHash": "b71b8d12032b841d12344904e33a28cb3d9cf566c5753c272566d68af3e6d90e",
+        "currentHash": "b71b8d12032b841d12344904e33a28cb3d9cf566c5753c272566d68af3e6d90e",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      },
+      {
+        "caseId": "SHOP-101-C02",
+        "ticketRef": "T-SHOP-101-C02",
+        "url": "https://tickets.example/SHOP-101-C02",
+        "lastWritten": {
+          "title": "같은 쿠폰 두 번째 적용 시 거부",
+          "acLabels": [
+            "AC1"
+          ],
+          "technique": "idempotency",
+          "priority": "P1",
+          "preconditions": [
+            "로그인 상태"
+          ],
+          "testData": [
+            "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+          ],
+          "steps": [
+            "결제 화면 진입",
+            "쿠폰 EXP1 입력 후 적용"
+          ],
+          "expected": [
+            "\"만료된 쿠폰입니다\" 토스트 노출",
+            "결제 금액 변화 없음"
+          ],
+          "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+          "origin": "spec",
+          "caseId": "SHOP-101-C02",
+          "specRef": "SHOP-101",
+          "lifecycle": "obsolete"
+        },
+        "writtenHash": "f76561fa3d56c75929138806a097869c624f71c3747ea0e7684ca67f3b61788e",
+        "currentHash": "edited:SHOP-101-C02",
+        "human": {
+          "execStatus": "Pass",
+          "assignee": "qa-lead"
+        }
+      }
+    ],
+    "next": [
+      {
+        "title": "만료 1초 지난 쿠폰 적용 시 거부",
+        "acLabels": [
+          "AC3"
+        ],
+        "technique": "boundary",
+        "priority": "P0",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "caseId": "SHOP-101-C01",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      },
+      {
+        "title": "같은 쿠폰 두 번째 적용 시 거부",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "idempotency",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "caseId": "SHOP-101-C02",
+        "specRef": "SHOP-101",
+        "lifecycle": "active"
+      }
+    ],
+    "language": "ko"
+  },
+  "expected": [
+    {
+      "op": "update",
+      "caseId": "SHOP-101-C01",
+      "ticketRef": "T-SHOP-101-C01"
+    },
+    {
+      "op": "suggest",
+      "caseId": "SHOP-101-C02",
+      "ticketRef": "T-SHOP-101-C02"
+    }
+  ]
+}
