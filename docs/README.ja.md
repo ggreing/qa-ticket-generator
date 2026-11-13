@@ -6,9 +6,9 @@
 
 > 🚧 pre-v0.1 です。手元のテスト用リポジトリでは動いていますが、input 名やコメントの見た目はまだ変わるかもしれません。
 
-プルリクエストと、その PR が実装するはずのチケットをいっしょに読んで、QA 担当者が書くようなメモを残す
-GitHub Action です。どの要件が実装済みで、どれが抜けているか、マージ前にどんなテストをしておくとよいかを
-PR にコメントします。
+仕様(GitHub issue、Jira のストーリー、Notion のページ)を読んで、QA 担当者が実行するテストケースを
+1 ケースずつチケットにする GitHub Action です。見落としやすいケースも拾います。その仕様を実装した PR が
+来たら、コードとケースを突き合わせて、どのケースが実装済みに見えるかを知らせます。
 
 ## Why
 
@@ -16,41 +16,75 @@ PR にコメントします。
 わけではありません。その結果、レビューも通ってテストも緑なのに、一週間後に受け入れ条件がひとつ丸ごと
 実装されていなかったと気づく、ということが起きます。
 
-このアクションがその突き合わせを代わりにやります。PR の説明にチケットのリンクを書いて `needs-ai-qa`
-ラベルを付けると、1〜2 分後に Claude がコードと要件を比べたコメントを残します。コードレビューのボットでは
-ないので、スタイルには口を出しません。変更が仕様どおりか、それを確かめるには何をテストすべきか、だけを見ます。
+このアクションがその QA の下準備を代わりにやります。コードを書く前に仕様を読み、受け入れ条件ごとに
+境界値や失敗時も含めた具体的なテストケースを作ります。あとで PR が来たら、ケースを 1 つずつコードと
+突き合わせます。コードレビューのボットではないので、スタイルには口を出しません。変更が仕様どおりか、それを
+確かめるには何をテストすべきか、だけを見ます。
+
+## How it works
+
+1. 計画。仕様の issue に `needs-qa-plan` ラベルを付けるか、Jira のキーや Notion の URL を指定して
+   ワークフローを手動で実行します。Claude が受け入れ条件ごとによく使うテスト技法(境界値、不正な入力、
+   権限、同時実行、タイムゾーンなど)を当てはめてケースを書きます。仕様に書かれていないこともケースにします。
+2. ケースのチケット。ケースごとに、チームがふだん使っている場所にチケットができます。GitHub issue、
+   ストーリーの下の Jira サブタスク、Notion データベースの行から選べます。`qa-cases.md`、`.csv`、`.json`
+   のファイルも出力され、CSV は TestRail やスプレッドシートに取り込めます。仕様にはケース一覧のコメントが
+   1 つ付きます。
+3. PR との突き合わせ。仕様にリンクした PR に `needs-ai-qa` を付けます。ケースごとにコードの状態(実装を確認、
+   未実装の疑い、仕様と矛盾、コードからは判断できない)が付き、diff にしか現れないリスクは新しいケースとして
+   追加されます。PR には P0 チェックリスト入りの要約コメントが残ります。まだケースを作っていない仕様なら、
+   このステップで先に作ります。
+
+何度実行しても大丈夫です。同じケースは ID もチケットもそのままなので、重複はできません。チームが書いた
+実行結果、担当者、コメント、ラベルは上書きしません。誰かがチケットの本文を直していたらそのままにして、
+ツールが書き換えようとした内容をコメントで残します。仕様から消えたケースは閉じたり消したりせず、対象外として
+印を付けます。
+
+Jira や Notion を使うには、もう少し設定が必要です:
+[`setup/jira-subtasks.md`](setup/jira-subtasks.md)、
+[`setup/notion-qa-database.md`](setup/notion-qa-database.md)。
 
 ## What you get
 
-コメントはだいたいこんな形です(v0.1 に向けてまだ調整中です):
+ツールが書くケースのチケットは、1 件だとこんな形です(タイトルは `[P0][境界値] 有効期限を1秒過ぎたクーポンの適用を拒否`):
 
 ```markdown
-## 🧪 AI QA — 4e2455c · ⚠️ 一部一致
+### 前提条件
 
-**要対応 (2)**
+- クーポン EXP1 発行済み、期限 2026-11-13 23:59:59
+- カート小計 30,000ウォン
 
-- ❌ AC2 期限切れのクーポンは拒否する: `expiresAt` を現在時刻と比べるコードがない (`src/coupon.ts`)
-- ❌ AC4 定率割引は最大 10,000 ウォン: 上限がかかっていない
+### テストデータ
 
-**P0 チェックリスト**
+- クーポンコード EXP1
+- 現在時刻 2026-11-14 00:00:00
 
-- [ ] TC-01 1 秒前に期限切れになったクーポン → 拒否、使用履歴は残らない
-- [ ] TC-02 同じユーザーが同じクーポンを同時に 2 回適用 → 1 回だけ成功
-- [ ] TC-03 200,000 ウォンの注文に 10% クーポン → 割引は 10,000 ウォン(20,000 ではない)
+### 手順
 
-<details><summary>TC-01 期限切れクーポンを拒否 [P0 · AC2]</summary>
-前提: user-A は EXP1 を未使用、カート小計 30,000 ウォン
-データ: code = EXP1, expiresAt = 現在 - 1 秒
-手順: 1. 決済画面を開く 2. EXP1 を適用
-期待: "Coupon has expired" の CouponError、(user-A, EXP1) の使用履歴なし
-</details>
+1. 決済画面を開く
+2. EXP1 を入力して適用
 
-<details><summary>P1 / P2 ケース (9)</summary>…</details>
+### 期待結果
+
+- **「期限切れのクーポンです」トースト表示**
+- 支払金額 30,000ウォンのまま
+
+### 見落としやすい理由
+
+仕様に有効期限の秒を含むか(以下/未満)の定義がない
+
+### 関連AC
+
+AC3
 ```
 
-コミットを追加で push すると、新しいコメントを増やさずに同じコメントを書き換えます。lock ファイルや
-ビルド成果物だけの push は無視します。Slack をつなぐと、チャンネルには短い要約、そのスレッドにテストケースが
-流れます。
+PR のコメントは、変更が仕様とどのくらい合っているかから始まり、コードが見落としていそうなケースや仕様と
+食い違っていそうなケース、P0 チェックリストを、チケットへのリンク付きで並べます。コミットを追加で push すると
+新しいコメントを増やさずに同じコメントを書き換え、lock ファイルやビルド成果物だけの push は無視します。
+
+仕様にリンクしていない PR にもコメントは付きます。その場合はコードから要件を推測して短いテストケースの一覧を
+書き、突き合わせる仕様がなかったことも書き添えます。Slack をつなぐと、チャンネルにはこのコメントの短い要約、
+そのスレッドにテストケースが流れます。
 
 中の流れが気になる方はこちら。
 
@@ -61,38 +95,53 @@ PR にコメントします。
 必要なのは Anthropic の API キーと 5 分ほどの時間です。
 
 1. リポジトリの secret に `ANTHROPIC_API_KEY` という名前でキーを登録します。
-2. `needs-ai-qa` というラベルを作ります。
-3. 次のワークフローを `.github/workflows/qa-ticket-generator.yml` として追加します。
+2. ラベルを 2 つ作ります。仕様用の `needs-qa-plan` と、PR 用の `needs-ai-qa` です。
+3. 次のワークフローを `.github/workflows/qa-cases.yml` として追加します。
 
 ```yaml
-name: AI QA
+name: QA cases
 on:
+  issues:
+    types: [labeled]
   pull_request:
     types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      spec: { description: "Issue number, Jira key or Notion URL", required: false }
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
-  issues: read
-
-concurrency:
-  group: qa-ticket-generator-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   qa:
-    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-qa-plan') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'needs-ai-qa'))
+    concurrency:
+      group: qa-cases-${{ github.event.issue.number || github.event.pull_request.number || inputs.spec }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      # あえて actions/checkout は入れません。PR の中身は API で読みます。
-      - uses: ggreing/qa-ticket-generator@v0
+      # あえて actions/checkout は入れません。中身はすべて API で読みます。
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: steps.qa.outputs.cases-dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-cases
+          path: ${{ steps.qa.outputs.cases-dir }}
 ```
 
-これで終わりです。PR にラベルを付けて、コメントを待ってください。仕様が Jira や Notion にある場合や Slack
-にも通知したい場合は、[`examples/workflow.yml`](examples/workflow.yml) に追加の input が全部載っています。
-日本語で出力したいときは `language: ja` を 1 行足すだけです。
+これで終わりです。仕様の issue にラベルを付けるとケースの issue ができるので、あとはその仕様を実装した PR に
+ラベルを付けてください。Jira と Notion の input はコメント付きで
+[`examples/workflow-v3.yml`](examples/workflow-v3.yml) に載っています。ケースのチケットは要らず PR の
+コメントだけでよければ [`examples/workflow.yml`](examples/workflow.yml) を使ってください。日本語で出力したい
+ときは `language: ja` を 1 行足すだけです。
 
 fork からの PR はデフォルトでスキップします。GitHub が fork の PR には secret を渡さないためです。どうしても
 必要なら [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml) を使えますが、先頭の
@@ -100,7 +149,8 @@ fork からの PR はデフォルトでスキップします。GitHub が fork �
 
 ## Linking the spec
 
-アクションは PR の説明文からチケットへのリンクを探します。
+計画では、ラベルを付けた issue か、手動実行で渡した `spec` が仕様になります。PR との突き合わせでは、PR の
+説明文から仕様へのリンクを探します。
 
 - GitHub issue: `#123`、`owner/repo#123`、issue の URL、`Closes #123`
 - Jira Cloud: `https://your-site.atlassian.net/browse/PROJ-123`。`jira-project-keys` に `PROJ` を入れて
@@ -117,10 +167,13 @@ fork からの PR はデフォルトでスキップします。GitHub が fork �
 
 ## Running it locally
 
-同じものを CLI としても使えます。デフォルトではレポートを表示するだけで、どこにも投稿しません。
+同じものを CLI としても使えます。デフォルトではどこにも投稿しません。`plan` は `qa-cases` のファイルを
+書くだけ、`run` はレポートを表示するだけです。
 
 ```bash
 export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123                                # ファイルのみ
+npx qa-ticket-generator plan --repo owner/repo --spec 42 --sinks github-issue --publish       # チケットを作成
 npx qa-ticket-generator run --repo owner/repo --pr 123            # ドライラン(デフォルト)
 npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
 npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR コメント / Slack に投稿
@@ -137,6 +190,10 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR コメン
 大きな PR は何回かに分けて呼ぶので、そのぶん高くなります。そのため実行ごとに上限があります。`max-cost-usd`
 で、デフォルトは $2 です。超えそうなときは重要度の低いファイルから外し、外したものをコメントに書きます。
 各実行の見積もりコストはコメントの一番下に出ます。
+
+仕様からケースを作るほうが大きな仕事です。受け入れ条件をいくつかずつ分けてケースを書き、あとでまとめるから
+です。仕様 1 つで $0.5〜2 ほどと見ていますが、まだ測ってはいません。同じ `max-cost-usd` の上限がかかり、
+`max-cases`(デフォルト 80)で仕様 1 つあたりのケース数も抑えます。超えたら P2 から外します。
 
 ## Where your code goes
 
@@ -165,12 +222,18 @@ PR のタイトルと説明文も同じです。いくつマスクしたかは�
 - ワークフローを追加する*前*に開かれた PR は、ラベルを付けても何も起きないことがあります。GitHub がその PR の
   merge コミットを更新しないため、新しいワークフローが見えないからです。ブランチを更新すれば(「Update branch」
   ボタンか `gh pr update-branch <number>`)、次の push から動きます。
+- Slack に流れるのは、仕様にリンクしていない PR だけです。計画の実行やケースのチケットとの突き合わせは、
+  まだ Slack には送りません。
 - Slack の incoming webhook は投稿しかできないので、実行のたびに新しいメッセージが増えます。同じメッセージの
   更新やスレッドを使いたい場合は bot トークン(`slack-bot-token` と `slack-channel`)を使ってください。
 - デフォルトの `GITHUB_TOKEN` では、ほかの private リポジトリの issue は読めません。仕様が別のリポジトリに
   あるなら、PAT か GitHub App のトークンを `github-token` に渡してください。
 - 今のところ Jira は Cloud のみ(Server、Data Center は非対応)、GitHub は github.com のみ(GHES は非対応)です。
 - Notion のページはインテグレーションに共有しておく必要があります(ページメニュー → コネクト)。
+- Jira のサブタスクには、ぶら下げる先の Jira ストーリーが必要です。仕様が GitHub issue や Notion のページ
+  なら Jira はスキップし、実行ログにそう書きます。
+- Notion にはケースの行はできますが、仕様ごとのケース一覧はありません。1 つのデータベースにすべての仕様の
+  ケースが入るからです。一覧は仕様の GitHub issue か Jira ストーリーに付きます。
 - モデルが見るのは変更されたファイルだけです。PR が触っていないファイルで処理されている要件は「未実装」と
   出ることがあり、そうした前提はコメントの最後にまとめて書きます。
 

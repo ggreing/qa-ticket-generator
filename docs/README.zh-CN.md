@@ -6,48 +6,79 @@
 
 > 🚧 pre-v0.1。在我们的测试仓库里已经能用了,但 input 名称和评论的样子可能还会变。
 
-一个 GitHub Action:把 pull request 和它要实现的需求单放在一起读,然后写出测试同学会写的那种 QA 备注。
-哪些需求已经实现、哪些漏掉了、合并前值得跑哪几条测试,都会以评论的形式留在 PR 上。
+一个 GitHub Action:读需求文档(GitHub issue、Jira 故事或 Notion 页面),写出测试同学会跑的测试用例,每条
+用例一张单子,容易漏掉的也算在内。等实现这份需求的 PR 提上来,它再把代码和这些用例对一遍,告诉你哪些看起来
+已经实现了。
 
 ## Why
 
 小团队一般没有专职 QA,评审的人看 diff 的时候也很少会把 Jira 单子开在旁边。于是 PR 评审通过了,测试也全绿,
 过了一周才有人发现有一条验收标准压根没做。
 
-这个 Action 帮你做这一步核对。在 PR 描述里贴上需求单链接,打上 `needs-ai-qa` 标签,一两分钟后 Claude 会留下
-一条评论,对比代码和需求。它不是代码审查机器人,不管代码风格,只关心这次改动是不是按需求做了,以及要验证
-这一点该测什么。
+这个 Action 帮你做 QA 的准备工作。在写代码之前,它先读需求,把每条验收标准变成具体的测试用例,边界值和失败
+场景也包括在内。之后 PR 提上来,它再逐条拿用例和代码对照。它不是代码审查机器人,不管代码风格,只关心这次
+改动是不是按需求做了,以及要验证这一点该测什么。
+
+## How it works
+
+1. 规划。给需求 issue 打上 `needs-qa-plan` 标签,或者填上 Jira key 或 Notion 链接手动运行 workflow。
+   Claude 会对每条验收标准套用常见的测试方法(边界值、非法输入、权限、并发、时区等)来写用例,需求里没写到
+   的地方也会写成用例。
+2. 用例单。每条用例都会在团队平时用的地方生成一张单子:GitHub issue、故事下面的 Jira 子任务,或者 Notion
+   数据库里的一行,三者任选。同时还会输出 `qa-cases.md`、`.csv` 和 `.json` 文件,CSV 可以导入 TestRail
+   或表格。需求上会留一条列出所有用例的评论。
+3. 对照 PR。给关联了需求的 PR 打上 `needs-ai-qa`。每条用例都会得到一个代码状态(已实现、疑似未实现、与需求
+   矛盾、从代码看不出来),只在 diff 里才看得出的风险会变成新的用例,PR 上会留一条带 P0 检查清单的摘要评论。
+   如果这份需求还没生成过用例,这一步会先生成。
+
+重复运行没有问题。同一条用例的 ID 和单子都不会变,所以不会重复。团队填写的执行结果、负责人、评论和标签都不会
+被覆盖。如果有人改过单子的内容,它会保持原样,把本来要改的内容作为评论留下。需求里去掉的用例不会被关闭或
+删除,只会标记为不再适用。
+
+用 Jira 或 Notion 需要多做一点设置:
+[`setup/jira-subtasks.md`](setup/jira-subtasks.md)、
+[`setup/notion-qa-database.md`](setup/notion-qa-database.md)。
 
 ## What you get
 
-评论大概长这样(v0.1 之前还在打磨):
+它写出来的一张用例单大概长这样(标题是 `[P0][边界值] 过期1秒的优惠券应用时被拒绝`):
 
 ```markdown
-## 🧪 AI QA — 4e2455c · ⚠️ 部分符合
+### 前置条件
 
-**需要处理 (2)**
+- 已发放优惠券 EXP1,到期 2026-11-13 23:59:59
+- 购物车小计 30,000 韩元
 
-- ❌ AC2 过期的优惠券应被拒绝:没有代码把 `expiresAt` 和当前时间比较 (`src/coupon.ts`)
-- ❌ AC4 百分比折扣最多 10,000 韩元:没有加上限
+### 测试数据
 
-**P0 检查清单**
+- 优惠码 EXP1
+- 当前时间 2026-11-14 00:00:00
 
-- [ ] TC-01 一秒前过期的优惠券 → 被拒绝,不留下使用记录
-- [ ] TC-02 同一用户同时使用同一张优惠券两次 → 只有一次成功
-- [ ] TC-03 200,000 韩元订单用 10% 优惠券 → 折扣 10,000,而不是 20,000
+### 步骤
 
-<details><summary>TC-01 拒绝过期优惠券 [P0 · AC2]</summary>
-前提:user-A 从未用过 EXP1,购物车小计 30,000 韩元
-数据:code = EXP1, expiresAt = 当前时间 - 1 秒
-步骤:1. 打开结算页 2. 使用 EXP1
-预期:抛出 "Coupon has expired" 的 CouponError,(user-A, EXP1) 没有使用记录
-</details>
+1. 进入结算页面
+2. 输入 EXP1 并应用
 
-<details><summary>P1 / P2 用例 (9)</summary>…</details>
+### 预期结果
+
+- **显示"优惠券已过期"提示**
+- 支付金额保持 30,000 韩元
+
+### 容易遗漏的原因
+
+需求中没有定义到期那一秒是否仍有效(小于等于/小于)
+
+### 相关AC
+
+AC3
 ```
 
-之后再 push 新提交时,它会修改同一条评论,而不是再发一条新的。只改了 lock 文件或构建产物的 push 会被忽略。
-如果接上 Slack,频道里会收到一条简短摘要,测试用例放在它的回复串里。
+PR 上的评论先说这次改动和需求对得上多少,再列出代码可能漏掉或与需求矛盾的用例,以及 P0 检查清单,每条都
+链接到对应的单子。之后再 push 新提交时,它会修改同一条评论,而不是再发一条新的;只改了 lock 文件或构建产物
+的 push 会被忽略。
+
+没有关联需求的 PR 也会收到评论。这时它会从代码推断需求,写一份简短的测试用例清单,并注明没有可以对照的需求。
+如果接上 Slack,频道里会收到这条评论的简短摘要,测试用例放在它的回复串里。
 
 想了解内部流程可以看这张图。
 
@@ -58,45 +89,58 @@
 只需要一个 Anthropic API key,大概五分钟。
 
 1. 在仓库 secret 里添加名为 `ANTHROPIC_API_KEY` 的 key。
-2. 创建一个叫 `needs-ai-qa` 的标签。
-3. 把下面的 workflow 保存为 `.github/workflows/qa-ticket-generator.yml`。
+2. 创建两个标签:需求用的 `needs-qa-plan` 和 PR 用的 `needs-ai-qa`。
+3. 把下面的 workflow 保存为 `.github/workflows/qa-cases.yml`。
 
 ```yaml
-name: AI QA
+name: QA cases
 on:
+  issues:
+    types: [labeled]
   pull_request:
     types: [labeled, synchronize, opened, reopened]
+  workflow_dispatch:
+    inputs:
+      spec: { description: "Issue number, Jira key or Notion URL", required: false }
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
-  issues: read
-
-concurrency:
-  group: qa-ticket-generator-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
 
 jobs:
   qa:
-    if: contains(github.event.pull_request.labels.*.name, 'needs-ai-qa')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'needs-qa-plan') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'needs-ai-qa'))
+    concurrency:
+      group: qa-cases-${{ github.event.issue.number || github.event.pull_request.number || inputs.spec }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
-      # 这里故意不加 actions/checkout,PR 内容通过 API 读取。
-      - uses: ggreing/qa-ticket-generator@v0
+      # 这里故意不加 actions/checkout,所有内容都通过 API 读取。
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: steps.qa.outputs.cases-dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-cases
+          path: ${{ steps.qa.outputs.cases-dir }}
 ```
 
-就这些。给 PR 打上标签,等评论出来就行。如果需求写在 Jira 或 Notion 里,或者想同时发到 Slack,
-[`examples/workflow.yml`](examples/workflow.yml) 里列出了所有额外的 input。想要中文输出的话,加一行
-`language: zh-CN` 就可以。
+就这些。给需求 issue 打上标签,用例 issue 就会生成;之后再给实现这份需求的 PR 打上标签就行。Jira 和 Notion
+的 input 带注释写在 [`examples/workflow-v3.yml`](examples/workflow-v3.yml) 里。如果不需要用例单,只想要 PR
+评论,用 [`examples/workflow.yml`](examples/workflow.yml)。想要中文输出的话,加一行 `language: zh-CN` 就可以。
 
 来自 fork 的 PR 默认会跳过,因为 GitHub 不会把 secret 交给 fork 的 PR。确实需要的话可以用
 [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml),但请先读完文件开头的警告。
 
 ## Linking the spec
 
-Action 会在 PR 描述里找需求单链接:
+规划时,需求就是你打了标签的 issue,或者手动运行时填的 `spec`。对照 PR 时,Action 会在 PR 描述里找需求链接:
 
 - GitHub issue:`#123`、`owner/repo#123`、issue 链接、`Closes #123`
 - Jira Cloud:`https://your-site.atlassian.net/browse/PROJ-123`;如果在 `jira-project-keys` 里写了
@@ -112,10 +156,12 @@ Action 会在 PR 描述里找需求单链接:
 
 ## Running it locally
 
-同样的功能也可以当 CLI 用。默认只打印报告,不会发到任何地方:
+同样的功能也可以当 CLI 用。默认不会发到任何地方:`plan` 只写 `qa-cases` 文件,`run` 只打印报告。
 
 ```bash
 export GITHUB_TOKEN=… ANTHROPIC_API_KEY=…
+npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123                                # 只写文件
+npx qa-ticket-generator plan --repo owner/repo --spec 42 --sinks github-issue --publish       # 创建用例单
 npx qa-ticket-generator run --repo owner/repo --pr 123            # 试运行(默认)
 npx qa-ticket-generator run --repo owner/repo --pr 123 --format json --out report.json
 npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR 评论 / Slack 消息
@@ -131,6 +177,10 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 
 大的 PR 会拆成几次调用,所以会更贵。因此每次运行都有上限:`max-cost-usd`,默认 $2。估计会超出时,会先去掉
 不太重要的文件,并在评论里列出去掉了哪些。每次运行的预估费用写在评论最底部。
+
+从需求生成用例的工作量更大,因为要把验收标准分成几批分别写用例,最后再合并。我们估计一份需求大约 $0.5 到
+$2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(默认 80)还会限制一份需求最多产生多少条
+用例,超出时先去掉 P2。
 
 ## Where your code goes
 
@@ -155,12 +205,17 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 - 在你添加 workflow *之前*就已经打开的 PR,打上标签可能没有任何反应。因为 GitHub 不会刷新那个 PR 的 merge
   提交,它看不到新的 workflow。更新一下分支("Update branch" 按钮或 `gh pr update-branch <number>`),
   之后的 push 就会触发运行。
+- 目前只有没关联需求的 PR 会发到 Slack。规划和对照用例单的结果还不会发到 Slack。
 - Slack 的 incoming webhook 只能发消息,所以每次运行都会多一条新消息。想要原地更新和回复串,请用 bot token
   (`slack-bot-token` 和 `slack-channel`)。
 - 默认的 `GITHUB_TOKEN` 读不了其他私有仓库里的 issue。如果需求写在别的仓库,请把 PAT 或 GitHub App 的 token
   传给 `github-token`。
 - 目前 Jira 只支持 Cloud(不支持 Server 和 Data Center),GitHub 只支持 github.com(不支持 GHES)。
 - Notion 页面需要先分享给你的 integration(页面菜单 → 连接)。
+- Jira 子任务需要挂在一个 Jira 故事下面。如果需求是 GitHub issue 或 Notion 页面,就会跳过 Jira,并在运行日志
+  里说明。
+- Notion 里会有用例的行,但没有按需求列出的用例清单,因为所有需求的用例都放在同一个数据库里。这份清单会留在
+  需求所在的 GitHub issue 或 Jira 故事上。
 - 模型只看得到改动过的文件。如果某条需求是在 PR 没碰过的文件里处理的,可能会被判成"缺失";这类假设会集中
   写在评论最后。
 

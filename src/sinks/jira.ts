@@ -41,8 +41,8 @@ export interface JiraCaseSinkDeps {
 }
 
 /** §5 — P0 is the highest priority the default Jira scheme offers. */
-const PRIORITY_NAME = { P0: 'Highest', P1: 'High', P2: 'Medium' } as const;
-const PAYLOAD_TITLE = 'qtg data (do not edit)';
+export const PRIORITY_NAME = { P0: 'Highest', P1: 'High', P2: 'Medium' } as const;
+export const PAYLOAD_TITLE = 'qtg data (do not edit)';
 const SUMMARY_LIMIT = 255;
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/;
 const FIELDS = ['summary', 'description', 'labels', 'status', 'assignee', 'creator'];

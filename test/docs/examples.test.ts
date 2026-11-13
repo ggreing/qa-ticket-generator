@@ -17,11 +17,22 @@ interface Step {
 interface Workflow {
   on: Record<string, unknown>;
   permissions?: Record<string, string>;
-  jobs: Record<string, { if?: string; steps: Step[] }>;
+  concurrency?: unknown;
+  jobs: Record<
+    string,
+    { if?: string; concurrency?: { group?: string; 'cancel-in-progress'?: unknown }; steps: Step[] }
+  >;
 }
 
 const ACTION = 'ggreing/qa-ticket-generator@';
-const WORKFLOWS = ['docs/examples/workflow.yml', 'docs/examples/workflow-fork-opt-in.yml'];
+const V3 = 'docs/examples/workflow-v3.yml';
+const WORKFLOWS = ['docs/examples/workflow.yml', 'docs/examples/workflow-fork-opt-in.yml', V3];
+/** Minimal permissions per example; the v3 flow writes case issues, so it needs issues: write. */
+const PERMISSIONS: Record<string, Record<string, string>> = {
+  'docs/examples/workflow.yml': { contents: 'read', 'pull-requests': 'write', issues: 'read' },
+  'docs/examples/workflow-fork-opt-in.yml': { contents: 'read', 'pull-requests': 'write', issues: 'read' },
+  [V3]: { contents: 'read', 'pull-requests': 'write', issues: 'write' },
+};
 
 const action = yamlOf<{ inputs: Record<string, { required?: boolean; default?: string }> }>('action.yml');
 const inputNames = new Set(Object.keys(action.inputs));
@@ -61,7 +72,40 @@ describe('docs/examples workflows', () => {
       expect(step.uses ?? '').not.toMatch(/^actions\/checkout@/);
       expect(step.run).toBeUndefined();
     }
-    expect(wf.permissions).toEqual({ contents: 'read', 'pull-requests': 'write', issues: 'read' });
+    expect(wf.permissions).toEqual(PERMISSIONS[path]);
+  });
+
+  it('DOC v3 §2 example plans from a labelled issue or a manual spec, verifies PRs and keeps the case files', () => {
+    const wf = yamlOf<Workflow>(V3);
+    expect(wf.on).toEqual({
+      issues: { types: ['labeled'] },
+      pull_request: { types: ['labeled', 'synchronize', 'opened', 'reopened'] },
+      workflow_dispatch: {
+        inputs: {
+          spec: expect.objectContaining({ required: false }),
+          'pr-number': expect.objectContaining({ required: false }),
+        },
+      },
+    });
+    const job = wf.jobs.qa;
+    expect(job?.if).toContain(`github.event.label.name == '${action.inputs['plan-label']?.default}'`);
+    expect(job?.if).toContain(`'${triggerLabel}'`);
+    // A run skipped by `if` (any other label on the spec issue) must not cancel a running plan.
+    expect(wf.concurrency).toBeUndefined();
+    expect(job?.concurrency?.group).toMatch(/github\.event\.issue\.number/);
+    expect(job?.concurrency?.['cancel-in-progress']).toMatch(
+      /^\$\{\{ github\.event_name == 'pull_request' \}\}$/,
+    );
+    const qa = actionSteps(wf)[0] as Step & { id?: string };
+    expect(qa.id).toBe('qa');
+    expect(String(qa.with?.sinks).split(',')).toContain('file');
+    const upload = steps(wf).find((s) => s.uses?.startsWith('actions/upload-artifact@')) as Step & {
+      if?: string;
+    };
+    expect(upload?.if).toBe("steps.qa.outputs.cases-dir != ''");
+    expect(upload?.with?.path).toMatch(/^\$\{\{ steps\.qa\.outputs\.cases-dir \}\}$/);
+    // The upload step only ships files the action wrote; nothing else runs.
+    expect(steps(wf)).toHaveLength(2);
   });
 
   it('DOC §4.1 quickstart matches the spec and the default trigger label', () => {
