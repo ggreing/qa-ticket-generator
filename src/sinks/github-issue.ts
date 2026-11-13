@@ -119,7 +119,32 @@ export function createGitHubIssueCaseSink(
   deps: GitHubIssueSinkDeps = {},
 ): CaseSink {
   const { owner, repo } = options;
-  const target = { owner, repo };
+
+  /**
+   * Octokit warns on every response that carries a `Deprecation` header. GitHub sends one for
+   * POST /repos/{owner}/{repo}/issues (seen in the sandbox: sunset 2028-03-10), so a 55-case plan
+   * printed 55 identical warnings. It is a note for the maintainers, not something the person
+   * running the action can fix, so it goes to debug once per endpoint. Other warnings stay warnings.
+   */
+  const deprecations = new Set<string>();
+  const requestLog = {
+    debug: (m: string) => ctx.logger.debug(m),
+    info: (m: string) => ctx.logger.debug(m),
+    warn: (m: string) => {
+      if (!/" is deprecated\b/.test(m)) return ctx.logger.warn(m);
+      // One key per route: PATCH …/issues/101 and …/issues/102 are the same endpoint.
+      const endpoint = (m.match(/"([A-Z]+ [^"]+)"/)?.[1] ?? m).replace(/\/\d+(?=\/|$)/g, '/{n}');
+      if (deprecations.has(endpoint)) return;
+      deprecations.add(endpoint);
+      ctx.logger.debug(m);
+    },
+    error: (m: string) => ctx.logger.error(m),
+  };
+  /** Per-request octokit options for every call of this sink (merged into the client defaults). */
+  const quiet = { request: { log: requestLog } };
+  const target = { owner, repo, ...quiet };
+  /** Issue number per case id, from list() and create() (see publishSummary). */
+  const numbers = new Map<string, number>();
   const call = <T>(fn: () => Promise<T>, action: string): Promise<T> =>
     withRetry(fn, deps.retry).catch((err: unknown) => {
       throw sinkError(err, 'GitHub Issue sink', action);
@@ -130,7 +155,7 @@ export function createGitHubIssueCaseSink(
     identity ??= (async () => {
       if (options.trustedAuthor?.trim()) return options.trustedAuthor.trim().toLowerCase();
       try {
-        const { data } = await withRetry(() => octokit.rest.users.getAuthenticated(), deps.retry);
+        const { data } = await withRetry(() => octokit.rest.users.getAuthenticated(quiet), deps.retry);
         return data.login.toLowerCase();
       } catch (err) {
         const status = statusOf(err);
@@ -234,6 +259,7 @@ export function createGitHubIssueCaseSink(
       () =>
         octokit.paginate(octokit.rest.issues.listComments, {
           ...repoTarget,
+          ...quiet,
           issue_number: number,
           per_page: 100,
         }),
@@ -254,13 +280,13 @@ export function createGitHubIssueCaseSink(
     if (existing && existing.body === body) return existing.html_url;
     if (existing) {
       const { data } = await call(
-        () => octokit.rest.issues.updateComment({ ...repoTarget, comment_id: existing.id, body }),
+        () => octokit.rest.issues.updateComment({ ...repoTarget, ...quiet, comment_id: existing.id, body }),
         'updating a comment',
       );
       return data.html_url;
     }
     const { data } = await call(
-      () => octokit.rest.issues.createComment({ ...repoTarget, issue_number: number, body }),
+      () => octokit.rest.issues.createComment({ ...repoTarget, ...quiet, issue_number: number, body }),
       'creating a comment',
     );
     return data.html_url;
@@ -294,6 +320,7 @@ export function createGitHubIssueCaseSink(
         }
         const parts = splitBody(issue.body ?? '');
         if (!parts.caseId) continue;
+        numbers.set(parts.caseId, issue.number);
         tickets.push(
           ticketFrom({
             caseId: parts.caseId,
@@ -319,6 +346,7 @@ export function createGitHubIssueCaseSink(
         () => octokit.rest.issues.create({ ...target, title: r.title, body, labels }),
         'creating a case issue',
       );
+      numbers.set(c.caseId, data.number);
       return { ticketRef: String(data.number), url: data.html_url };
     },
 
@@ -390,9 +418,13 @@ export function createGitHubIssueCaseSink(
       const specTarget = { owner: gh[1], repo: gh[2] };
       const sameRepo =
         gh[1].toLowerCase() === owner.toLowerCase() && gh[2].toLowerCase() === repo.toLowerCase();
-      const refFor = (url: string | undefined) => {
-        const m = url?.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
-        if (!m) return url;
+      // The issue numbers this sink saw in list()/create() come first: the pipeline's URL for a
+      // case can be empty, e.g. when a later sink's create() (the file sink) overwrote it.
+      const refFor = (c: { caseId: string; url?: string }) => {
+        const own = numbers.get(c.caseId);
+        if (own !== undefined) return sameRepo ? `#${own}` : `${owner}/${repo}#${own}`;
+        const m = c.url?.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+        if (!m) return c.url || undefined;
         return sameRepo &&
           m[1]?.toLowerCase() === owner.toLowerCase() &&
           m[2]?.toLowerCase() === repo.toLowerCase()
