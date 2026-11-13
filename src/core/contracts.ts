@@ -139,6 +139,16 @@ export interface GitHubReader {
   getRepoConfigText(pr: PullRequestInfo, path: string): Promise<string | null>;
   /** TRG-04 — paths changed between two commits (compare API). */
   listPathsChangedBetween(pr: PullRequestInfo, fromSha: string, toSha: string): Promise<string[]>;
+  /**
+   * SPEC v3 §2.2 — the unified diff of every file changed between two commits (compare API).
+   * `null` when it cannot be known completely (too many files, force-push, API error): callers
+   * must then treat the whole PR as changed.
+   */
+  getChangesBetween?(
+    pr: PullRequestInfo,
+    fromSha: string,
+    toSha: string,
+  ): Promise<{ path: string; patch: string }[] | null>;
 }
 
 // ───────────────────────────── PRD (src/context/prd) ─────────────────────────────

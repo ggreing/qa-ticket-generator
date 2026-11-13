@@ -193,6 +193,12 @@ export interface VerifyRequest {
   sha: string;
   language: Language;
   maxNewCases: number;
+  /**
+   * §2.2 — where new code-derived cases may come from. `null`: the first check of this PR (or a
+   * manual run), the whole PR. Otherwise only risks introduced by these hunks, which are the
+   * changes since the last checked commit; an empty list means no new cases at all.
+   */
+  newCaseScope?: { sinceSha: string; changes: { path: string; patch: string }[] } | null;
 }
 
 export interface VerifyResult {

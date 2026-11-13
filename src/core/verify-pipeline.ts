@@ -224,6 +224,13 @@ export async function runVerify(
     if (pre.warnings) warnings.push(...pre.warnings);
 
     const active = cases.filter((c) => c.lifecycle === 'active');
+
+    // §2.2 — after the first check, new code cases only come from what changed since then.
+    let newCaseScope: VerifyRequest['newCaseScope'] = null;
+    if (state.sha && state.sha !== pr.headSha && event.name !== 'workflow_dispatch') {
+      const changes = (await deps.github.getChangesBetween?.(pr, state.sha, pr.headSha)) ?? null;
+      if (changes) newCaseScope = { sinceSha: state.sha, changes };
+    }
     const result = await logger.group('Check cases against the code', () =>
       deps.verifyCases(
         {
@@ -242,6 +249,7 @@ export async function runVerify(
           sha: pr.headSha,
           language: cfg.language,
           maxNewCases: Math.max(0, cfg.maxCases - active.length),
+          newCaseScope,
         },
         deps.llm,
         {

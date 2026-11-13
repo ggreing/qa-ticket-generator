@@ -331,3 +331,37 @@ describe('runVerify on an already-checked commit (SPEC v3 §2.2)', () => {
     expect(ran.kind).toBe('verified');
   });
 });
+
+describe('runVerify new-case scope (SPEC v3 §2.2)', () => {
+  const store = (sha: string) => ({
+    load: vi.fn(async () => ({ commentId: 1, state: { v: 1 as const, sha }, warnings: [] })),
+    save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+  });
+  const changes = [{ path: 'src/coupon.ts', patch: '@@ -1 +1,2 @@\n+// note' }];
+
+  it('limits new cases to the changes since the last checked commit', async () => {
+    const { deps } = makeDeps(memorySink([baseCase(1)]), { commentStore: store('c'.repeat(40)) });
+    deps.github.getChangesBetween = vi.fn(async () => changes);
+    await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(vi.mocked(deps.verifyCases).mock.calls[0]?.[0].newCaseScope).toEqual({
+      sinceSha: 'c'.repeat(40),
+      changes,
+    });
+  });
+
+  it('uses the whole PR on the first check, on manual runs and when the diff is unknown', async () => {
+    const first = makeDeps(memorySink([baseCase(1)]));
+    await runVerify(first.deps, cfg(), pr, { name: 'pull_request' }, signal);
+    expect(vi.mocked(first.deps.verifyCases).mock.calls[0]?.[0].newCaseScope).toBeNull();
+
+    const manual = makeDeps(memorySink([baseCase(1)]), { commentStore: store('c'.repeat(40)) });
+    manual.deps.github.getChangesBetween = vi.fn(async () => changes);
+    await runVerify(manual.deps, cfg(), pr, { name: 'workflow_dispatch' }, signal);
+    expect(vi.mocked(manual.deps.verifyCases).mock.calls[0]?.[0].newCaseScope).toBeNull();
+
+    const unknown = makeDeps(memorySink([baseCase(1)]), { commentStore: store('c'.repeat(40)) });
+    unknown.deps.github.getChangesBetween = vi.fn(async () => null);
+    await runVerify(unknown.deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(vi.mocked(unknown.deps.verifyCases).mock.calls[0]?.[0].newCaseScope).toBeNull();
+  });
+});
