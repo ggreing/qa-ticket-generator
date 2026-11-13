@@ -16,7 +16,7 @@
 import { createHash } from 'node:crypto';
 import { OBSOLETE_LABEL } from '../cases/labels';
 import { isAbortError, isRateLimitError, statusOf } from '../context/retry';
-import type { CaseSetSummary, ExistingCaseTicket, HumanFields, QaCase } from '../core/cases';
+import type { CaseSetSummary, ExistingCaseTicket, HumanFields, QaCase, RenderedCase } from '../core/cases';
 import type { Language } from '../core/contracts';
 import { QtgError } from '../core/errors';
 
@@ -89,6 +89,15 @@ export function decodePayload(text: string | undefined | null, caseId?: string):
   } catch {
     return null;
   }
+}
+
+/**
+ * An `update` whose text equals what the ticket shows (planSync sends these when only a tool field
+ * such as `specDigest` moved): the sink refreshes its record and leaves title and body alone. A
+ * revived (obsolete) ticket never qualifies: its title prefix and label have to go.
+ */
+export function sameTextUpdate(t: ExistingCaseTicket, r: RenderedCase): boolean {
+  return t.writtenHash !== null && r.hash === t.writtenHash && t.lastWritten?.lifecycle !== 'obsolete';
 }
 
 export function ticketFrom(args: {

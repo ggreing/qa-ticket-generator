@@ -20,6 +20,7 @@ import {
   OBSOLETE_TICKET_LABEL,
   obsoleteTitle,
   type SinkPayload,
+  sameTextUpdate,
   sinkError,
   suggestMarker,
   summaryLines,
@@ -353,7 +354,20 @@ export function createGitHubIssueCaseSink(
     async update(t, c, r) {
       const number = Number(t.ticketRef);
       const issue = await getIssue(number, 'reading a case issue');
-      const { tail } = splitBody(issue.body ?? '');
+      const { tool, tail } = splitBody(issue.body ?? '');
+      // Same text as written (only tool fields like specDigest moved): change the hidden payload
+      // comment and nothing else. The digest is taken from the issue as it is, so the next list()
+      // still sees it unedited. GitHub sends no notification for edits.
+      if (sameTextUpdate(t, r)) {
+        const payload = { ...payloadFor(c, r, r.title, r.markdown), digest: areaDigest(issue.title, tool) };
+        const body = composeBody(tool, payload, tail);
+        if (body !== issue.body)
+          await call(
+            () => octokit.rest.issues.update({ ...target, issue_number: number, body }),
+            'updating a case record',
+          );
+        return;
+      }
       // Title and tool area only; state, assignees and people's labels are not sent.
       const body = composeBody(r.markdown, payloadFor(c, r, r.title, r.markdown), tail);
       await call(

@@ -41,6 +41,10 @@ export class FakeJira {
   writes: { method: string; path: string; body: Record<string, unknown> }[] = [];
   account = 'acc-bot';
   rejectPriority = false;
+  /** Issue entity properties, per issue key. */
+  properties = new Map<string, Record<string, unknown>>();
+  /** HTTP status for PUT …/properties/… (e.g. 403); unset = accepted. */
+  rejectProperties?: number;
   failCreate?: number;
   private seq = 200;
   private cseq = 1;
@@ -58,8 +62,15 @@ export class FakeJira {
       const start = Number(body.nextPageToken ?? 0);
       const size = Number(body.maxResults ?? 50);
       const page = all.slice(start, start + size);
+      // Like Jira: only the requested properties come back, and only when set.
+      const wanted = Array.isArray(body.properties) ? (body.properties as string[]) : [];
+      const withProps = page.map((i) => {
+        const set = this.properties.get(i.key) ?? {};
+        const props = Object.fromEntries(wanted.filter((k) => k in set).map((k) => [k, set[k]]));
+        return Object.keys(props).length ? { ...i, properties: props } : i;
+      });
       return json({
-        issues: page,
+        issues: withProps,
         ...(start + size < all.length ? { nextPageToken: String(start + size) } : {}),
       });
     }
@@ -88,6 +99,16 @@ export class FakeJira {
         },
       });
       return json({ id: '1', key, self: `${BASE}/rest/api/3/issue/${key}` }, 201);
+    }
+    const prop = path.match(/^\/rest\/api\/3\/issue\/([A-Z]+-\d+)\/properties\/([^/]+)$/);
+    if (prop?.[1] && prop[2] && req.method === 'PUT') {
+      if (!this.issues.has(prop[1])) return json({ errorMessages: ['Issue does not exist'] }, 404);
+      if (this.rejectProperties) return json({ errorMessages: ['no'] }, this.rejectProperties);
+      const set = this.properties.get(prop[1]) ?? {};
+      const existed = prop[2] in set;
+      set[prop[2]] = body;
+      this.properties.set(prop[1], set);
+      return new Response(null, { status: existed ? 200 : 201 });
     }
     const one = path.match(/^\/rest\/api\/3\/issue\/([A-Z]+-\d+)$/);
     if (one?.[1]) {

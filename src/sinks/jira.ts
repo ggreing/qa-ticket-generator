@@ -1,7 +1,7 @@
 /** Jira case sink: one Sub-task per case under the spec story (SPEC v3 §4, §5). Owner: qa-work-session-a. */
 
 import { type AdfNode, adfToMarkdown } from '../context/prd/adf-to-md';
-import { type RetryOptions, withRetry } from '../context/retry';
+import { isAbortError, type RetryOptions, withRetry } from '../context/retry';
 import type {
   CaseSetSummary,
   CaseSink,
@@ -20,6 +20,7 @@ import {
   OBSOLETE_TICKET_LABEL,
   obsoleteTitle,
   type SinkPayload,
+  sameTextUpdate,
   sinkError,
   suggestMarker,
   summaryLines,
@@ -43,6 +44,12 @@ export interface JiraCaseSinkDeps {
 /** §5 — P0 is the highest priority the default Jira scheme offers. */
 export const PRIORITY_NAME = { P0: 'Highest', P1: 'High', P2: 'Medium' } as const;
 export const PAYLOAD_TITLE = 'qtg data (do not edit)';
+/**
+ * Issue property with the case as last recorded, for updates whose text is unchanged (only tool
+ * fields such as `specDigest` moved). Setting a property creates no history entry and notifies no
+ * one, unlike rewriting the description; Jira cannot change part of a description.
+ */
+export const CASE_PROPERTY = 'qtg.case';
 const SUMMARY_LIMIT = 255;
 const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/;
 const FIELDS = ['summary', 'description', 'labels', 'status', 'assignee', 'creator'];
@@ -85,6 +92,29 @@ interface JiraIssue {
     assignee?: { displayName?: string } | null;
     creator?: { accountId?: string } | null;
   };
+  properties?: Record<string, unknown>;
+}
+
+/**
+ * The case recorded in CASE_PROPERTY replaces the description payload's case only while it was
+ * recorded for the text the description still holds (same hash). After a text update the
+ * description payload is newer and the property is stale.
+ */
+export function withCaseRecord(
+  payload: SinkPayload | null,
+  record: unknown,
+  caseId: string,
+): SinkPayload | null {
+  if (!payload || typeof record !== 'object' || record === null) return payload;
+  const r = record as { v?: unknown; caseId?: unknown; hash?: unknown; case?: { caseId?: unknown } | null };
+  const ok =
+    r.v === 1 &&
+    r.caseId === caseId &&
+    r.hash === payload.hash &&
+    typeof r.case === 'object' &&
+    r.case !== null &&
+    r.case.caseId === caseId;
+  return ok ? { ...payload, case: r.case as QaCase } : payload;
 }
 
 const caseLabel = (caseId: string) => `qtg-${caseId}`;
@@ -321,7 +351,13 @@ export function createJiraCaseSink(
           'POST',
           '/rest/api/3/search/jql',
           signal,
-          { jql, fields: FIELDS, maxResults: 100, ...(nextPageToken ? { nextPageToken } : {}) },
+          {
+            jql,
+            fields: FIELDS,
+            properties: [CASE_PROPERTY],
+            maxResults: 100,
+            ...(nextPageToken ? { nextPageToken } : {}),
+          },
           'searching sub-tasks',
         );
         for (const issue of page.issues) {
@@ -341,7 +377,11 @@ export function createJiraCaseSink(
               caseId,
               ticketRef: issue.key,
               url: `${base}/browse/${issue.key}`,
-              payload: decodePayload(parts.payload, caseId),
+              payload: withCaseRecord(
+                decodePayload(parts.payload, caseId),
+                issue.properties?.[CASE_PROPERTY],
+                caseId,
+              ),
               now: areaDigest(issue.fields.summary ?? '', adfPlain(parts.tool)),
               human: {
                 ...(issue.fields.status?.name ? { execStatus: issue.fields.status.name } : {}),
@@ -416,6 +456,25 @@ export function createJiraCaseSink(
     },
 
     async update(t, c, r, signal) {
+      // Same text as written (only tool fields like specDigest moved): record the case in the
+      // issue property instead of rewriting the description, so watchers get no mail.
+      if (sameTextUpdate(t, r)) {
+        try {
+          await request(
+            'PUT',
+            `/rest/api/3/issue/${encodeURIComponent(t.ticketRef)}/properties/${CASE_PROPERTY}`,
+            signal,
+            { v: 1, caseId: c.caseId, hash: r.hash, case: c },
+            'recording a case',
+          );
+          return;
+        } catch (err) {
+          if (isAbortError(err)) throw err;
+          ctx.logger.debug(
+            `Jira: could not set the ${CASE_PROPERTY} property; rewriting the sub-task instead.`,
+          );
+        }
+      }
       const issue = await getIssue(t.ticketRef, signal);
       const { tail } = splitDescription(issue.fields.description);
       const summary = clip(r.title);
