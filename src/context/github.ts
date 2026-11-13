@@ -233,5 +233,55 @@ export function createGitHubReader(octokit: Octokit, options: GitHubReaderOption
         throw toGitHubError(err, 'comparing commits');
       }
     },
+
+    /**
+     * SPEC v3 §2.2 — the diff of every file changed since the last checked commit, or `null` when
+     * it cannot be known completely; the caller then treats the whole PR as changed.
+     *
+     * One request is the whole answer: the compare API puts the changed-file list on the first page
+     * only and caps it at COMPARE_FILE_CAP files for the entire comparison (paging walks commits,
+     * not files), so `per_page: 1` keeps the commit list small and a full list means "truncated".
+     * Patches are returned as GitHub sends them: noise filtering and secret masking are the
+     * caller's job, as for listChangedFiles.
+     */
+    async getChangesBetween(pr, fromSha, toSha) {
+      const range = `${fromSha.slice(0, 7)}...${toSha.slice(0, 7)}`;
+      let data: { status?: string; files?: { filename: string; patch?: string }[] };
+      try {
+        ({ data } = await call(() =>
+          octokit.rest.repos.compareCommitsWithBasehead({
+            owner: pr.owner,
+            repo: pr.repo,
+            basehead: `${fromSha}...${toSha}`,
+            per_page: 1,
+          }),
+        ));
+      } catch (err) {
+        const status = statusOf(err);
+        if (status === undefined || isAbortError(err)) throw err; // aborts and bugs keep their identity
+        // 404/422: the old SHA is gone (force-push) or unrelated. Anything else: the API failed
+        // after retries. Either way the whole PR is checked, which is always correct.
+        if (status === 404 || status === 422)
+          logger?.info(`Compare ${range}: HTTP ${status}; checking the whole PR.`);
+        else logger?.warn(`Compare ${range} failed (HTTP ${status}); checking the whole PR.`);
+        return null;
+      }
+      // `diverged` / `behind`: the head no longer contains the last checked commit (force-push,
+      // reset), so "changed since then" has no meaning.
+      if (data.status === 'diverged' || data.status === 'behind') {
+        logger?.info(`Compare ${range}: ${data.status}; checking the whole PR.`);
+        return null;
+      }
+      const files = data.files ?? [];
+      if (files.length >= COMPARE_FILE_CAP) {
+        logger?.info(
+          `Compare ${range}: ${files.length} files, the list may be cut off; checking the whole PR.`,
+        );
+        return null;
+      }
+      logger?.debug(`Compare ${range}: ${files.length} file(s) changed.`);
+      // Binary files and very large diffs come without a patch.
+      return files.map((f) => ({ path: f.filename, patch: f.patch ?? '' }));
+    },
   };
 }
