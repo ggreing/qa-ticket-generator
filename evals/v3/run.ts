@@ -29,7 +29,7 @@ import { generatePlan, type PlanDiagnostics, planPlanRun } from '../../src/llm/p
 import { estimateCostUsd } from '../../src/llm/pricing';
 import { PLAN_PROMPT_VERSION } from '../../src/llm/prompts/plan';
 import { VERIFY_PROMPT_VERSION } from '../../src/llm/prompts/verify';
-import { planVerifyRun, verifyCases } from '../../src/llm/verify';
+import { planVerifyRun, type VerifyDiagnostics, verifyCases } from '../../src/llm/verify';
 import type { RubricClientLike } from '../rubric';
 import type { ProviderRequest } from '../run';
 import { type EvalCase, type GradedCase, inputHashOf, loadDataset } from '../schema';
@@ -286,6 +286,8 @@ export interface VerifyRun {
   caseId: string;
   cases: number;
   result: Pick<VerifyResult, 'statuses' | 'newCases' | 'alignment'>;
+  /** New cases the model tied to an existing case: dropped, or kept because the id was unknown. */
+  newCaseChecks?: VerifyDiagnostics;
   grade: VerifyGrade | null;
   mode: PreprocessOutput['mode'];
   usage: LlmUsage;
@@ -889,6 +891,7 @@ export async function runVerifyEval(argv: string[], deps: V3Deps): Promise<V3Out
         caseId: evalCase.id,
         cases: req.cases.length,
         result: { statuses: result.statuses, newCases: result.newCases, alignment: result.alignment },
+        newCaseChecks: result.diagnostics,
         grade,
         mode: pre.mode,
         usage: result.usage,

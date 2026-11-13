@@ -122,7 +122,18 @@ export const VerifyOutputSchema = z.object({
     }),
   ),
   newCases: z
-    .array(z.object({ ...CaseDraftFields }))
+    .array(
+      z.object({
+        // First, so it is decided before the case is written.
+        sameAsCaseId: z
+          .string()
+          .nullable()
+          .describe(
+            'Id of an existing case that already covers the same risk (same place in the code, same reason), else null. A case with an id here is discarded.',
+          ),
+        ...CaseDraftFields,
+      }),
+    )
     .describe('Risks visible only in the code, not covered by any case.'),
   prdAlignment: QaReportSchema.shape.prdAlignment,
 });
