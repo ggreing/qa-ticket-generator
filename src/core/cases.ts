@@ -225,3 +225,11 @@ export interface SinkContext {
   logger: Logger;
   language: Language;
 }
+
+/** src/cases — §2.2: merge verify statuses and code-derived cases into the case set. Pure. */
+export type ApplyVerify = (
+  cases: QaCase[],
+  result: Pick<VerifyResult, 'statuses' | 'newCases'>,
+  sha: string,
+  specRef: string,
+) => { cases: QaCase[]; warnings: Warning[] };
