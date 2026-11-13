@@ -14,6 +14,7 @@
  * again at read time; `currentHash` equals `writtenHash` while the digest still matches.
  */
 import { createHash } from 'node:crypto';
+import { OBSOLETE_LABEL } from '../cases/labels';
 import { isAbortError, isRateLimitError, statusOf } from '../context/retry';
 import type { CaseSetSummary, ExistingCaseTicket, HumanFields, QaCase } from '../core/cases';
 import type { Language } from '../core/contracts';
@@ -112,15 +113,11 @@ export function ticketFrom(args: {
 // ───────────────────────────── text ─────────────────────────────
 
 /**
- * §4.4 — same labels and format as session b's renderCase (`[해당 없음][P0][경계값] …`, no space),
+ * §4.4 — the labels and format of session b's renderCase (`[해당 없음][P0][경계값] …`, no space),
  * so a title the sink marks equals the one renderCase produces for an obsolete case.
  */
-export const OBSOLETE_LABEL: Record<Language, string> = {
-  en: 'Obsolete',
-  ko: '해당 없음',
-  ja: '対象外',
-  'zh-CN': '不再适用',
-};
+export { OBSOLETE_LABEL };
+
 const ALL_PREFIXES = Object.values(OBSOLETE_LABEL).map((l) => `[${l}]`);
 
 export const isObsoleteTitle = (title: string): boolean => ALL_PREFIXES.some((p) => title.startsWith(p));
