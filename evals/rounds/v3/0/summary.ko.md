@@ -8,13 +8,14 @@
 - Rubric judge: claude-sonnet-5-5, rubric v3
 - Must-cover checked by: coverage judge (any language)
 - Style violations counted by: lintCaseStyle
-- Decision: pending
+- Decision: keep
+- Scored again on 2026-11-13: deterministic metrics only (style lint, keyword must-cover). The sheets are the ones written on the date above.
 
 ## Run
 
 | Variant                | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) | Req. with a case | Style viol./100 | Repeated titles | Merged away | Cost  | Judge cost |
 | ---------------------- | ----- | ------ | ------- | ---- | ----- | ------------- | ---------- | --------------- | ------------------ | ---------------- | --------------- | --------------- | ----------- | ----- | ---------- |
-| claude-opus-5-5 · high | 14    | 0      | 1.54    | 1.79 | 1.29  | 1.57          | 53.6       | 64%             | 98%                | 100%             | 5.1             | 0               | 18          | $7.11 | $0.89      |
+| claude-opus-5-5 · high | 14    | 0      | 1.54    | 1.79 | 1.29  | 1.57          | 53.6       | 64%             | 98%                | 100%             | 0.0             | 0               | 18          | $7.11 | $0.89      |
 
 | Criterion          | Mean (0–2) |
 | ------------------ | ---------- |
@@ -32,14 +33,14 @@
 | Spec                         | Cases | P0  | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | Reqs without a case | Style viol. | Merged away | Cost  |
 | ---------------------------- | ----- | --- | ------- | ------------- | --------------- | ------------------ | ------------------- | ----------- | ----------- | ----- |
 | api-rate-limit-aligned       | 52    | 12  | 1.49    | 2             | 80%             | 100%               | —                   | 0           | 0           | $0.56 |
-| booking-hold-aligned         | 40    | 11  | 1.65    | 2             | 25%             | 100%               | —                   | 1           | 0           | $0.38 |
+| booking-hold-aligned         | 40    | 11  | 1.65    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.38 |
 | contact-import-js            | 48    | 10  | 1.77    | 2             | 60%             | 80%                | —                   | 0           | 0           | $0.40 |
 | coupon-expiry-missing        | 62    | 15  | 1.70    | 2             | 75%             | 100%               | —                   | 0           | 1           | $0.59 |
-| notice-schedule-ko-narrative | 51    | 9   | 1.38    | 1             | 100%            | 100%               | —                   | 2           | 0           | $0.39 |
-| order-cancel-state-java      | 63    | 27  | 1.64    | 2             | 83%             | 100%               | —                   | 2           | 8           | $0.65 |
-| payroll-rules-mapreduce      | 64    | 16  | 1.42    | 1             | 50%             | 100%               | —                   | 15          | 2           | $0.91 |
-| plan-proration-aligned       | 71    | 19  | 1.46    | 2             | 40%             | 100%               | —                   | 5           | 4           | $0.91 |
-| profile-injection            | 50    | 7   | 1.53    | 1             | 33%             | 100%               | —                   | 13          | 0           | $0.29 |
+| notice-schedule-ko-narrative | 51    | 9   | 1.38    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.39 |
+| order-cancel-state-java      | 63    | 27  | 1.64    | 2             | 83%             | 100%               | —                   | 0           | 8           | $0.65 |
+| payroll-rules-mapreduce      | 64    | 16  | 1.42    | 1             | 50%             | 100%               | —                   | 0           | 2           | $0.91 |
+| plan-proration-aligned       | 71    | 19  | 1.46    | 2             | 40%             | 100%               | —                   | 0           | 4           | $0.91 |
+| profile-injection            | 50    | 7   | 1.53    | 1             | 33%             | 100%               | —                   | 0           | 0           | $0.29 |
 | rbac-export-role             | 44    | 16  | 1.80    | 2             | 75%             | 100%               | —                   | 0           | 0           | $0.26 |
 | search-page-cap              | 49    | 10  | 1.27    | 1             | 25%             | 100%               | —                   | 0           | 3           | $0.49 |
 | seat-picker-aligned          | 57    | 19  | 1.77    | 2             | 80%             | 100%               | —                   | 0           | 0           | $0.48 |

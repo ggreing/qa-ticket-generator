@@ -8,4 +8,4 @@ means the judge returned no usable score for the other sheets. The M3.5 rounds a
 
 | Round | Date       | Prompt       | Change                             | Split    | Lang | Overall | Case | Sheet | Spec coverage | Must-cover | Req. with a case | Style viol./100 | Cases/spec | Merged away | Cost  | Decision |
 | ----- | ---------- | ------------ | ---------------------------------- | -------- | ---- | ------- | ---- | ----- | ------------- | ---------- | ---------------- | --------------- | ---------- | ----------- | ----- | -------- |
-| 0     | 2026-11-13 | 2026-11-13.1 | baseline: plan prompt 2026-11-13.1 | selected | ko   | 1.54    | 1.79 | 1.29  | 1.57          | 98%        | 100%             | 5.1             | 53.6       | 18          | $8.00 | keep     |
+| 0     | 2026-11-13 | 2026-11-13.1 | baseline: plan prompt 2026-11-13.1 | selected | ko   | 1.54    | 1.79 | 1.29  | 1.57          | 98%        | 100%             | 0.0             | 53.6       | 18          | $8.00 | keep     |

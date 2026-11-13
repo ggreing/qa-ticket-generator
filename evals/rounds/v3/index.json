@@ -46,11 +46,15 @@
     "mustCover": 0.984375,
     "mustCoverBy": "judge",
     "requirementCoverage": 1,
-    "styleViolationsPer100": 5.066666666666666,
+    "styleViolationsPer100": 0,
     "repeatedTitles": 0,
     "mergedAway": 18,
     "costUsd": 7.1140012,
     "judgeCostUsd": 0.8860313,
-    "decision": "keep"
+    "decision": "keep",
+    "rescored": {
+      "at": "2026-11-13T02:08:44.802Z",
+      "what": "deterministic"
+    }
   }
 ]
