@@ -44,8 +44,8 @@ npx qa-ticket-generator plan --repo owner/repo --spec PROJ-123 --sinks jira --pu
   of what it wrote there, so it can tell when someone edited the sub-task. Add your own notes below that
   section; they are kept on every update. When only that record changes and the text stays the same, the
   tool keeps it in a hidden issue property (`qtg.case`) instead of editing the description, so watchers
-  don't get an email for it.
-- The story gets one comment that lists every case with a link, updated on each run.
+  don't get an email for it. We haven't tried this property on a real Jira site yet.
+- The story gets one comment that lists every case with a link. It is updated whenever the cases change.
 
 To list the cases of a story in Jira:
 

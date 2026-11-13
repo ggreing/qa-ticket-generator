@@ -3,6 +3,9 @@
 The `notion` sink writes one row per QA case into a database you choose. The tool fills in the case and
 its code status. Your testers fill in the result. The tool reads that column but never writes it.
 
+We haven't run this sink in a real Notion workspace yet. If something here doesn't match what you see,
+please open an issue.
+
 ## 1. Get the database
 
 The quickest way is to duplicate our template page into your workspace and use the database inside it.
