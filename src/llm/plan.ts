@@ -186,15 +186,54 @@ export function normalizePlanned(
   return cases;
 }
 
-/** Drops a case whose title and technique repeat an earlier one word for word. */
-function dropExactRepeats(cases: PlannedCase[]): PlannedCase[] {
-  const seen = new Set<string>();
+/** Drops a case whose title and technique repeat an earlier one word for word, and records it. */
+function dropExactRepeats(cases: PlannedCase[], record: MergedAway[]): PlannedCase[] {
+  const seen = new Map<string, PlannedCase>();
   return cases.filter((c) => {
     const k = `${c.technique}|${key(c.title)}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
+    const first = seen.get(k);
+    if (first) {
+      record.push({
+        title: c.title,
+        acLabels: c.acLabels,
+        technique: c.technique,
+        priority: c.priority,
+        keptTitle: first.title,
+        by: 'exact',
+      });
+      return false;
+    }
+    seen.set(k, c);
     return true;
   });
+}
+
+/** A case the merge step removed, with the case it was judged to repeat. */
+export interface MergedAway {
+  title: string;
+  acLabels: string[];
+  technique: string;
+  priority: Priority;
+  /** Title of the case that stays in its place. */
+  keptTitle: string;
+  /** `exact`: same technique and title, dropped in code. `merge`: called a duplicate by the merge call. */
+  by: 'exact' | 'merge';
+}
+
+/**
+ * What happened between the group calls and the final sheet. Not part of the core `PlanResult`
+ * contract; the eval harness records it to watch for a merge that removes a real case.
+ */
+export interface PlanDiagnostics {
+  /** Cases the group calls returned, after normalization. */
+  generated: number;
+  /** Cases left after exact repeats and merge duplicates were removed (before the max-cases cut). */
+  afterMerge: number;
+  mergedAway: MergedAway[];
+  /** Cases whose priority the merge call changed. */
+  priorityChanges: number;
+  /** False when there was one group, or the merge call failed or was skipped by the cost cap. */
+  mergeRan: boolean;
 }
 
 /**
@@ -202,25 +241,46 @@ function dropExactRepeats(cases: PlannedCase[]): PlannedCase[] {
  * kept and as dropped is kept, and a dropped case hands its existing id to the case that stays.
  */
 export function applyMerge(cases: PlannedCase[], merge: PlanMerge): PlannedCase[] {
+  return applyMergeDetailed(cases, merge).cases;
+}
+
+/** `applyMerge` plus the record of what it removed and how many priorities it changed. */
+export function applyMergeDetailed(
+  cases: PlannedCase[],
+  merge: PlanMerge,
+): { cases: PlannedCase[]; mergedAway: MergedAway[]; priorityChanges: number } {
   const valid = (i: number): boolean => Number.isInteger(i) && i >= 0 && i < cases.length;
   const kept = new Set(merge.duplicates.map((d) => d.keep).filter(valid));
   const next = cases.map((c) => ({ ...c }));
   const dropped = new Set<number>();
+  const mergedAway: MergedAway[] = [];
+  let priorityChanges = 0;
   for (const group of merge.duplicates) {
     if (!valid(group.keep)) continue;
     for (const i of group.drop) {
-      if (!valid(i) || i === group.keep || kept.has(i)) continue;
+      if (!valid(i) || i === group.keep || kept.has(i) || dropped.has(i)) continue;
       dropped.add(i);
       const keeper = next[group.keep] as PlannedCase;
       const gone = next[i] as PlannedCase;
+      mergedAway.push({
+        title: gone.title,
+        acLabels: gone.acLabels,
+        technique: gone.technique,
+        priority: gone.priority,
+        keptTitle: keeper.title,
+        by: 'merge',
+      });
       if (keeper.reuseCaseId === null && gone.reuseCaseId !== null) keeper.reuseCaseId = gone.reuseCaseId;
       keeper.acLabels = [...new Set([...keeper.acLabels, ...gone.acLabels])];
     }
   }
   for (const change of merge.priorities) {
-    if (valid(change.index)) (next[change.index] as PlannedCase).priority = change.priority;
+    if (!valid(change.index)) continue;
+    const target = next[change.index] as PlannedCase;
+    if (target.priority !== change.priority && !dropped.has(change.index)) priorityChanges++;
+    target.priority = change.priority;
   }
-  return next.filter((_, i) => !dropped.has(i));
+  return { cases: next.filter((_, i) => !dropped.has(i)), mergedAway, priorityChanges };
 }
 
 async function pool<T>(
@@ -248,7 +308,7 @@ export async function generatePlan(
   provider: LlmProvider,
   options: { maxCostUsd: number; expectedOutputTokens: number },
   signal: AbortSignal,
-): Promise<PlanResult> {
+): Promise<PlanResult & { diagnostics: PlanDiagnostics }> {
   const llm: StructuredProvider = asStructured(provider);
   const plan = planPlanRun(req, provider, options);
   const warnings: Warning[] = [];
@@ -322,7 +382,11 @@ export async function generatePlan(
     });
   }
 
-  let cases = dropExactRepeats(perGroup.flat());
+  const generated = perGroup.flat();
+  const mergedAway: MergedAway[] = [];
+  let priorityChanges = 0;
+  let mergeRan = false;
+  let cases = dropExactRepeats(generated, mergedAway);
 
   // ── merge: duplicates across groups and priorities over the whole sheet ─────
   if (plan.merge && cases.length > 1 && spent() < options.maxCostUsd) {
@@ -348,7 +412,11 @@ export async function generatePlan(
         signal,
       );
       usage = addUsage(usage, merged.usage);
-      cases = applyMerge(cases, merged.value);
+      const applied = applyMergeDetailed(cases, merged.value);
+      cases = applied.cases;
+      mergedAway.push(...applied.mergedAway);
+      priorityChanges = applied.priorityChanges;
+      mergeRan = true;
     } catch (err) {
       // The cases are complete without the merge; keep them and say what was skipped.
       usage = addUsage(usage, usageFromError(err));
@@ -360,6 +428,8 @@ export async function generatePlan(
       });
     }
   }
+
+  const afterMerge = cases.length;
 
   // ── order and safety cap (§6): P0 first; over the cap, P2 goes first ────────
   cases = cases
@@ -387,5 +457,13 @@ export async function generatePlan(
       message: `The run cost about $${costUsd.toFixed(2)}, above max-cost-usd ($${options.maxCostUsd.toFixed(2)}).`,
     });
   }
-  return { cases, usage, costUsd, calls, warnings, dropped };
+  return {
+    cases,
+    usage,
+    costUsd,
+    calls,
+    warnings,
+    dropped,
+    diagnostics: { generated: generated.length, afterMerge, mergedAway, priorityChanges, mergeRan },
+  };
 }
