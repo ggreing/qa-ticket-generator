@@ -51,9 +51,15 @@ export interface PlanGrade {
   cases: number;
   byPriority: Record<'P0' | 'P1' | 'P2', number>;
   techniques: number;
-  /** Risk units from `expected.json` that some case covers, by keyword. */
-  mustCover: { id: string; hit: boolean; matchedCase: string | null }[];
+  /**
+   * Risk units from `expected.json`. `hit`/`matchedCase`: a case contains the keywords.
+   * `judgeCase`: the case the coverage judge named for the risk (null = none), when it ran.
+   */
+  mustCover: { id: string; hit: boolean; matchedCase: string | null; judgeCase?: string | null }[];
+  /** By keyword. Understates a sheet that is not in the keywords' language. */
   mustCoverRecall: number;
+  /** By the coverage judge, which reads for meaning in any language. Absent when it did not run. */
+  mustCoverRecallJudge?: number;
   /** Requirements of the spec with no case at all. */
   requirementsWithoutCase: string[];
   requirementCoverage: number;
@@ -101,6 +107,17 @@ export function gradePlan(
     styleViolations: perCase.reduce((a, b) => a + b, 0),
     casesWithViolations: perCase.filter((n) => n > 0).length,
     withWhy: active.filter((c) => c.whyEasyToMiss.trim() !== '').length,
+  };
+}
+
+/** Adds the coverage judge's verdicts (risk id -> case id or null) to a plan grade. */
+export function withCoverageVerdicts(grade: PlanGrade, verdicts: Record<string, string | null>): PlanGrade {
+  const mustCover = grade.mustCover.map((m) => ({ ...m, judgeCase: verdicts[m.id] ?? null }));
+  return {
+    ...grade,
+    mustCover,
+    mustCoverRecallJudge:
+      mustCover.length === 0 ? 1 : mustCover.filter((m) => m.judgeCase !== null).length / mustCover.length,
   };
 }
 
@@ -182,7 +199,10 @@ export interface PlanSummary {
   specs: number;
   cases: number;
   casesPerSpec: number;
+  /** By keyword. */
   mustCoverRecall: number;
+  /** By the coverage judge, over the specs it ran for; null when it ran for none. */
+  mustCoverRecallJudge: number | null;
   requirementCoverage: number;
   repeatedTitles: number;
   styleViolations: number;
@@ -193,6 +213,7 @@ export interface PlanSummary {
 /** Micro-averages over specs: must-cover recall over risk units, style violations over cases. */
 export function summarizePlan(grades: PlanGrade[]): PlanSummary {
   const must = grades.flatMap((g) => g.mustCover);
+  const judged = grades.filter((g) => g.mustCoverRecallJudge !== undefined).flatMap((g) => g.mustCover);
   const cases = grades.reduce((n, g) => n + g.cases, 0);
   const violations = grades.reduce((n, g) => n + g.styleViolations, 0);
   return {
@@ -200,12 +221,18 @@ export function summarizePlan(grades: PlanGrade[]): PlanSummary {
     cases,
     casesPerSpec: grades.length === 0 ? 0 : cases / grades.length,
     mustCoverRecall: must.length === 0 ? 1 : must.filter((m) => m.hit).length / must.length,
+    mustCoverRecallJudge:
+      judged.length === 0 ? null : judged.filter((m) => m.judgeCase != null).length / judged.length,
     requirementCoverage: mean(grades.map((g) => g.requirementCoverage)),
     repeatedTitles: grades.reduce((n, g) => n + g.repeatedTitles, 0),
     styleViolations: violations,
     styleViolationsPer100: cases === 0 ? 0 : (violations / cases) * 100,
   };
 }
+
+/** The must-cover figure to compare runs by: the judge's when it ran, since it works in any language. */
+export const mustCoverOf = (s: Pick<PlanSummary, 'mustCoverRecall' | 'mustCoverRecallJudge'>): number =>
+  s.mustCoverRecallJudge ?? s.mustCoverRecall;
 
 export interface VerifySummary {
   prs: number;

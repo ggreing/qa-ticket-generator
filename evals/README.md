@@ -33,9 +33,14 @@ node evals/cli.mjs verify --from evals/results/<timestamp>-plan.json
 | plan   | the case's first PRD document       | must-cover recall, requirements with a case, style violations per 100 cases, repeated titles      | rubric v3, optional (`--judge`) |
 | verify | a plan run's sheet + the PR's files | code-status accuracy, share left unknown, alignment and finding statuses as in v2, new case count | none                            |
 
-- **Must-cover** reuses the risk units in `expected.json` (`mustScenarios`): a risk is covered when
-  some case contains its keywords. The keywords are mostly English, so the number understates a
-  non-English run.
+- **Must-cover** reuses the risk units in `expected.json` (`mustScenarios`), checked two ways. By
+  keyword, as before: this only works where the sheet is in the keywords' language, mostly English.
+  And by a small model (`claude-haiku-5-5`, a fraction of a cent per sheet) that reads each risk
+  and names the case that tests it, whatever language the sheet is in. A risk counts only when the
+  named case exists. The second check is on by default (`--no-coverage-judge` turns it off), is
+  the figure rounds are compared by, and is kept apart from the rubric judge, which must not see
+  the expected risks. The risks were written for the pull request, so a few of them cannot be
+  derived from the spec alone; must-cover is not expected to reach 100% in the plan phase.
 - **Style violations** are counted with `lintCaseStyle` from `src/cases`, the same rule list the
   prompt states (`STYLE_RULES`). If that lint cannot run, a coarser stand-in is used and the results
   file says so (`lintSource: "fallback"`).
@@ -47,8 +52,40 @@ node evals/cli.mjs verify --from evals/results/<timestamp>-plan.json
   fixed sample of 20 cases per sheet in full and sees the whole sheet as an index. It does not see
   `expected.json`.
 - A case without a PRD has no spec to plan from and is left out of both paths.
-- Results go to `evals/results/<timestamp>-plan.json` and `-verify.json`. Round records
-  (`ROUNDS.md`), review packs and calibration are not wired to the v3 paths yet.
+- **Merge record.** Each sheet's entry says how many cases the group calls wrote, how many were
+  left, and every case that was removed as a repeat with the title of the case kept in its place.
+  The run prints the ones the merge call removed, so a wrong duplicate call is seen at once.
+- Results go to `evals/results/<timestamp>-plan.json` and `-verify.json`.
+
+### Rounds, review pack and calibration for the plan eval
+
+```bash
+# Record a run as a round (0 = baseline). Prints a keep/revert recommendation at the end.
+node evals/cli.mjs plan --judge --language ko --round 0 --change "baseline: plan prompt 2026-11-13.1" --yes
+node evals/cli.mjs plan --round 0 --decision keep            # offline
+
+# Blind pack for a person to rate, in the language the sheets were written in (offline).
+node evals/cli.mjs plan --review-pack evals/rounds/v3/0/raw/plan.ko.json --sample 5 --out evals/rounds/v3/0/raw/pack.ko.json
+
+# After the ratings are filled in (offline).
+node evals/cli.mjs plan --calibrate evals/rounds/v3/0/raw/ratings.ko.json evals/rounds/v3/0/raw/plan.ko.json
+```
+
+- v3 rounds are recorded apart from the M3.5 ones: `evals/ROUNDS.v3.md`,
+  `evals/rounds/v3/index.json`, `evals/rounds/v3/<n>/summary[.<lang>].md` (committed) and
+  `evals/rounds/v3/<n>/raw/plan[.<lang>].json` (not committed).
+- A round is compared with the latest earlier round marked keep **in the same language**. It is
+  an improvement when the overall rises (on the sheets both rounds scored) and none of must-cover,
+  requirements with a case and style violations per 100 cases gets worse. The summary also lists
+  the must-cover risks with no case, what the rubric judge found missing, and what the merge
+  removed.
+- The **review pack** shows each sampled sheet the way its tickets will read (index, then every
+  case as rendered by `src/cases`), with the spec and its requirements. It asks for the five case
+  criteria on 8 cases per sheet, the three sheet criteria, and two open lists: cases that are
+  missing, and lines that sound AI-written. For Korean the criterion names, anchors and the two
+  questions are in Korean. It holds no judge scores and no expected answers.
+- **Calibration** prints the judge-minus-person difference per criterion, and per sheet how many
+  cases the person and the judge each found missing.
 
 ## Data
 

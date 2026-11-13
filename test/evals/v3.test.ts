@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import type { RubricClientLike } from '../../evals/rubric';
 import { loadDataset } from '../../evals/schema';
+import { COVERAGE_SYSTEM } from '../../evals/v3/coverage';
 import { fallbackLint, gradePlan, gradeVerify, summarizePlan } from '../../evals/v3/grade';
 import {
   buildJudgeInput,
@@ -111,18 +112,44 @@ const idsAsked = (body: { messages: { content: unknown }[] }): string[] =>
     ?.split(', ') ?? [];
 const judgeClient = (rewrite: (o: JudgeOutputV3, call: number) => JudgeOutputV3 = (o) => o) => {
   let calls = 0;
+  let coverageCalls = 0;
   const client: RubricClientLike = {
     messages: {
-      parse: async (body) => ({
-        parsed_output: rewrite(judgeOutput(idsAsked(body as never)), ++calls),
-        stop_reason: 'end_turn',
-        model: 'claude-sonnet-5-5',
-        usage: { input_tokens: 6_000, output_tokens: 3_000 },
-      }),
+      parse: async (body) => {
+        if (body.system === COVERAGE_SYSTEM) {
+          // The coverage judge: every risk on the checklist is tested by the first case of the sheet,
+          // except a risk whose id the test marks as uncovered.
+          coverageCalls++;
+          const text = String(body.messages[0]?.content);
+          const risks = [...text.matchAll(/^- ([\w-]+): /gm)].map((m) => m[1] as string);
+          const firstCase = /^(\S+) \| /m.exec(text.slice(text.indexOf('<cases>') + 8))?.[1] ?? '';
+          return {
+            parsed_output: {
+              verdicts: risks.map((id, i) => ({
+                id,
+                caseId: i === uncovered.index ? uncovered.caseId : firstCase,
+              })),
+            },
+            stop_reason: 'end_turn',
+            model: 'claude-haiku-5-5',
+            usage: { input_tokens: 2_000, output_tokens: 200 },
+          };
+        }
+        return {
+          parsed_output: rewrite(judgeOutput(idsAsked(body as never)), ++calls),
+          stop_reason: 'end_turn',
+          model: 'claude-sonnet-5-5',
+          usage: { input_tokens: 6_000, output_tokens: 3_000 },
+        };
+      },
     },
   };
-  return { client, calls: () => calls };
+  return { client, calls: () => calls, coverageCalls: () => coverageCalls };
 };
+/** Which risk (by position on the checklist) the coverage judge double leaves without a case, and what it answers for it. */
+const uncovered: { index: number; caseId: string } = { index: -1, caseId: '' };
+const RUBRIC_CALL_COST = (6_000 * 2 + 3_000 * 10) / 1e6;
+const COVERAGE_CALL_COST = (2_000 * 0.1 + 200 * 0.5) / 1e6;
 
 describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
   it('SPEC v3 §8 has five case criteria and three sheet criteria, with anchors word for word from RUBRIC.md', () => {
@@ -504,7 +531,9 @@ describe('plan eval path (SPEC v3 §8)', () => {
     // A case without a PRD has no spec to plan from.
     expect(h.out()).toContain('left out, no spec to plan from: login-throttle-no-prd');
     expect(h.out()).toMatch(/estimated run cost: {3}~\$\d+\.\d\d \(claude-opus-5-5\)/);
-    expect(h.out()).toMatch(/estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3\)/);
+    expect(h.out()).toMatch(
+      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3 \+ claude-haiku-5-5 must-cover check\)/,
+    );
     expect(h.lines.at(-1)).toBe('Nothing was sent to the API. Re-run with --yes to execute.');
     const perSpec = (outcome.estimate?.runUsd ?? 0) / withSpec.length;
     expect(perSpec).toBeGreaterThan(0.2);
@@ -544,11 +573,12 @@ describe('plan eval path (SPEC v3 §8)', () => {
     expect(results.rubric).toMatchObject({ judged: 2 });
     expect(results.rubric?.criteria.coverage).toBe(1);
     expect(results.costUsd).toBeGreaterThan(0);
-    expect(results.judgeCostUsd).toBeCloseTo(2 * ((6_000 * 2 + 3_000 * 10) / 1e6), 9);
+    // Two rubric calls and two must-cover checks; the second kind costs a fraction of a cent.
+    expect(results.judgeCostUsd).toBeCloseTo(2 * RUBRIC_CALL_COST + 2 * COVERAGE_CALL_COST, 9);
     expect(JSON.stringify(results)).not.toContain('sk-test');
 
     expect(h.out()).toContain(
-      '| Variant | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover |',
+      '| Variant | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) |',
     );
     expect(h.out()).toMatch(
       /\| claude-opus-5-5 · high \| 2 \| 0 \| \d\.\d\d \| \d\.\d\d \| 1\.50 \| 1\.00 \| \d+\.\d \| 100% \|/,
@@ -561,7 +591,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
     const lint = vi.fn(() => [{ rule: 'x', text: 'y' }]);
     const h = harness({ lint });
     const outcome = await runPlanEval(
-      ['--cases', 'coupon-expiry-missing', '--language', 'kr', '--yes'],
+      ['--cases', 'coupon-expiry-missing', '--language', 'kr', '--no-coverage-judge', '--yes'],
       h.deps,
     );
     expect(h.out()).toContain('language: ko');

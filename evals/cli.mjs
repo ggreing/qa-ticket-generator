@@ -43,6 +43,18 @@ if (process.argv[2] === 'build-cases') {
 }
 
 const round = process.argv.indexOf('--round');
+if (process.argv[2] === 'plan' && round > 0) {
+  // v3 plan rounds keep their records apart from the M3.5 ones.
+  process.once('beforeExit', () => {
+    const dir = join(here, 'rounds', 'v3', String(process.argv[round + 1]));
+    const summaries = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.md')) : [];
+    format([
+      join(here, 'ROUNDS.v3.md'),
+      join(here, 'rounds', 'v3', 'index.json'),
+      ...summaries.map((f) => join(dir, f)),
+    ]);
+  });
+}
 if (process.argv[2] === 'run' && round > 0) {
   // The run is still going when the import above returns; format its committed records at the end.
   process.once('beforeExit', () => {

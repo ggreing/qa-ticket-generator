@@ -21,7 +21,7 @@ import type {
 } from '../../src/core/contracts';
 import { QtgError } from '../../src/core/errors';
 import { EXPECTED_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS } from '../../src/core/limits';
-import { generatePlan, planPlanRun } from '../../src/llm/plan';
+import { generatePlan, type PlanDiagnostics, planPlanRun } from '../../src/llm/plan';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import { PLAN_PROMPT_VERSION } from '../../src/llm/prompts/plan';
 import { VERIFY_PROMPT_VERSION } from '../../src/llm/prompts/verify';
@@ -29,6 +29,7 @@ import { planVerifyRun, verifyCases } from '../../src/llm/verify';
 import type { RubricClientLike } from '../rubric';
 import type { ProviderRequest } from '../run';
 import { type EvalCase, type GradedCase, inputHashOf, loadDataset } from '../schema';
+import { COVERAGE_MODEL, estimateCoverageCost, judgeMustCover } from './coverage';
 import {
   fallbackLint,
   gradePlan,
@@ -39,7 +40,10 @@ import {
   summarizeVerify,
   type VerifyGrade,
   type VerifySummary,
+  withCoverageVerdicts,
 } from './grade';
+import { buildReviewPackV3, calibrateV3 } from './review';
+import { decideRoundV3, recordRoundV3, roundResultsPath } from './rounds';
 import {
   DEFAULT_JUDGE_MODEL,
   estimateJudgeCost,
@@ -83,6 +87,17 @@ export interface V3Options {
   concurrency: number;
   /** verify: the plan results file whose cases are judged against code. */
   from: string | null;
+  /** Check must-cover risks with the coverage judge (any language). On unless turned off. */
+  coverageJudge: boolean;
+  /** plan: record the run as improvement round n. */
+  round: number | null;
+  change: string;
+  decision: 'keep' | 'revert' | null;
+  reviewPack: string | null;
+  sample: number;
+  out: string | null;
+  /** [ratings.json, plan-results.json] */
+  calibrate: [string, string] | null;
   yes: boolean;
   help: boolean;
 }
@@ -99,6 +114,17 @@ Both print the plan and the estimated cost, and call the API only with --yes.
   --concurrency <n>     specs in flight at once (default: 2)
   --yes                 actually call the API
 plan only:
+  --no-coverage-judge   skip the must-cover check by meaning (${COVERAGE_MODEL}); keywords only
+  --round <n>           record the run as improvement round n, 0 for the baseline
+                        (evals/rounds/v3/<n>/, evals/ROUNDS.v3.md); prints a keep/revert recommendation
+  --change "<text>"     what changed in this round (required with --round)
+plan, offline (no API call, no key):
+  --round <n> --decision keep|revert     record the decision for a round
+  --review-pack <plan-results.json> [--sample <n>] [--out <path>]
+                        blind rating pack of the sheets, in the language they were written in
+  --calibrate <ratings.json> <plan-results.json>
+                        compare a person's ratings with the rubric v3 judge
+plan, judge:
   --judge               score every sheet with the rubric v3 judge (docs/quality/RUBRIC.md)
   --judge-model <id>    judge model (default: ${DEFAULT_JUDGE_MODEL})
 verify only:
@@ -115,6 +141,14 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     judgeModel: DEFAULT_JUDGE_MODEL,
     concurrency: 2,
     from: null,
+    coverageJudge: true,
+    round: null,
+    change: '',
+    decision: null,
+    reviewPack: null,
+    sample: 5,
+    out: null,
+    calibrate: null,
     yes: false,
     help: false,
   };
@@ -132,7 +166,23 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     else if (flag === '--judge-model') o.judgeModel = value();
     else if (flag === '--language') o.language = value();
     else if (flag === '--from') o.from = value();
-    else if (flag === '--cases')
+    else if (flag === '--no-coverage-judge') o.coverageJudge = false;
+    else if (flag === '--change') o.change = value();
+    else if (flag === '--review-pack') o.reviewPack = value();
+    else if (flag === '--out') o.out = value();
+    else if (flag === '--calibrate') o.calibrate = [value(), value()];
+    else if (flag === '--round' || flag === '--sample') {
+      const n = Number(value());
+      const [min, max] = flag === '--round' ? [0, 99] : [1, 50];
+      if (!Number.isInteger(n) || n < min || n > max)
+        throw new Error(`${flag} must be an integer from ${min} to ${max}.`);
+      if (flag === '--round') o.round = n;
+      else o.sample = n;
+    } else if (flag === '--decision') {
+      const d = value();
+      if (d !== 'keep' && d !== 'revert') throw new Error('--decision takes keep or revert.');
+      o.decision = d;
+    } else if (flag === '--cases')
       o.caseIds = value()
         .split(',')
         .map((v) => v.trim())
@@ -154,6 +204,10 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
       o.effort = effort as Effort;
     } else throw new Error(`Unknown option ${flag}.`);
   }
+  if (o.decision && o.round === null) throw new Error('--decision needs --round <n>.');
+  if (o.round !== null && !o.decision && o.change.trim() === '') {
+    throw new Error('--round needs --change "<what changed in this round>".');
+  }
   return o;
 }
 
@@ -170,6 +224,9 @@ export interface PlanRun {
   costUsd: number;
   calls: number;
   dropped: number;
+  /** What the merge step did to this sheet. Absent in results written before it was recorded. */
+  merge?: PlanDiagnostics;
+  coverageJudge?: { usage: LlmUsage; costUsd: number; error?: string };
   warnings: string[];
   seconds: number;
 }
@@ -363,10 +420,12 @@ export function formatPlanTable(
     'Sheet',
     'Spec coverage',
     'Cases/spec',
-    'Must-cover',
+    'Must-cover (kw)',
+    'Must-cover (judge)',
     'Req. with a case',
     'Style viol./100',
     'Repeated titles',
+    'Merged away',
     'Cost',
     'Judge cost',
   ];
@@ -383,9 +442,11 @@ export function formatPlanTable(
     score(r.rubric?.criteria.coverage),
     s.casesPerSpec.toFixed(1),
     graded ? pct(s.mustCoverRecall) : '—',
+    s.mustCoverRecallJudge === null ? '—' : pct(s.mustCoverRecallJudge),
     graded ? pct(s.requirementCoverage) : '—',
     s.styleViolationsPer100.toFixed(1),
     s.repeatedTitles,
+    r.runs.reduce((n, x) => n + (x.merge?.mergedAway.length ?? 0), 0),
     `$${r.costUsd.toFixed(2)}`,
     r.judgeCostUsd > 0 ? `$${r.judgeCostUsd.toFixed(2)}` : '—',
   ];
@@ -402,6 +463,21 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   if (isOutcome(s)) return s;
   const { options, cfg, missingReal } = s;
   const { print } = deps;
+  // ── offline modes: no key, no API call ──────────────────────────────────────
+  if (options.reviewPack !== null) {
+    return none(
+      buildReviewPackV3(
+        options.reviewPack,
+        loadDataset(deps.evalsRoot).cases,
+        options.sample,
+        options.out,
+        deps,
+      ),
+    );
+  }
+  if (options.calibrate !== null) return none(calibrateV3(options.calibrate[0], options.calibrate[1], deps));
+  if (options.decision !== null && options.round !== null)
+    return none(decideRoundV3(options.round, options.decision, deps));
   const withSpec = s.cases.filter((c) => c.prdDocuments.length > 0);
   const withoutSpec = s.cases.filter((c) => c.prdDocuments.length === 0).map((c) => c.id);
   if (withSpec.length === 0) {
@@ -422,7 +498,11 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
       evalCase,
       req,
       plan,
-      judgeUsd: options.judge ? estimateJudgeCost(options.judgeModel, req.spec, expectedCases) : 0,
+      judgeUsd:
+        (options.judge ? estimateJudgeCost(options.judgeModel, req.spec, expectedCases) : 0) +
+        (options.coverageJudge && hasTruth(evalCase)
+          ? estimateCoverageCost(expectedCases, evalCase.expected.mustScenarios.length)
+          : 0),
     };
   });
   const runUsd = planned.reduce((n, p) => n + p.plan.estimateUsd, 0);
@@ -447,8 +527,12 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   if (missingReal.length > 0)
     print(`  NOTE: ${missingReal.length} real case(s) are not on this machine and were left out.`);
   print(`  estimated run cost:   ~$${runUsd.toFixed(2)} (${options.model})`);
+  const judges = [
+    ...(options.judge ? [`${options.judgeModel}, rubric v${RUBRIC_V3_VERSION}`] : []),
+    ...(options.coverageJudge ? [`${COVERAGE_MODEL} must-cover check`] : []),
+  ];
   print(
-    `  estimated judge cost: ~$${judgeUsd.toFixed(2)}${options.judge ? ` (${options.judgeModel}, rubric v${RUBRIC_V3_VERSION})` : ' (no judge; add --judge for rubric scores)'}`,
+    `  estimated judge cost: ~$${judgeUsd.toFixed(2)} (${judges.length > 0 ? judges.join(' + ') : 'no judge'}${options.judge ? '' : '; add --judge for rubric scores'})`,
   );
   print(`  estimated total:      ~$${estimateUsd.toFixed(2)}`);
   print(`  The run estimate assumes ${EXPECTED_OUTPUT_TOKENS} output tokens per call.`);
@@ -469,6 +553,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     maxOutputTokens: MAX_OUTPUT_TOKENS,
   });
   const judgeClient = options.judge ? deps.createRubricClient(apiKey) : null;
+  const coverageClient = options.coverageJudge ? deps.createRubricClient(apiKey) : null;
   const { lint, source: lintSource } = resolveLint(deps);
   const startedAt = new Date(deps.now()).toISOString();
   const runs: PlanRun[] = [];
@@ -482,7 +567,17 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
         req.spec.ref.id,
         result.cases.map(({ reuseCaseId: _reuse, ...draft }) => draft),
       );
-      const grade = hasTruth(evalCase) ? gradePlan(evalCase, cases, cfg.language, lint) : null;
+      let grade = hasTruth(evalCase) ? gradePlan(evalCase, cases, cfg.language, lint) : null;
+      let coverageJudge: PlanRun['coverageJudge'];
+      if (coverageClient && grade && hasTruth(evalCase)) {
+        const verdict = await judgeMustCover(coverageClient, evalCase, cases);
+        if (verdict.verdicts) grade = withCoverageVerdicts(grade, verdict.verdicts);
+        coverageJudge = {
+          usage: verdict.usage,
+          costUsd: verdict.costUsd,
+          ...(verdict.error ? { error: verdict.error } : {}),
+        };
+      }
       let rubric: SheetScore | undefined;
       let judge: PlanRun['judge'];
       if (judgeClient) {
@@ -508,16 +603,23 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
         costUsd: result.costUsd,
         calls: result.calls,
         dropped: result.dropped,
+        merge: result.diagnostics,
+        ...(coverageJudge ? { coverageJudge } : {}),
         warnings: result.warnings.map((w) => `${w.code}: ${w.message}`),
         seconds: (deps.now() - started) / 1000,
       });
-      const cover = grade ? `, must-cover ${pct(grade.mustCoverRecall)}` : '';
+      const merged = result.diagnostics.mergedAway.length;
+      const cover = grade
+        ? `, must-cover ${pct(grade.mustCoverRecallJudge ?? grade.mustCoverRecall)}${grade.mustCoverRecallJudge === undefined ? ' (kw)' : ''}`
+        : '';
       const overall = rubric
         ? `, overall ${rubric.overall.toFixed(2)}`
         : judge?.error
           ? ', judge failed'
           : '';
-      print(`  ${evalCase.id}: ${cases.length} cases${cover}${overall} ($${result.costUsd.toFixed(2)})`);
+      print(
+        `  ${evalCase.id}: ${cases.length} cases${merged > 0 ? ` (${merged} merged away)` : ''}${cover}${overall} ($${result.costUsd.toFixed(2)})`,
+      );
     } catch (err) {
       const e = err instanceof QtgError ? err : null;
       errors.push({
@@ -548,9 +650,12 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     summary: summarizePlan(runs.flatMap((r) => (r.grade ? [r.grade] : [fallbackGrade(r)]))),
     rubric: summarizeSheets(runs.flatMap((r) => (r.rubric ? [r.rubric] : []))),
     costUsd: runs.reduce((n, r) => n + r.costUsd, 0) + errors.reduce((n, e) => n + e.costUsd, 0),
-    judgeCostUsd: runs.reduce((n, r) => n + (r.judge?.costUsd ?? 0), 0),
+    judgeCostUsd: runs.reduce((n, r) => n + (r.judge?.costUsd ?? 0) + (r.coverageJudge?.costUsd ?? 0), 0),
   };
-  const resultsPath = join(deps.resultsRoot, `${startedAt.replace(/[:.]/g, '-')}-plan.json`);
+  const resultsPath =
+    options.round === null
+      ? join(deps.resultsRoot, `${startedAt.replace(/[:.]/g, '-')}-plan.json`)
+      : roundResultsPath(deps, options.round, cfg.language);
   deps.writeFile(resultsPath, `${JSON.stringify(results, null, 2)}\n`);
 
   print('');
@@ -565,7 +670,22 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     print(
       `${unscored.length} sheet(s) have no rubric score and are left out of the rubric means: ${unscored.join(', ')}.`,
     );
+  const mergedAway = runs.flatMap((r) =>
+    (r.merge?.mergedAway ?? [])
+      .filter((x) => x.by === 'merge')
+      .map((x) => `${r.caseId}: "${x.title}" -> "${x.keptTitle}"`),
+  );
+  if (mergedAway.length > 0) {
+    print(
+      `The merge call removed ${mergedAway.length} case(s) as duplicates. Check that each repeats the case it was folded into:`,
+    );
+    for (const line of mergedAway.slice(0, 20)) print(`  ${line}`);
+    if (mergedAway.length > 20) print(`  … and ${mergedAway.length - 20} more, all in the results file`);
+  }
   print(`Results written to ${resultsPath}`);
+  // Last, so the recommendation is the final thing on screen.
+  if (options.round !== null)
+    recordRoundV3(options.round, options.change, results, formatPlanTable(results), deps);
   return { exitCode: 0, executed: true, estimateUsd, estimate, resultsPath, plan: results };
 }
 
