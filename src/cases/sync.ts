@@ -11,7 +11,10 @@
  * - `c` active, ticket edited by a person (or no readable hash): `suggest`, except when the tool
  *   has nothing new to propose (same hash as last written and no revival) → `unchanged`.
  * - `c` active, not edited: `unchanged` when the rendered hash equals the last written one and the
- *   ticket is not being revived; otherwise `update`.
+ *   ticket is not being revived; otherwise `update`. `specDigest` is not part of the hash; when
+ *   only it moved (the case carries one and it differs from the ticket's), an unedited ticket gets an
+ *   `update` (same text, new payload) so the next plan run sees the digest. An edited ticket is left
+ *   alone (`unchanged`): a new digest alone is not worth a suggestion.
  * - tickets no next case refers to: `obsolete` unless already obsolete.
  * - duplicate tickets for one caseId: the first in list order is used, the rest get no op.
  * Human-owned fields are never part of an op's case: cases are built from tool-owned keys only.
@@ -28,7 +31,12 @@ function opFor(t: ExistingCaseTicket, c: QaCase, hash: () => string): SyncOp {
   const reviving = isObsolete(t);
   const edited = t.writtenHash === null || t.currentHash !== t.writtenHash;
   const same = t.writtenHash !== null && hash() === t.writtenHash;
-  if (same && !reviving) return { op: 'unchanged', ticket: t, case: c };
+  if (same && !reviving) {
+    const digestMoved = c.specDigest !== undefined && c.specDigest !== t.lastWritten?.specDigest;
+    return digestMoved && !edited
+      ? { op: 'update', ticket: t, case: c }
+      : { op: 'unchanged', ticket: t, case: c };
+  }
   return edited ? { op: 'suggest', ticket: t, case: c } : { op: 'update', ticket: t, case: c };
 }
 

@@ -120,37 +120,46 @@ async function cliPlan(extra: string[] = [], outDir = dir) {
   return result.outcome;
 }
 
+const FILES = ['qa-cases.json', 'qa-cases.csv', 'qa-cases.md'];
 const json = (d = dir) => JSON.parse(readFileSync(join(d, 'qa-cases.json'), 'utf8')) as CasesFile;
 
 describe('SPEC v3 §5 file sink continues from the previous qa-cases.json', () => {
-  it('SPEC v3 §5 a second CLI run in the same out-dir keeps every id and changes nothing', async () => {
+  it('SPEC v3 §5 a second CLI run in the same out-dir sees an unchanged spec and generates nothing', async () => {
     const first = await cliPlan();
     expect(first.status).toBe('ok');
     expect(first.sinks).toMatchObject([{ kind: 'file', created: 3, unchanged: 0 }]);
     const ids = json().cases.map((c) => c.case.caseId);
     expect(ids).toEqual(['shop-12-C01', 'shop-12-C02', 'shop-12-C03']);
-    const files = ['qa-cases.json', 'qa-cases.csv', 'qa-cases.md'].map((f) =>
-      readFileSync(join(dir, f), 'utf8'),
-    );
+    const digests = new Set(json().cases.map((c) => c.case.specDigest));
+    expect(digests.size).toBe(1);
+    expect([...digests][0]).toMatch(/^[0-9a-f]{16}$/);
+    const files = FILES.map((f) => readFileSync(join(dir, f), 'utf8'));
 
     const second = await cliPlan();
-    expect(second.sinks).toMatchObject([
-      { kind: 'file', created: 0, updated: 0, unchanged: 3, obsoleted: 0 },
-    ]);
+    expect(second.skipped).toBe('spec_unchanged');
+    expect(second.sinks).toEqual([]);
     expect(second.cases.map((c) => c.caseId)).toEqual(ids);
-    expect(
-      ['qa-cases.json', 'qa-cases.csv', 'qa-cases.md'].map((f) => readFileSync(join(dir, f), 'utf8')),
-    ).toEqual(files);
-    // The planner was shown the earlier cases, so it could reuse their ids.
-    const secondReq = vi.mocked(generatePlan).mock.calls[1]?.[0] as PlanRequest;
-    expect(secondReq.existing.map((e) => e.caseId)).toEqual(ids);
+    expect(vi.mocked(generatePlan)).toHaveBeenCalledTimes(1);
+    expect(FILES.map((f) => readFileSync(join(dir, f), 'utf8'))).toEqual(files);
   });
 
-  it('SPEC v3 §5 --previous points at an earlier run elsewhere; a fresh out-dir starts from it', async () => {
+  it('SPEC v3 §5 --force-plan plans again from the previous json: same ids, all unchanged', async () => {
+    await cliPlan();
+    const files = FILES.map((f) => readFileSync(join(dir, f), 'utf8'));
+    const again = await cliPlan(['--force-plan', 'true']);
+    expect(again.skipped).toBeUndefined();
+    expect(again.sinks).toMatchObject([{ kind: 'file', created: 0, updated: 0, unchanged: 3, obsoleted: 0 }]);
+    expect(FILES.map((f) => readFileSync(join(dir, f), 'utf8'))).toEqual(files);
+    // The planner was shown the earlier cases, so it could reuse their ids.
+    const secondReq = vi.mocked(generatePlan).mock.calls[1]?.[0] as PlanRequest;
+    expect(secondReq.existing.map((e) => e.caseId)).toEqual(['shop-12-C01', 'shop-12-C02', 'shop-12-C03']);
+  });
+
+  it('SPEC v3 §5 --previous points at an earlier run elsewhere; a fresh out-dir continues its ids', async () => {
     await cliPlan();
     const other = mkdtempSync(join(tmpdir(), 'qtg-wire-prev-other-'));
     try {
-      const out = await cliPlan(['--previous', join(dir, 'qa-cases.json')], other);
+      const out = await cliPlan(['--previous', join(dir, 'qa-cases.json'), '--force-plan', 'true'], other);
       expect(out.sinks).toMatchObject([{ kind: 'file', created: 0, unchanged: 3 }]);
       expect(json(other).cases.map((c) => c.case.caseId)).toEqual([
         'shop-12-C01',

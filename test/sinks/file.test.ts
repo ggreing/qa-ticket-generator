@@ -118,6 +118,30 @@ describe('SPEC v3 §5 file sink', () => {
     expect([read(FILE_NAMES.json), read(FILE_NAMES.csv), read(FILE_NAMES.markdown)]).toEqual(first);
   });
 
+  it('SPEC v3 §5 specDigest survives the previous json; a digest-only change rewrites json, not csv or md', async () => {
+    const stamp = (d: string) => cases.map((c) => ({ ...c, specDigest: d }));
+    await runOnce(sink(null), stamp('d1'));
+    const previous = join(dir, 'previous.json');
+    writeFileSync(previous, read(FILE_NAMES.json));
+    const [csv, md] = [read(FILE_NAMES.csv), read(FILE_NAMES.markdown)];
+
+    const s = sink(previous);
+    const listed = await s.list(SPEC, signal);
+    expect(listed.map((t) => t.lastWritten?.specDigest)).toEqual(['d1', 'd1', 'd1']);
+    expect((await runOnce(sink(previous), stamp('d1'))).map((o) => o.op)).toEqual([
+      'unchanged',
+      'unchanged',
+      'unchanged',
+    ]);
+
+    const ops = await runOnce(sink(previous), stamp('d2'));
+    expect(ops.map((o) => o.op)).toEqual(['update', 'update', 'update']);
+    const json = JSON.parse(read(FILE_NAMES.json)) as CasesFile;
+    expect(json.cases.map((x) => x.case.specDigest)).toEqual(['d2', 'd2', 'd2']);
+    expect(json.cases.map((x) => x.hash)).toEqual(cases.map((c) => renderCase(c, 'ko').hash));
+    expect([read(FILE_NAMES.csv), read(FILE_NAMES.markdown)]).toEqual([csv, md]);
+  });
+
   it('SPEC v3 §4.4 a spec case the plan drops is kept as obsolete in every file; code cases stay', async () => {
     await runOnce(sink(null), cases);
     const previous = join(dir, 'previous.json');

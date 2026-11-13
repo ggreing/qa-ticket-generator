@@ -37,6 +37,7 @@ const QA_CASE_KEYS = new Set([
   'whyEasyToMiss',
   'origin',
   'codeStatus',
+  'specDigest',
 ]);
 const LANGUAGES: Language[] = ['ko', 'en', 'ja', 'zh-CN'];
 const render = (c: QaCase) => renderCase(c, 'ko');
@@ -290,5 +291,79 @@ describe('SPEC v3 §2.2 applyVerify invariants', () => {
       ['SHOP-101-C02', 'active'],
       ['SHOP-101-C03', 'active'],
     ]);
+  });
+});
+
+describe('SPEC v3 §4.1 §4.5 specDigest (plan skips generation while the spec is unchanged)', () => {
+  const withDigest = (id: string, title: string, specDigest: string, extra: Partial<QaCase> = {}) =>
+    qaCase(id, title, { ...extra, specDigest });
+
+  it('SPEC v3 §4.1 toQaCase keeps the input digest (trimmed), drops an empty one and adds no key when absent', () => {
+    const kept = toQaCase(withDigest('X-C01', 'a', ' d1 '), 'X-C01', 'X', 'active', undefined);
+    expect(kept.specDigest).toBe('d1');
+    expect(Object.keys(kept).at(-1)).toBe('specDigest');
+    expect('specDigest' in toQaCase(withDigest('X-C01', 'a', '  '), 'X-C01', 'X', 'active', undefined)).toBe(
+      false,
+    );
+    expect('specDigest' in toQaCase(draft('a'), 'X-C01', 'X', 'active', undefined)).toBe(false);
+    expect(toQaCase(draft('a'), 'X-C01', 'X', 'active', undefined, 'd2').specDigest).toBe('d2');
+  });
+
+  it('SPEC v3 §4.1 reconcile: a reused case keeps the ticket digest unless the plan brings one; kept cases keep theirs', () => {
+    const existing = [
+      ticket(withDigest('SHOP-101-C01', 'a', 'd1')),
+      ticket(withDigest('SHOP-101-C02', 'b', 'd1', { origin: 'code' })),
+      ticket(withDigest('SHOP-101-C03', 'c', 'd1')),
+      ticket(withDigest('SHOP-101-C05', 'z', 'd1')),
+    ];
+    const plan = [
+      planned('a', 'SHOP-101-C01'),
+      { ...planned('c', 'SHOP-101-C03'), specDigest: 'd2' },
+      planned('n'),
+    ];
+    const out = reconcileCases('SHOP-101', existing, plan).cases;
+    expect(out.map((c) => [c.caseId, c.lifecycle, c.specDigest])).toEqual([
+      ['SHOP-101-C01', 'active', 'd1'],
+      ['SHOP-101-C03', 'active', 'd2'],
+      ['SHOP-101-C06', 'active', undefined],
+      ['SHOP-101-C02', 'active', 'd1'],
+      ['SHOP-101-C05', 'obsolete', 'd1'],
+    ]);
+  });
+
+  it('SPEC v3 §2.2 applyVerify keeps the digest of judged and untouched cases', () => {
+    const cases = [withDigest('SHOP-101-C01', 'a', 'd1'), withDigest('SHOP-101-C02', 'b', 'd1')];
+    const result = {
+      statuses: [{ caseId: 'SHOP-101-C01', status: 'implemented' as const, evidence: 'e', files: ['f.ts'] }],
+      newCases: [draft('c', { origin: 'code' })],
+    };
+    const out = applyVerify(cases, result, 'sha1', 'SHOP-101').cases;
+    expect(out.map((c) => [c.caseId, c.specDigest])).toEqual([
+      ['SHOP-101-C01', 'd1'],
+      ['SHOP-101-C02', 'd1'],
+      ['SHOP-101-C03', undefined],
+    ]);
+  });
+
+  it('SPEC v3 §4.5 the digest is not tool-owned text: rendering and hash ignore it', () => {
+    for (const language of LANGUAGES) {
+      expect(renderCase(withDigest('X-C01', 'a', 'd1'), language)).toStrictEqual(
+        renderCase(qaCase('X-C01', 'a'), language),
+      );
+    }
+  });
+
+  it('SPEC v3 §4.5 only the digest moved: update an unedited ticket, leave an edited one alone', () => {
+    const last = withDigest('SHOP-101-C01', 'a', 'd1');
+    const moved = withDigest('SHOP-101-C01', 'a', 'd2');
+    const ops = (t: ReturnType<typeof ticket>, c: QaCase) => planSync([t], [c], render).map((o) => o.op);
+    expect(ops(ticket(last), moved)).toEqual(['update']);
+    expect(ops(ticket(qaCase('SHOP-101-C01', 'a')), moved)).toEqual(['update']); // ticket written before digests
+    expect(ops(ticket(last, { edited: true }), moved)).toEqual(['unchanged']);
+    expect(ops(ticket(last), last)).toEqual(['unchanged']);
+    expect(ops(ticket(last), qaCase('SHOP-101-C01', 'a'))).toEqual(['unchanged']); // no digest: no opinion
+    // Content changes keep their usual ops whatever the digest does.
+    expect(ops(ticket(last), { ...moved, steps: ['바뀜'] })).toEqual(['update']);
+    expect(ops(ticket(last, { edited: true }), { ...moved, steps: ['바뀜'] })).toEqual(['suggest']);
   });
 });

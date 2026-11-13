@@ -58,7 +58,8 @@ function techniqueOf(t: unknown): Technique {
 
 /**
  * Builds a QaCase from case content with exactly the tool-owned keys. Anything else on the input
- * (e.g. human fields that leaked into a ticket payload) is dropped here.
+ * (e.g. human fields that leaked into a ticket payload) is dropped here. `specDigest` defaults to
+ * the input's own (a QaCase read back from a payload or a file keeps it); it is left out when empty.
  */
 export function toQaCase(
   draft: CaseDraft,
@@ -66,6 +67,7 @@ export function toQaCase(
   specRef: string,
   lifecycle: QaCase['lifecycle'],
   codeStatus: QaCase['codeStatus'] | undefined,
+  specDigest: unknown = (draft as Partial<QaCase>).specDigest,
 ): QaCase {
   const out: QaCase = {
     caseId,
@@ -90,6 +92,8 @@ export function toQaCase(
       sha: clean(codeStatus.sha),
     };
   }
+  const digest = clean(specDigest);
+  if (digest !== '') out.specDigest = digest;
   return out;
 }
 
@@ -100,6 +104,7 @@ export function toQaCase(
  * - A reused id must belong to an existing ticket and may be claimed by one planned case only
  *   (first claim wins, in planned order). Otherwise the case gets a new id and a warning.
  * - New ids continue after the highest existing number for this spec key.
+ * - A reused case keeps the ticket's `specDigest` unless the planned case brings its own.
  * - §4.4 — code-origin cases the planner does not reuse keep their content and lifecycle: only the
  *   verify phase decides whether they are obsolete. When the planner does reuse a code case's id
  *   (the spec now covers that risk), the case takes the planned content, so its origin may become
@@ -144,7 +149,8 @@ export const reconcileCases: ReconcileCases = (specRef, existing, planned) => {
       ticket = byId.get(want);
     }
     claimed.add(id);
-    cases.push(toQaCase(p, id, specRef, 'active', ticket?.lastWritten?.codeStatus));
+    const digest = (p as Partial<QaCase>).specDigest ?? ticket?.lastWritten?.specDigest;
+    cases.push(toQaCase(p, id, specRef, 'active', ticket?.lastWritten?.codeStatus, digest));
   }
 
   const fromCode: QaCase[] = [];
