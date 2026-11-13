@@ -67,7 +67,9 @@ const STATUS_RANK: Readonly<Record<CodeStatus, number>> = {
   unknown: 0,
 };
 const FINDING_RANK: Readonly<Record<Finding['status'], number>> = {
-  contradicts: 3,
+  contradicts: 4,
+  // One part saw the basic behavior and an edge that is not handled: more specific than "covered".
+  partial: 3,
   covered: 2,
   missing: 1,
   unclear: 0,
@@ -230,16 +232,63 @@ export interface VerifyDiagnostics {
    */
   rejudge: { judged: number; kept: number; reasons: Record<RejudgeReason, number> | null };
   /**
-   * Requirement findings that disagree with the statuses of that requirement's cases (the ones
-   * given now and the ones kept). Reported, not corrected.
+   * Findings whose status was corrected to fit the statuses of the requirement's cases (the ones
+   * given now and the ones kept). See `fitFinding`.
+   */
+  alignmentAdjustments: {
+    requirement: string;
+    from: Finding['status'];
+    to: Finding['status'];
+    rule: FindingRule;
+    /** The cases the rule rests on. */
+    cases: { caseId: string; status: CodeStatus }[];
+  }[];
+  /**
+   * Findings that disagree with their cases in a way no rule settles: found to contradict while
+   * every case of the requirement is implemented. Reported, not corrected.
    */
   alignmentConflicts: {
     requirement: string;
     finding: Finding['status'];
-    /** `case_not_met`: found covered while a case is missing or contradicts. `cases_all_met`: found missing or contradicting while every case is implemented. */
-    kind: 'case_not_met' | 'cases_all_met';
     cases: { caseId: string; status: CodeStatus }[];
   }[];
+}
+
+export type FindingRule =
+  /** covered -> partial: a case of the requirement is missing or contradicts. */
+  | 'case_not_met'
+  /** partial -> covered: no case of the requirement is missing or contradicts. */
+  | 'no_case_not_met'
+  /** missing -> partial: a case of the requirement is implemented, so its basic behavior is there. */
+  | 'case_implemented';
+
+/**
+ * The status a finding must have given the statuses of its requirement's cases, or null when it
+ * already fits or the cases cannot settle it.
+ *
+ * - covered means the basic behavior is there and no case is missing or contradicts. With such a
+ *   case it is partial.
+ * - partial means the basic behavior is there and a case is not met. With no such case it is
+ *   covered.
+ * - missing means the basic behavior itself is absent. An implemented case shows it is not, so
+ *   the finding is partial. Not when a case contradicts: then the behavior may be built on another
+ *   rule, and the finding is left to say so.
+ * - contradicts and unclear are never changed: no case status can show that the rule itself is
+ *   right, or what could not be seen.
+ */
+export function fitFinding(
+  status: Finding['status'],
+  cases: { caseId: string; status: CodeStatus }[],
+): { to: Finding['status']; rule: FindingRule; cases: { caseId: string; status: CodeStatus }[] } | null {
+  if (cases.length === 0) return null;
+  const notMet = cases.filter((c) => c.status === 'missing' || c.status === 'contradicts');
+  if (status === 'covered' && notMet.length > 0)
+    return { to: 'partial', rule: 'case_not_met', cases: notMet };
+  if (status === 'partial' && notMet.length === 0) return { to: 'covered', rule: 'no_case_not_met', cases };
+  const implemented = cases.filter((c) => c.status === 'implemented');
+  if (status === 'missing' && implemented.length > 0 && !cases.some((c) => c.status === 'contradicts'))
+    return { to: 'partial', rule: 'case_implemented', cases: implemented };
+  return null;
 }
 
 /** A code-derived case as the model wrote it, cleaned; null when it is not a runnable case. */
@@ -336,6 +385,7 @@ export function combineVerify(
     unknownSameAs: [],
     outOfScope: [],
     rejudge: { judged: toJudge.length, kept: active.length - toJudge.length, reasons: null },
+    alignmentAdjustments: [],
     alignmentConflicts: [],
   };
   const seen = new Set<string>();
@@ -390,15 +440,8 @@ export function combineVerify(
     }
   }
   const findings = [...merged.values()];
-  const status: Findings['status'] =
-    findings.length === 0
-      ? (outputs[0]?.prdAlignment.status ?? 'partial')
-      : findings.some((f) => f.status === 'contradicts')
-        ? 'misaligned'
-        : findings.every((f) => f.status === 'covered')
-          ? 'aligned'
-          : 'partial';
-  // ── do the findings agree with the statuses of their cases? ─────────────────
+
+  // ── fit each finding to the statuses of its requirement's cases ─────────────
   const finalStatus = new Map<string, CodeStatus>();
   for (const c of active) {
     const now = known.has(c.caseId) ? (best.get(c.caseId)?.status ?? 'unknown') : c.codeStatus?.status;
@@ -412,28 +455,31 @@ export function combineVerify(
         const s = finalStatus.get(c.caseId);
         return s ? [{ caseId: c.caseId, status: s }] : [];
       });
-    if (own.length === 0) continue;
-    const notMet = own.filter((c) => c.status === 'missing' || c.status === 'contradicts');
-    if (f.status === 'covered' && notMet.length > 0) {
-      diagnostics.alignmentConflicts.push({
+    const fit = fitFinding(f.status, own);
+    if (fit) {
+      diagnostics.alignmentAdjustments.push({
         requirement: f.requirement,
-        finding: f.status,
-        kind: 'case_not_met',
-        cases: notMet,
+        from: f.status,
+        to: fit.to,
+        rule: fit.rule,
+        cases: fit.cases,
       });
-    } else if (
-      (f.status === 'missing' || f.status === 'contradicts') &&
-      own.every((c) => c.status === 'implemented')
-    ) {
-      diagnostics.alignmentConflicts.push({
-        requirement: f.requirement,
-        finding: f.status,
-        kind: 'cases_all_met',
-        cases: own,
-      });
+      f.status = fit.to;
+    } else if (f.status === 'contradicts' && own.length > 0 && own.every((c) => c.status === 'implemented')) {
+      diagnostics.alignmentConflicts.push({ requirement: f.requirement, finding: f.status, cases: own });
     }
   }
 
+  // The overall status follows the findings as they now stand. A partial finding makes the whole
+  // partial; only a contradiction makes it misaligned.
+  const status: Findings['status'] =
+    findings.length === 0
+      ? (outputs[0]?.prdAlignment.status ?? 'partial')
+      : findings.some((f) => f.status === 'contradicts')
+        ? 'misaligned'
+        : findings.every((f) => f.status === 'covered')
+          ? 'aligned'
+          : 'partial';
   // Only a case that would have been kept is worth reporting as kept despite an unknown id.
   const keptTitles = new Set(newCases.map((c) => c.title));
   diagnostics.unknownSameAs = diagnostics.unknownSameAs.filter((d) => keptTitles.has(d.title));

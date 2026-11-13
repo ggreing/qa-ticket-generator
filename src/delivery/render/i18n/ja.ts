@@ -24,7 +24,13 @@ export const ja: Strings = {
     redactions: 'マスクした秘密情報',
   },
   table: { requirement: '要件', status: '状態', evidence: '根拠' },
-  requirementStatus: { covered: '充足', missing: '未実装', contradicts: '矛盾', unclear: '不明' },
+  requirementStatus: {
+    covered: '充足',
+    partial: '一部充足',
+    missing: '未実装',
+    contradicts: '矛盾',
+    unclear: '不明',
+  },
   omittedTickets: (n) =>
     `GitHub のコメント長の上限に収めるため、優先度の低いチケット ${n} 件を省略しました。完全なレポートはワークフローの Job Summary と report.json にあります。`,
   omittedFindings: (n) =>

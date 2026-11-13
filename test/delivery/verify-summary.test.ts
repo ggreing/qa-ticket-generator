@@ -223,6 +223,35 @@ describe('renderVerifyComment — PR summary of a verify run (SPEC v3 §2.2)', (
   });
 });
 
+describe('renderVerifyComment — a partly covered requirement (SPEC v3 §2.2)', () => {
+  const partial = {
+    requirement: 'AC1: an item can be added once',
+    source: 'SHOP-900',
+    status: 'partial' as const,
+    evidence: 'The one-item check is in WishlistService.add; two devices at once are not handled.',
+    files: ['src/wishlist.ts'],
+  };
+
+  it('SPEC v3 §2.2 shows it as partly covered, not as missing, under a "partially aligned" badge', () => {
+    const body = renderVerifyComment(input({ alignment: { status: 'partial', findings: [partial] } }));
+    expect(body).toContain('⚠️ **Partially aligned**');
+    expect(body).toContain(
+      '| **AC1** an item can be added once | ⚠️ partly covered | The one-item check is in WishlistService.add; two devices at once are not handled. |',
+    );
+    expect(body).not.toContain('❌ missing');
+  });
+
+  it.each([
+    ['ko', '⚠️ 부분 충족'],
+    ['ja', '⚠️ 一部充足'],
+    ['zh-CN', '⚠️ 部分覆盖'],
+  ] as const)('the label is written in %s', (language, label) => {
+    expect(
+      renderVerifyComment(input({ language, alignment: { status: 'partial', findings: [partial] } })),
+    ).toContain(`| ${label} |`);
+  });
+});
+
 describe('renderVerifyComment — after the first check (SPEC v3 §2.2)', () => {
   const earlier = (n: number, status: 'implemented' | 'contradicts') =>
     qaCase(n, status, {

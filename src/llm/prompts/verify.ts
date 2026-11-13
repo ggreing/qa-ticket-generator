@@ -17,7 +17,7 @@ import { guardSpec, type Requirement } from './plan';
 import { STYLE_GUIDE } from './style';
 import { attr, buildCodeSection, buildSkippedSection } from './user';
 
-export const VERIFY_PROMPT_VERSION = '2026-11-13.6';
+export const VERIFY_PROMPT_VERSION = '2026-11-13.7';
 
 export const VERIFY_SYSTEM = `You are a senior QA engineer. A spec already has a sheet of test cases, and a pull request that implements the spec has arrived. You read the code change and do three things: say for each case whether the code makes it pass, add the cases that only the code reveals, and say for each requirement whether the change meets it. A program reads your answer, so it is a single JSON object that follows the provided schema.
 
@@ -82,7 +82,7 @@ Statuses. <cases> then holds only the cases that need a status now: the ones nev
 - A case that shows a \`previous_status\` was judged at the last check, and its \`previous\` line is the evidence given then. Keep that status unless the pushed lines change what the code does for this case. A different answer needs a reason in the pushed lines; a second opinion on code that did not change is not one.
 - When you keep it, repeat the status and say in the evidence where the code stands now. When you change it, the evidence names the pushed line that changed it.
 
-Findings. The requirement findings are still judged on the whole pull request in <code_changes>. They have to agree with the statuses, the ones you give now and the ones in the index: a requirement is not covered while one of its cases is missing or contradicts.
+Findings. The requirement findings are still judged on the whole pull request in <code_changes>. They have to agree with the statuses, the ones you give now and the ones in the index: a requirement is not covered while one of its cases is missing or contradicts. With its basic behavior in place such a requirement is partial, not missing.
 
 New cases:
 
@@ -95,11 +95,15 @@ A program checks each new case against the pushed lines and discards the ones th
 
 # Requirement alignment
 
-Write exactly one finding per requirement of the spec, starting with the requirement's label:
-- covered: the change implements it, every part of it. Point to the file and function.
-- missing: what it asks for is not in the change, or only part of it is and the rest is absent.
-- contradicts: the change implements it with a different value or rule, or does something it rules out.
+Write exactly one finding per requirement of the spec, starting with the requirement's label. Judge the basic behavior first: what the requirement asks for in its ordinary case. The edges around it are what the cases are for, and their statuses decide between covered and partial.
+
+- covered: the basic behavior is in the change, and none of the requirement's cases is missing or contradicts. Point to the file and function.
+- partial: the basic behavior is in the change, and at least one of the requirement's cases is missing or contradicts: an edge the code does not handle, or handles differently. Say what is there, then what is not, as in "The 100-item limit is checked in WishlistService.add; adding from two devices at once is not handled".
+- missing: the basic behavior itself is not in the change. A limit that is asked for and never checked is missing. A limit that is checked but lets one odd input through is partial, and calling it missing tells the developer that nothing was built.
+- contradicts: the basic behavior is built on a different value or rule than the requirement states, or does what the requirement rules out. One edge handled differently is partial; the rule itself being different is contradicts.
 - unclear: you cannot tell from what you were shown.
+
+A program checks each finding against the statuses of the requirement's cases and corrects the ones that do not fit this.
 
 Start each \`evidence\` with one sentence that states the conclusion. The overall \`status\` is "aligned" when every finding is covered, "misaligned" when any finding contradicts, otherwise "partial".
 

@@ -30,7 +30,13 @@ export const STATE_RESERVE = 1_024;
 
 export const ALIGNMENT_BADGE = { aligned: '✅', partial: '⚠️', misaligned: '❌', no_prd: '➖' } as const;
 export const SEVERITY_ICON = { high: '🔴', medium: '🟠', low: '🟡' } as const;
-export const REQUIREMENT_ICON = { covered: '✅', missing: '❌', contradicts: '⛔', unclear: '❓' } as const;
+export const REQUIREMENT_ICON = {
+  covered: '✅',
+  partial: '⚠️',
+  missing: '❌',
+  contradicts: '⛔',
+  unclear: '❓',
+} as const;
 const SOURCE_LABEL = { github: 'GitHub', jira: 'Jira', notion: 'Notion' } as const;
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 
