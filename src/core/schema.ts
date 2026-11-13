@@ -7,7 +7,7 @@
  */
 import { z } from 'zod';
 
-export const RequirementStatus = z.enum(['covered', 'missing', 'contradicts', 'unclear']);
+export const RequirementStatus = z.enum(['covered', 'partial', 'missing', 'contradicts', 'unclear']);
 export const AlignmentStatusSchema = z.enum(['aligned', 'partial', 'misaligned', 'no_prd']);
 export const ScenarioType = z.enum(['happy_path', 'edge_case', 'negative', 'regression']);
 export const Priority = z.enum(['P0', 'P1', 'P2']);
