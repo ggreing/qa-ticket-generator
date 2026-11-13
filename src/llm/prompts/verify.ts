@@ -17,7 +17,7 @@ import { guardSpec, type Requirement } from './plan';
 import { STYLE_GUIDE } from './style';
 import { attr, buildCodeSection, buildSkippedSection } from './user';
 
-export const VERIFY_PROMPT_VERSION = '2026-11-13.5';
+export const VERIFY_PROMPT_VERSION = '2026-11-13.6';
 
 export const VERIFY_SYSTEM = `You are a senior QA engineer. A spec already has a sheet of test cases, and a pull request that implements the spec has arrived. You read the code change and do three things: say for each case whether the code makes it pass, add the cases that only the code reveals, and say for each requirement whether the change meets it. A program reads your answer, so it is a single JSON object that follows the provided schema.
 
@@ -76,7 +76,15 @@ Most of what the code reveals is found the first time a pull request is checked.
 
 # When this pull request was checked before
 
-Sometimes the message also holds <changed_since_last_check>: the lines that were pushed since this check last ran. The statuses and the requirement findings do not change because of it. Judge them on the whole pull request in <code_changes>, exactly as described above. Only the search for new cases narrows:
+Sometimes the message also holds <changed_since_last_check>: the lines that were pushed since this check last ran. Reading the same code a second time must not move the answers, so three things narrow.
+
+Statuses. <cases> then holds only the cases that need a status now: the ones never judged, the ones whose code the push changed, and the ones that were missing or unknown and may have arrived with it. Every other case of the sheet keeps the status it has, and <case_index> shows that status. Give a status for the cases in <cases> and for no other.
+- A case that shows a \`previous_status\` was judged at the last check, and its \`previous\` line is the evidence given then. Keep that status unless the pushed lines change what the code does for this case. A different answer needs a reason in the pushed lines; a second opinion on code that did not change is not one.
+- When you keep it, repeat the status and say in the evidence where the code stands now. When you change it, the evidence names the pushed line that changed it.
+
+Findings. The requirement findings are still judged on the whole pull request in <code_changes>. They have to agree with the statuses, the ones you give now and the ones in the index: a requirement is not covered while one of its cases is missing or contradicts.
+
+New cases:
 
 - A new case is allowed only for a risk that those pushed lines create or change. In its \`whyEasyToMiss\`, name the changed file with its path exactly as written there, and the function the change is in.
 - A risk that was already in the code at the last check is not new now, even when no case covers it and even when you can see it plainly. The team decided this: tickets appear when the code changes, not each time the same code is read again.
@@ -100,18 +108,30 @@ ${STYLE_GUIDE}`;
 const oneLine = (items: string[], separator: string): string =>
   items.map((s) => guardSpec(s)).join(separator);
 
-/** The cases as the model sees them: enough to judge each against code, no more. */
-export function buildCasesBlock(cases: QaCase[]): string {
+/** Longest earlier evidence shown with a case that is judged again. */
+const PREVIOUS_EVIDENCE_CHARS = 300;
+
+/**
+ * The cases as the model sees them: enough to judge each against code, no more. With `previous`
+ * (a pull request that was checked before), a case also shows the status and evidence it has, so
+ * the answer changes only when the pushed lines give a reason.
+ */
+export function buildCasesBlock(cases: QaCase[], previous = false): string {
   if (cases.length === 0) return '<cases>\n(none)\n</cases>';
-  const rows = cases.map(
-    (c) =>
-      `<case id="${attr(c.caseId)}" requirements="${attr(c.acLabels.join(','))}" technique="${c.technique}" priority="${c.priority}" origin="${c.origin}">\n` +
+  const rows = cases.map((c) => {
+    const before = previous ? c.codeStatus : undefined;
+    return (
+      `<case id="${attr(c.caseId)}" requirements="${attr(c.acLabels.join(','))}" technique="${c.technique}" priority="${c.priority}" origin="${c.origin}"${before ? ` previous_status="${before.status}"` : ''}>\n` +
       `${guardSpec(c.title)}\n` +
       (c.testData.length > 0 ? `data: ${oneLine(c.testData, '; ')}\n` : '') +
       `steps: ${oneLine(c.steps, ' > ')}\n` +
       `expected: ${oneLine(c.expected, '; ')}\n` +
-      '</case>',
-  );
+      (before && before.evidence.trim() !== ''
+        ? `previous: ${guardSpec(before.evidence.trim().slice(0, PREVIOUS_EVIDENCE_CHARS))}\n`
+        : '') +
+      '</case>'
+    );
+  });
   return `<cases>\n${rows.join('\n')}\n</cases>`;
 }
 
@@ -121,8 +141,12 @@ const INDEX_WHERE_CHARS = 200;
 /**
  * Every active case of the sheet on one line each, for the call that may write new cases. A
  * code-derived case also shows the code location it named, which is what a repeat would share.
+ *
+ * With `keptIds` (a pull request that was checked before), a status column shows what each case
+ * that is not judged in this run keeps, so the findings can agree with it; a case that is being
+ * judged now shows "now".
  */
-export function buildCaseIndex(cases: QaCase[]): string {
+export function buildCaseIndex(cases: QaCase[], keptIds?: ReadonlySet<string>): string {
   const rows = cases
     .filter((c) => c.lifecycle === 'active')
     .map((c) => {
@@ -130,9 +154,11 @@ export function buildCaseIndex(cases: QaCase[]): string {
         c.origin === 'code' && c.whyEasyToMiss.trim() !== ''
           ? ` | ${guardSpec(c.whyEasyToMiss.trim().slice(0, INDEX_WHERE_CHARS))}`
           : '';
-      return `${c.caseId} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.origin} | ${guardSpec(c.title)}${where}`;
+      const status = keptIds ? ` | ${keptIds.has(c.caseId) ? (c.codeStatus?.status ?? '-') : 'now'}` : '';
+      return `${c.caseId} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.origin}${status} | ${guardSpec(c.title)}${where}`;
     });
-  return `<case_index>\nid | requirements | technique | origin | title | code location (code-derived cases)\n${rows.length > 0 ? rows.join('\n') : '(none)'}\n</case_index>`;
+  const header = `id | requirements | technique | origin${keptIds ? ' | status kept ("now": judged in <cases>)' : ''} | title | code location (code-derived cases)`;
+  return `<case_index>\n${header}\n${rows.length > 0 ? rows.join('\n') : '(none)'}\n</case_index>`;
 }
 
 /** Longest patch shown per file, and in total, in <changed_since_last_check>. The same lines are in <code_changes>. */
@@ -199,8 +225,9 @@ export function buildVerifyPrefix(
   req: VerifyRequest,
   requirements: Requirement[],
   batch: QaCase[],
+  previous = false,
 ): string[] {
-  return [specBlock(req, requirements), buildCasesBlock(batch)];
+  return [specBlock(req, requirements), buildCasesBlock(batch, previous)];
 }
 
 export interface VerifyTaskOptions {
@@ -214,6 +241,8 @@ export interface VerifyTaskOptions {
   sheet?: QaCase[];
   /** Set after the first check of a pull request: new cases only from these pushed lines. */
   scope?: ResolvedScope | null;
+  /** Ids of the cases that keep their status in this run. Only with `scope`. */
+  keptIds?: ReadonlySet<string>;
 }
 
 /** Everything after the shared prefix: the code of this call and what to do with it. */
@@ -226,8 +255,14 @@ export function buildVerifyTail(
     options.phase === 'single'
       ? 'Judge the pull request above.'
       : `Judge this part of the pull request. The change is too large for one pass, so it was split: you are seeing one part, and the other parts are judged separately. When the code a case depends on is not in this part, answer "unknown" and say it may be in another part; answer "missing" only when this part contains the place where the behavior would have to be. Apply the same rule to the requirement findings, with "unclear" in place of "unknown".`;
-  const statuses = `Return one status for each of the ${options.caseCount} cases in <cases>, with the case ids exactly as given.`;
-  const narrowed = options.withCodeCases && options.scope ? options.scope : null;
+  const checkedBefore = options.scope ?? null;
+  const statuses =
+    options.caseCount === 0
+      ? 'Return an empty `statuses`: no case needs a status in this answer.'
+      : checkedBefore
+        ? `Return one status for each of the ${options.caseCount} ${options.caseCount === 1 ? 'case' : 'cases'} in <cases>, with the case ids exactly as given, and for no other case. Where a case shows a previous status, keep it unless the lines in <changed_since_last_check> change the answer.`
+        : `Return one status for each of the ${options.caseCount} cases in <cases>, with the case ids exactly as given.`;
+  const narrowed = options.withCodeCases ? checkedBefore : null;
   const count = `at most ${options.maxNewCases} new ${options.maxNewCases === 1 ? 'case' : 'cases'}`;
   const extras = !options.withCodeCases
     ? 'Leave `newCases` and the findings empty in this answer; another call handles them.'
@@ -236,7 +271,10 @@ export function buildVerifyTail(
       : scopeCodeFiles(narrowed, chunk).length === 0
         ? 'Return an empty `newCases`: this pull request was checked before, and nothing that can change behavior was pushed since. Then give one finding per requirement.'
         : `This pull request was checked before. Then add ${count}, only for risks that the lines in <changed_since_last_check> create or change and that no case in <case_index> already covers, most important first, and one finding per requirement. When those lines create no such risk, return an empty \`newCases\`.`;
-  const pushed = narrowed ? `${buildScopeBlock(narrowed, chunk)}\n` : '';
-  const index = options.withCodeCases ? `${buildCaseIndex(options.sheet ?? [])}\n` : '';
+  // Every call of a later check sees the pushed lines: a status may change only because of them.
+  const pushed = checkedBefore ? `${buildScopeBlock(checkedBefore, chunk)}\n` : '';
+  const index = options.withCodeCases
+    ? `${buildCaseIndex(options.sheet ?? [], checkedBefore ? (options.keptIds ?? new Set()) : undefined)}\n`
+    : '';
   return `${buildCodeSection(chunk)}\n${buildSkippedSection(skipped)}\n${pushed}${index}<task>\n${scope} ${statuses} ${extras}\n</task>`;
 }

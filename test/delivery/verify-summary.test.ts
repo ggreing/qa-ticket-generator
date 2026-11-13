@@ -223,6 +223,50 @@ describe('renderVerifyComment — PR summary of a verify run (SPEC v3 §2.2)', (
   });
 });
 
+describe('renderVerifyComment — after the first check (SPEC v3 §2.2)', () => {
+  const earlier = (n: number, status: 'implemented' | 'contradicts') =>
+    qaCase(n, status, {
+      codeStatus: { status, evidence: 'Judged earlier.', files: ['src/routes.ts'], sha: '0ld5ha0ld5ha' },
+    });
+
+  it('SPEC v3 §2.2 says how many statuses are from this commit and how many were kept', () => {
+    const body = renderVerifyComment(
+      input({
+        cases: [
+          qaCase(1, 'implemented'),
+          earlier(2, 'contradicts'),
+          earlier(3, 'implemented'),
+          qaCase(4, null),
+        ],
+      }),
+    );
+    expect(body).toContain(
+      '\nJudged at this commit: 1 · kept from earlier checks: 2 (their code did not change)\n',
+    );
+    // Right under the counts it qualifies.
+    expect(body.indexOf('Judged at this commit')).toBeGreaterThan(body.indexOf('**Code status**'));
+    expect(body.indexOf('Judged at this commit')).toBeLessThan(body.indexOf('Missing or contradicting'));
+    // A kept case still counts and is still listed with the status it keeps.
+    expect(body).toContain('⛔ Contradicts the spec 1');
+  });
+
+  it('a first check, where every status is from this commit, has no such line', () => {
+    // The fixture stamps cases with the short form of the commit the summary is for.
+    expect(renderVerifyComment(input())).not.toContain('kept from earlier checks');
+  });
+
+  it.each([
+    ['ko', '이번 커밋에서 판정 1건 · 이전 판정 유지 1건 (관련 코드 변경 없음)'],
+    ['ja', 'このコミットで判定 1 件 · 以前の判定を維持 1 件 (関連コードの変更なし)'],
+    ['zh-CN', '本次提交判定 1 条 · 沿用之前的判定 1 条 (相关代码未变更)'],
+  ] as const)('the line is written in %s', (language, line) => {
+    const body = renderVerifyComment(
+      input({ language, cases: [qaCase(1, 'implemented'), earlier(2, 'implemented')] }),
+    );
+    expect(body).toContain(`\n${line}\n`);
+  });
+});
+
 describe('renderVerifyComment — untrusted text and limits (DLV-03, DLV-06)', () => {
   it('DLV-06 sanitizes case text, evidence and spec titles, and links only plain https ticket URLs', () => {
     const body = renderVerifyComment(

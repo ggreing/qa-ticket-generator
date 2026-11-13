@@ -16,7 +16,7 @@
  * show to be outside the change; when it cannot tell, the case stays.
  * Owner: qa-work-session-c(fable).
  */
-import type { CaseDraft, VerifyRequest } from '../core/cases';
+import type { CaseDraft, QaCase, VerifyRequest } from '../core/cases';
 import type { CodeChunk } from '../core/contracts';
 
 export type ScopeKind =
@@ -234,4 +234,75 @@ export function outOfScope(c: CaseDraft, scope: ResolvedScope): OutOfScopeReason
   if (names.length === 0) return null;
   const touched = named.map((f) => f.related).join('\n');
   return names.some((n) => hasWord(touched, n)) ? null : 'unchanged_code_named';
+}
+
+export type RejudgeReason =
+  /** The case has no code status yet. */
+  | 'no_status'
+  /** A file its status rests on was changed in a way that can change behavior. */
+  | 'file_changed'
+  /** It was missing or unknown, and code was pushed: what it waits for may have arrived anywhere. */
+  | 'waiting_for_code'
+  /** Its status names no file, so it cannot be tied to what did or did not change. */
+  | 'no_file_named';
+
+export interface JudgeSelection {
+  /** Cases that get a status in this run. */
+  judge: QaCase[];
+  /** Cases that keep the status they have. They are not sent to be judged. */
+  kept: QaCase[];
+  reasons: Record<RejudgeReason, number>;
+}
+
+/**
+ * Which cases get a status in this run (SPEC v3 §2.2).
+ *
+ * On a first check (no scope) every active case does. After that, judging the same code again
+ * only moves statuses around, so a case keeps its status unless something it rests on changed:
+ *
+ * 1. A case without a status is judged.
+ * 2. A case whose status names a file that was changed in a way that can change behavior is
+ *    judged again. The files are `codeStatus.files` and any path of the pull request that its
+ *    evidence mentions. A file changed only in comments or formatting does not count.
+ * 3. A case that was missing or unknown is judged again whenever such a change was pushed: the
+ *    code it waits for can arrive in a file it never named.
+ * 4. A case whose status names no file at all is treated the same way, since nothing ties it to
+ *    the files that did not change.
+ *
+ * With no behavior-changing file in the push, only rule 1 applies.
+ */
+export function selectCasesToJudge(
+  active: QaCase[],
+  scope: ResolvedScope | null,
+  prPaths: ReadonlySet<string>,
+): JudgeSelection {
+  const reasons: Record<RejudgeReason, number> = {
+    no_status: 0,
+    file_changed: 0,
+    waiting_for_code: 0,
+    no_file_named: 0,
+  };
+  if (!scope) return { judge: active, kept: [], reasons };
+  const changed = new Set(scopeCodeFiles(scope).map((f) => f.path));
+  const judge: QaCase[] = [];
+  const kept: QaCase[] = [];
+  for (const c of active) {
+    const status = c.codeStatus;
+    let reason: RejudgeReason | null = null;
+    if (!status) reason = 'no_status';
+    else if (changed.size > 0) {
+      const named = new Set(status.files);
+      for (const path of prPaths) {
+        if (status.evidence.includes(path) || hasWord(status.evidence, basename(path))) named.add(path);
+      }
+      if ([...named].some((path) => changed.has(path))) reason = 'file_changed';
+      else if (status.status === 'missing' || status.status === 'unknown') reason = 'waiting_for_code';
+      else if (named.size === 0) reason = 'no_file_named';
+    }
+    if (reason) {
+      reasons[reason]++;
+      judge.push(c);
+    } else kept.push(c);
+  }
+  return { judge, kept, reasons };
 }
