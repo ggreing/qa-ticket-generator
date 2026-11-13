@@ -15,7 +15,13 @@ import {
 } from '../../src/llm/prompts/verify';
 import { type ResolvedScope, resolveScope } from '../../src/llm/scope';
 import type { StructuredProvider, StructuredRequest } from '../../src/llm/structured';
-import { combineVerify, MAX_CASES_PER_CALL, planVerifyRun, verifyCases } from '../../src/llm/verify';
+import {
+  combineVerify,
+  fitFinding,
+  MAX_CASES_PER_CALL,
+  planVerifyRun,
+  verifyCases,
+} from '../../src/llm/verify';
 import { chunk, preOutput } from './support';
 
 const MODEL = 'claude-opus-5-5';
@@ -1159,58 +1165,8 @@ describe('verify after the first check: only cases tied to the pushed code are j
     expect(first.batches.flat()).toHaveLength(7);
   });
 
-  it('findings that disagree with the statuses of their cases are reported, not rewritten', async () => {
-    const cases = [
-      qaCase(1, { acLabels: ['AC1'], codeStatus: judgedAt('contradicts', ['src/routes.ts']) }), // kept
-      qaCase(2, { acLabels: ['AC2'], codeStatus: judgedAt('implemented', ['src/wishlist.ts']) }), // judged again
-      qaCase(3, { acLabels: ['AC2'], codeStatus: judgedAt('implemented', ['src/routes.ts']) }), // kept
-    ];
-    const finding = (requirement: string, s: 'covered' | 'missing') => ({
-      requirement,
-      source: 'SHOP-900',
-      status: s,
-      evidence: 'Checked.',
-      files: [],
-    });
-    const p = provider((call) =>
-      output({
-        statuses: idsIn(call).map((id) => status(id, 'implemented')),
-        prdAlignment: {
-          status: 'partial',
-          findings: [
-            finding('AC1: an item can be added once', 'covered'),
-            finding('AC2: the list holds at most 100 items', 'missing'),
-          ],
-        },
-      }),
-    );
-    const result = await run(
-      request({ cases, newCaseScope: since([{ path: 'src/wishlist.ts', patch: REAL }]) }),
-      p,
-    );
-    expect(result.diagnostics.alignmentConflicts).toEqual([
-      {
-        requirement: 'AC1: an item can be added once',
-        finding: 'covered',
-        kind: 'case_not_met',
-        cases: [{ caseId: 'SHOP-900-C01', status: 'contradicts' }],
-      },
-      {
-        requirement: 'AC2: the list holds at most 100 items',
-        finding: 'missing',
-        kind: 'cases_all_met',
-        cases: [
-          { caseId: 'SHOP-900-C02', status: 'implemented' },
-          { caseId: 'SHOP-900-C03', status: 'implemented' },
-        ],
-      },
-    ]);
-    // The findings are the model's, as given.
-    expect(result.alignment.findings.map((f) => f.status)).toEqual(['covered', 'missing']);
-  });
-
   it('the prompt says which cases are judged, that a kept status stands, and that findings agree with statuses', () => {
-    expect(VERIFY_PROMPT_VERSION).toBe('2026-11-13.6');
+    expect(VERIFY_PROMPT_VERSION).toMatch(/^2026-11-13\.\d+$/);
     expect(VERIFY_SYSTEM).toContain('Reading the same code a second time must not move the answers');
     expect(VERIFY_SYSTEM).toContain('<cases> then holds only the cases that need a status now');
     expect(VERIFY_SYSTEM).toContain('Give a status for the cases in <cases> and for no other.');
@@ -1232,5 +1188,215 @@ describe('verify after the first check: only cases tied to the pushed code are j
     );
     expect(block.match(/<\/case>/g)).toHaveLength(1);
     expect(block).toContain(`previous: ${'x'.repeat(300)}\n`);
+  });
+});
+
+describe('requirement findings: covered, partial, missing, contradicts (SPEC v3 §2.2)', () => {
+  const met = (n: number, s: 'implemented' | 'missing' | 'contradicts' | 'unknown') => ({
+    caseId: `SHOP-900-C${String(n).padStart(2, '0')}`,
+    status: s,
+  });
+  const finding = (
+    requirement: string,
+    s: 'covered' | 'partial' | 'missing' | 'contradicts' | 'unclear',
+    evidence = 'The limit is checked in WishlistService.add; two devices at once are not handled.',
+  ) => ({ requirement, source: 'SHOP-900', status: s, evidence, files: [] });
+  const AC1 = 'AC1: an item can be added once';
+  const AC2 = 'AC2: the list holds at most 100 items';
+  /** A sheet with two cases per requirement, judged as given, and the model's findings as given. */
+  async function verify(
+    ac1: [
+      'implemented' | 'missing' | 'contradicts' | 'unknown',
+      'implemented' | 'missing' | 'contradicts' | 'unknown',
+    ],
+    ac2: [
+      'implemented' | 'missing' | 'contradicts' | 'unknown',
+      'implemented' | 'missing' | 'contradicts' | 'unknown',
+    ],
+    findings: ReturnType<typeof finding>[],
+  ) {
+    const cases = [
+      qaCase(1, { acLabels: ['AC1'] }),
+      qaCase(2, { acLabels: ['AC1'] }),
+      qaCase(3, { acLabels: ['AC2'] }),
+      qaCase(4, { acLabels: ['AC2'] }),
+    ];
+    const given = [...ac1, ...ac2];
+    const p = provider(() =>
+      output({
+        statuses: cases.map((c, i) => status(c.caseId, given[i] as 'implemented')),
+        prdAlignment: { status: 'aligned', findings },
+      }),
+    );
+    return run(request({ cases }), p);
+  }
+
+  it('SPEC v3 §2.2 a requirement whose basic behavior is there is partial, not missing, when an edge case is not met', async () => {
+    // The sandbox run: "the one-use check is there, concurrency is not" was shown as ❌ missing.
+    const result = await verify(
+      ['implemented', 'missing'],
+      ['implemented', 'implemented'],
+      [finding(AC1, 'missing'), finding(AC2, 'covered')],
+    );
+    expect(result.alignment.findings.map((f) => f.status)).toEqual(['partial', 'covered']);
+    expect(result.alignment.findings[0]?.evidence).toBe(
+      'The limit is checked in WishlistService.add; two devices at once are not handled.',
+    ); // the evidence is the model's
+    expect(result.diagnostics.alignmentAdjustments).toEqual([
+      {
+        requirement: AC1,
+        from: 'missing',
+        to: 'partial',
+        rule: 'case_implemented',
+        cases: [met(1, 'implemented')],
+      },
+    ]);
+    expect(result.alignment.status).toBe('partial');
+  });
+
+  it('SPEC v3 §2.2 covered needs every case met, and partial needs one that is not', async () => {
+    const result = await verify(
+      ['implemented', 'contradicts'],
+      ['implemented', 'unknown'],
+      [finding(AC1, 'covered'), finding(AC2, 'partial')],
+    );
+    // AC1: a case contradicts, so it is not covered. AC2: no case is missing or contradicts, so it is.
+    expect(result.alignment.findings.map((f) => f.status)).toEqual(['partial', 'covered']);
+    expect(result.diagnostics.alignmentAdjustments).toEqual([
+      {
+        requirement: AC1,
+        from: 'covered',
+        to: 'partial',
+        rule: 'case_not_met',
+        cases: [met(2, 'contradicts')],
+      },
+      {
+        requirement: AC2,
+        from: 'partial',
+        to: 'covered',
+        rule: 'no_case_not_met',
+        cases: [met(3, 'implemented'), met(4, 'unknown')],
+      },
+    ]);
+  });
+
+  it('missing stays missing when nothing of the requirement is built, and contradicts and unclear are never changed', async () => {
+    const result = await verify(
+      ['missing', 'unknown'],
+      ['implemented', 'implemented'],
+      [finding(AC1, 'missing'), finding(AC2, 'contradicts')],
+    );
+    expect(result.alignment.findings.map((f) => f.status)).toEqual(['missing', 'contradicts']);
+    expect(result.diagnostics.alignmentAdjustments).toEqual([]);
+    // A contradiction that no case shows is reported for a person to look at.
+    expect(result.diagnostics.alignmentConflicts).toEqual([
+      { requirement: AC2, finding: 'contradicts', cases: [met(3, 'implemented'), met(4, 'implemented')] },
+    ]);
+    expect(fitFinding('unclear', [met(1, 'implemented'), met(2, 'missing')])).toBeNull();
+    expect(fitFinding('contradicts', [met(1, 'missing')])).toBeNull();
+    // A contradicting case means the behavior may be built on another rule: "missing" is left to the finding.
+    expect(fitFinding('missing', [met(1, 'implemented'), met(2, 'contradicts')])).toBeNull();
+    expect(fitFinding('missing', [met(1, 'unknown')])).toBeNull();
+    // A requirement without cases cannot be settled by them.
+    expect(fitFinding('covered', [])).toBeNull();
+    expect(fitFinding('partial', [])).toBeNull();
+    expect(fitFinding('covered', [met(1, 'implemented'), met(2, 'unknown')])).toBeNull();
+    expect(fitFinding('partial', [met(1, 'missing')])).toBeNull();
+  });
+
+  it.each([
+    [['covered', 'covered'], 'aligned'],
+    [['covered', 'partial'], 'partial'], // never misaligned: fail-on reads this status
+    [['partial', 'partial'], 'partial'],
+    [['partial', 'missing'], 'partial'],
+    [['covered', 'unclear'], 'partial'],
+    [['partial', 'contradicts'], 'misaligned'],
+    [['covered', 'contradicts'], 'misaligned'],
+  ] as const)('SPEC v3 §2.2 findings %j make the pull request %s', async (statuses, overall) => {
+    // Case statuses chosen so that no rule changes the findings: the badge follows them as given.
+    const forFinding = (s: string): ['implemented' | 'missing', 'implemented' | 'missing' | 'unknown'] =>
+      s === 'covered'
+        ? ['implemented', 'implemented']
+        : s === 'partial'
+          ? ['implemented', 'missing']
+          : ['missing', 'unknown'];
+    const result = await verify(forFinding(statuses[0]), forFinding(statuses[1]), [
+      finding(AC1, statuses[0]),
+      finding(AC2, statuses[1]),
+    ]);
+    expect(result.alignment.findings.map((f) => f.status)).toEqual([...statuses]);
+    expect(result.alignment.status).toBe(overall);
+  });
+
+  it('the badge follows the findings after they were corrected, whatever the model said overall', async () => {
+    // The model calls everything covered and the whole aligned; a case is missing.
+    const result = await verify(
+      ['implemented', 'missing'],
+      ['implemented', 'implemented'],
+      [finding(AC1, 'covered'), finding(AC2, 'covered')],
+    );
+    expect(result.alignment).toMatchObject({ status: 'partial' });
+    expect(result.alignment.findings.map((f) => f.status)).toEqual(['partial', 'covered']);
+  });
+
+  it('kept statuses count like the ones given now', async () => {
+    const earlier = (s: 'implemented' | 'contradicts'): NonNullable<QaCase['codeStatus']> => ({
+      status: s,
+      evidence: 'Judged in src/routes.ts.',
+      files: ['src/routes.ts'],
+      sha: 'f00dfeedc0ffee1234567890',
+    });
+    const cases = [
+      // Kept: it contradicts in src/routes.ts, which the push did not touch.
+      qaCase(1, { acLabels: ['AC1'], codeStatus: earlier('contradicts') }),
+      qaCase(2, { acLabels: ['AC1'], codeStatus: { ...earlier('implemented'), files: ['src/wishlist.ts'] } }),
+    ];
+    const p = provider((call) =>
+      output({
+        statuses: idsIn(call).map((id) => status(id, 'implemented')),
+        prdAlignment: { status: 'aligned', findings: [finding(AC1, 'covered')] },
+      }),
+    );
+    const result = await run(
+      request({
+        cases,
+        newCaseScope: {
+          sinceSha: 'f00dfeedc0ffee1234567890',
+          changes: [{ path: 'src/wishlist.ts', patch: '@@ -1,2 +1,3 @@\n a();\n+audit(count);\n b();' }],
+        },
+      }),
+      p,
+    );
+    expect(idsIn(p.calls[0] as Call)).toEqual(['SHOP-900-C02']);
+    expect(result.alignment.findings[0]?.status).toBe('partial');
+    expect(result.diagnostics.alignmentAdjustments[0]).toMatchObject({
+      rule: 'case_not_met',
+      cases: [met(1, 'contradicts')],
+    });
+  });
+
+  it('the prompt defines the four statuses by the basic behavior and the cases', () => {
+    expect(VERIFY_PROMPT_VERSION).toBe('2026-11-13.7');
+    expect(VERIFY_SYSTEM).toContain(
+      'Judge the basic behavior first: what the requirement asks for in its ordinary case.',
+    );
+    expect(VERIFY_SYSTEM).toContain(
+      "- covered: the basic behavior is in the change, and none of the requirement's cases is missing or contradicts.",
+    );
+    expect(VERIFY_SYSTEM).toContain(
+      "- partial: the basic behavior is in the change, and at least one of the requirement's cases is missing or contradicts",
+    );
+    expect(VERIFY_SYSTEM).toContain('- missing: the basic behavior itself is not in the change.');
+    expect(VERIFY_SYSTEM).toContain('calling it missing tells the developer that nothing was built');
+    expect(VERIFY_SYSTEM).toContain(
+      'One edge handled differently is partial; the rule itself being different is contradicts.',
+    );
+    expect(VERIFY_SYSTEM).toContain(
+      'With its basic behavior in place such a requirement is partial, not missing.',
+    );
+    expect(VERIFY_SYSTEM).toContain(
+      'The overall `status` is "aligned" when every finding is covered, "misaligned" when any finding contradicts, otherwise "partial".',
+    );
+    expect(VERIFY_SYSTEM).not.toContain('or only part of it is and the rest is absent');
   });
 });

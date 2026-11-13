@@ -369,6 +369,27 @@ describe('orchestrate', () => {
   });
 });
 
+describe("normalizeReport keeps the report's own meaning of a partly built requirement (M3.5)", () => {
+  it('a "partial" finding, which only the verify phase defines, is read as "missing" in a report', () => {
+    const input = fakeReport();
+    const first = input.prdAlignment.findings[0] as QaReport['prdAlignment']['findings'][number];
+    input.prdAlignment = {
+      status: 'aligned',
+      findings: [
+        { ...first, status: 'partial' },
+        { ...first, requirement: 'AC9: another one', status: 'covered' },
+      ],
+    };
+    const { report } = normalizeReport(input, {
+      changedPaths: new Set(first.files),
+      maxScenarios: 20,
+      hasPrd: true,
+    });
+    expect(report.prdAlignment.findings.map((f) => f.status)).toEqual(['missing', 'covered']);
+    expect(report.prdAlignment.status).toBe('partial');
+  });
+});
+
 describe('normalizeReport (SPEC §7)', () => {
   const changedPaths = new Set(['src/coupon.ts', 'src/cart.ts']);
   const base = { changedPaths, maxScenarios: 20, hasPrd: true };

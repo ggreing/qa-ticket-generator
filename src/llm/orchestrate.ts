@@ -70,7 +70,13 @@ export function normalizeReport(
       relatedFiles: keepKnown(scenario.relatedFiles),
     }));
 
-  let findings = report.prdAlignment.findings.map((f) => ({ ...f, files: keepKnown(f.files) }));
+  // The schema also allows "partial", which only the verify phase defines. Here a requirement
+  // that is partly built stays "missing", as the report prompt states it (M3.5).
+  let findings = report.prdAlignment.findings.map((f) => ({
+    ...f,
+    status: f.status === 'partial' ? ('missing' as const) : f.status,
+    files: keepKnown(f.files),
+  }));
   let status = report.prdAlignment.status;
   if (!options.hasPrd) {
     status = 'no_prd';
