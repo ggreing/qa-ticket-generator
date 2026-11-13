@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { lintCaseStyle, SPEC_GAP_PREFIX, STYLE_RULES } from '../../src/cases';
 import { type PlannedCase, type PlanRequest, TECHNIQUES } from '../../src/core/cases';
 import type { LlmResult, LlmUsage, PrdDocument } from '../../src/core/contracts';
 import { QtgError } from '../../src/core/errors';
@@ -21,7 +22,7 @@ import {
   planLanguageBlock,
   requirementsOf,
 } from '../../src/llm/prompts/plan';
-import { avoidedWording, SPEC_DECISION_LABEL, styleExamples } from '../../src/llm/prompts/style';
+import { SPEC_DECISION_LABEL, styleExamples } from '../../src/llm/prompts/style';
 import type { StructuredProvider, StructuredRequest } from '../../src/llm/structured';
 
 const MODEL = 'claude-opus-5-5';
@@ -512,7 +513,9 @@ describe('plan prompt (SPEC v3 §2.1, §3, §3.1)', () => {
     (language) => {
       const block = planLanguageBlock(language);
       expect(block).toContain('# Output language');
-      for (const word of avoidedWording(language)) expect(block, word).toContain(`"${word}"`);
+      // The rules in the prompt are the ones the lint checks, word for word.
+      for (const rule of STYLE_RULES[language]) expect(block, rule.rule).toContain(`- ${rule.hint}`);
+      expect(block).toContain('Every case is checked against these rules after you write it:');
       expect(block).toContain(`starts with "${SPEC_DECISION_LABEL[language]}:"`);
       expect(block.match(/<example_case>/g)).toHaveLength(2);
       const examples = styleExamples(language);
@@ -520,7 +523,8 @@ describe('plan prompt (SPEC v3 §2.1, §3, §3.1)', () => {
       for (const example of examples) {
         expect(block).toContain(`title: ${example.title}`);
         for (const line of [...example.steps, ...example.expected]) expect(block).toContain(`  - ${line}`);
-        // The examples follow the rules they illustrate.
+        // The examples follow the rules they illustrate: the real lint finds nothing in them.
+        expect(lintCaseStyle(example, language), example.title).toEqual([]);
         expect(example.title).not.toMatch(/^\[/);
         expect(example.expected.length).toBeGreaterThan(0);
         const text = [
@@ -532,6 +536,7 @@ describe('plan prompt (SPEC v3 §2.1, §3, §3.1)', () => {
         ].join('\n');
         expect(text).not.toMatch(/[—–]|\p{Extended_Pictographic}/u);
       }
+      expect(SPEC_DECISION_LABEL[language]).toBe(SPEC_GAP_PREFIX[language]);
       // One example shows an open spec question, labelled the way the prompt asks.
       expect(examples.some((e) => e.expected.at(-1)?.startsWith(`${SPEC_DECISION_LABEL[language]}:`))).toBe(
         true,

@@ -526,7 +526,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
       model: MODEL,
       judgeModel: 'claude-sonnet-5-5',
       rubricVersion: 3,
-      lintSource: 'fallback',
+      lintSource: 'cases',
     });
     expect(results.runs.map((r) => r.caseId)).toEqual(['coupon-expiry-missing', 'rbac-export-role']);
 
@@ -553,7 +553,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
     expect(h.out()).toMatch(
       /\| claude-opus-5-5 · high \| 2 \| 0 \| \d\.\d\d \| \d\.\d\d \| 1\.50 \| 1\.00 \| \d+\.\d \| 100% \|/,
     );
-    expect(h.out()).toContain('Style violations were counted with the stand-in lint');
+    expect(h.out()).not.toContain('stand-in lint'); // the cases module's own lint counted the violations
     expect(h.out()).toMatch(/coupon-expiry-missing: \d+ cases, must-cover 100%, overall \d\.\d\d \(\$/);
   });
 

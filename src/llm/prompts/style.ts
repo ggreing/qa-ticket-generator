@@ -2,20 +2,17 @@
  * Writing style for QA cases (SPEC v3 §3.1): the voice of a working QA sheet, not of an essay.
  *
  * The general rules are part of the system prompt. Each output language adds its own conventions,
- * the wording to avoid and two example cases. The examples are about comments and bookmarks on
+ * the rules the style lint checks (read from `STYLE_RULES` in src/cases, so the prompt and the
+ * lint cannot drift apart) and two example cases. The examples are about comments and bookmarks on
  * purpose: no eval case is about either, so they cannot hand a case its answer (a test checks it).
  * Owner: qa-work-session-c(fable).
  */
+import { SPEC_GAP_PREFIX, STYLE_RULES } from '../../cases';
 import type { CaseDraft } from '../../core/cases';
 import type { Language } from '../../core/contracts';
 
-/** Last line of `expected` when the spec does not say what should happen. */
-export const SPEC_DECISION_LABEL: Readonly<Record<Language, string>> = {
-  en: 'Spec decision needed',
-  ko: '기획 확인 필요',
-  ja: '仕様確認要',
-  'zh-CN': '需确认需求',
-};
+/** Last line of `expected` when the spec does not say what should happen. Shared with the style lint, which allows it. */
+export const SPEC_DECISION_LABEL: Readonly<Record<Language, string>> = SPEC_GAP_PREFIX;
 
 /** Shared by every language; goes into the system prompt. */
 export const STYLE_GUIDE = `# How to write a case
@@ -240,7 +237,11 @@ const STYLES: Readonly<Record<Language, LanguageStyle>> = {
 
 /** The example cases for a language (also used by tests and the eval rubric). */
 export const styleExamples = (language: Language): CaseDraft[] => STYLES[language].examples;
-/** Wording the prompt tells the model to keep out, per language. */
+/** One line per rule the style lint checks for a language, as the prompt states them. */
+export const styleRuleHints = (language: Language): string[] => [
+  ...new Set(STYLE_RULES[language].map((r) => r.hint)),
+];
+/** Wording the stand-in lint of the eval harness looks for, per language. */
 export const avoidedWording = (language: Language): string[] => STYLES[language].avoid;
 
 function renderExample(c: CaseDraft): string {
@@ -267,7 +268,10 @@ export function languageStyle(language: Language, name: string): string {
 
 ${style.conventions}
 
-Wording to keep out of every field: ${style.avoid.map((w) => `"${w}"`).join(', ')}.
+Every case is checked against these rules after you write it:
+${styleRuleHints(language)
+  .map((hint) => `- ${hint}`)
+  .join('\n')}
 
 Rewritten from essay voice to sheet voice:
 - not: ${style.contrast.no}

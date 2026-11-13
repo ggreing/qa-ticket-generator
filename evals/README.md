@@ -36,8 +36,9 @@ node evals/cli.mjs verify --from evals/results/<timestamp>-plan.json
 - **Must-cover** reuses the risk units in `expected.json` (`mustScenarios`): a risk is covered when
   some case contains its keywords. The keywords are mostly English, so the number understates a
   non-English run.
-- **Style violations** are counted with `lintCaseStyle` from `src/cases`. Until that module is
-  merged a coarser stand-in is used and the results file says so (`lintSource: "fallback"`).
+- **Style violations** are counted with `lintCaseStyle` from `src/cases`, the same rule list the
+  prompt states (`STYLE_RULES`). If that lint cannot run, a coarser stand-in is used and the results
+  file says so (`lintSource: "fallback"`).
 - **Code-status accuracy** is per requirement, from `mustFindings`: a requirement known to be
   missing needs a case marked `missing`, one known to be contradicted a case marked `contradicts`,
   one known to be covered a case marked `implemented` and none marked `contradicts`.
