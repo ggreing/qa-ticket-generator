@@ -67,7 +67,7 @@ describe('rubric definition (docs/quality/RUBRIC.md)', () => {
     expect(RUBRIC_VERSION).toBe(2);
     expect(SCENARIO_CRITERIA).toEqual(['actionability', 'traceability', 'riskRelevance', 'priority']);
     expect(REPORT_CRITERIA).toEqual(['alignmentCorrectness', 'concision', 'honesty', 'coverage']);
-    const rows = readFileSync('docs/quality/RUBRIC.md', 'utf8')
+    const rows = readFileSync('docs/quality/RUBRIC.v2.md', 'utf8')
       .split('\n')
       .map((line) => line.match(/^\| \*\*(.+?)\*\*\s*\| (.+?)\s*\| (.+?)\s*\| (.+?)\s*\|$/))
       .filter((m) => m !== null)

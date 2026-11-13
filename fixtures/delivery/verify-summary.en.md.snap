@@ -1,0 +1,45 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ❌ **Misaligned**
+
+> Spec: [SHOP-900](https://acme.atlassian.net/browse/SHOP-900) Wish list · 6 cases (P0 4 · P1 1 · P2 1)
+
+**Code status**: ✅ Implemented 2 · ❌ Possibly missing 2 · ⛔ Contradicts the spec 1 · ❓ Cannot tell from code 1
+
+**Missing or contradicting (3)**
+- ⛔ [SHOP-900-C02](https://github.com/acme/shop/issues/102) **P0** 101st item rejected — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C03](https://github.com/acme/shop/issues/103) **P1** Removed item can be added again — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+
+**P0 checklist (4)**
+- [ ] [SHOP-900-C02](https://github.com/acme/shop/issues/102) 101st item rejected → "Wish list is full" shown ⛔
+- [ ] [SHOP-900-C06](https://github.com/acme/shop/issues/106) Two devices adding at once → "Wish list is full" shown ❌
+- [ ] [SHOP-900-C04](https://github.com/acme/shop/issues/104) Signed-out visitor sent to sign-in → "Wish list is full" shown ❓
+- [ ] [SHOP-900-C01](https://github.com/acme/shop/issues/101) Item added once → "Wish list is full" shown ✅
+
+**Added from the code (1)**
+- [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add reads the count and inserts without a lock.
+
+<details><summary>Verdict per requirement (2)</summary>
+
+| Requirement | Status | Evidence |
+| --- | --- | --- |
+| **AC1** an item can be added once | ✅ covered | WishlistService.add checks for the item first. |
+| **AC2** the list holds at most 100 items | ⛔ contradicts | The limit in the code is 200. |
+
+</details>
+
+<details><summary>All cases (6)</summary>
+
+| Case | Priority | Code status | Title |
+| --- | --- | --- | --- |
+| [SHOP-900-C02](https://github.com/acme/shop/issues/102) | P0 | ⛔ Contradicts the spec | 101st item rejected |
+| [SHOP-900-C06](https://github.com/acme/shop/issues/106) | P0 | ❌ Possibly missing | Two devices adding at once |
+| [SHOP-900-C03](https://github.com/acme/shop/issues/103) | P1 | ❌ Possibly missing | Removed item can be added again |
+| [SHOP-900-C04](https://github.com/acme/shop/issues/104) | P0 | ❓ Cannot tell from code | Signed-out visitor sent to sign-in |
+| [SHOP-900-C01](https://github.com/acme/shop/issues/101) | P0 | ✅ Implemented | Item added once |
+| [SHOP-900-C05](https://github.com/acme/shop/issues/105) | P2 | ✅ Implemented | Wish list case 5 |
+
+</details>
+
+> 1 obsolete case(s) are not shown
+
+<sub><code>claude-opus-5-5</code> · in 12.0K / out 1.8K tokens · 1 LLM call(s) · ~$0.11 · 41s</sub>

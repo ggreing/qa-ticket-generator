@@ -1,0 +1,45 @@
+## 🧪 AI QA — <code>a1b2c3d</code> · ❌ **불일치**
+
+> 기획서: [SHOP-900](https://acme.atlassian.net/browse/SHOP-900) Wish list · 케이스 6건 (P0 4 · P1 1 · P2 1)
+
+**코드 상태**: ✅ 구현 확인됨 2 · ❌ 미구현 의심 2 · ⛔ 기획과 상충 1 · ❓ 코드로 판단 불가 1
+
+**미구현 의심·상충 (3)**
+- ⛔ [SHOP-900-C02](https://github.com/acme/shop/issues/102) **P0** 101st item rejected — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+- ❌ [SHOP-900-C03](https://github.com/acme/shop/issues/103) **P1** Removed item can be added again — WishlistService.add in src/wishlist.ts compares with &gt;= 100. <code>src/wishlist.ts</code> +1
+
+**P0 체크리스트 (4)**
+- [ ] [SHOP-900-C02](https://github.com/acme/shop/issues/102) 101st item rejected → "Wish list is full" shown ⛔
+- [ ] [SHOP-900-C06](https://github.com/acme/shop/issues/106) Two devices adding at once → "Wish list is full" shown ❌
+- [ ] [SHOP-900-C04](https://github.com/acme/shop/issues/104) Signed-out visitor sent to sign-in → "Wish list is full" shown ❓
+- [ ] [SHOP-900-C01](https://github.com/acme/shop/issues/101) Item added once → "Wish list is full" shown ✅
+
+**코드에서 추가된 케이스 (1)**
+- [SHOP-900-C06](https://github.com/acme/shop/issues/106) **P0** Two devices adding at once — WishlistService.add reads the count and inserts without a lock.
+
+<details><summary>요구사항별 판정 (2)</summary>
+
+| 요구사항 | 상태 | 근거 |
+| --- | --- | --- |
+| **AC1** an item can be added once | ✅ 충족 | WishlistService.add checks for the item first. |
+| **AC2** the list holds at most 100 items | ⛔ 상충 | The limit in the code is 200. |
+
+</details>
+
+<details><summary>전체 케이스 (6)</summary>
+
+| 케이스 | 우선순위 | 코드 상태 | 제목 |
+| --- | --- | --- | --- |
+| [SHOP-900-C02](https://github.com/acme/shop/issues/102) | P0 | ⛔ 기획과 상충 | 101st item rejected |
+| [SHOP-900-C06](https://github.com/acme/shop/issues/106) | P0 | ❌ 미구현 의심 | Two devices adding at once |
+| [SHOP-900-C03](https://github.com/acme/shop/issues/103) | P1 | ❌ 미구현 의심 | Removed item can be added again |
+| [SHOP-900-C04](https://github.com/acme/shop/issues/104) | P0 | ❓ 코드로 판단 불가 | Signed-out visitor sent to sign-in |
+| [SHOP-900-C01](https://github.com/acme/shop/issues/101) | P0 | ✅ 구현 확인됨 | Item added once |
+| [SHOP-900-C05](https://github.com/acme/shop/issues/105) | P2 | ✅ 구현 확인됨 | Wish list case 5 |
+
+</details>
+
+> 해당 없음 처리된 케이스 1건은 표시하지 않음
+
+<sub><code>claude-opus-5-5</code> · 입력 12.0K / 출력 1.8K 토큰 · LLM 호출 1회 · ~$0.11 · 41s</sub>

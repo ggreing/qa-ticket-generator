@@ -1,45 +1,71 @@
-# QA ticket quality rubric
+# QA case quality rubric (v3)
 
-Agreed with the project owner on 2026-11-12 (draft v1, refined each improvement round). **v2 (round 2):** added report-level Coverage after round 1 showed the judge rewarding a two-ticket report that skipped three required risks. It defines what a
-_good_ QA ticket is, and is the scoring guide for both the LLM judge and human reviewers in the M3.5 quality
-loop. Deterministic checks (alignment status, findings recall, file validity, forbidden content) stay in
-`evals/grade.ts`; this rubric covers what code cannot judge.
+Rubric v3 follows the product redefinition in `docs/SPEC.v3.ko.md` (2026-11-13): the tool writes the full QA
+case sheet of a spec, one ticket per case, and later checks each case against the pull request. A _good_
+sheet has every case a tester must run, including the ones a person reading the spec would miss, written the
+way a working QA engineer writes them. This document is the scoring guide for the LLM judge and for human
+reviewers. The rubric used during M3.5 (PR-comment tickets, v1 and v2) is kept in
+[`RUBRIC.v2.md`](RUBRIC.v2.md); scores from different rubric versions are never compared.
 
-## Scenario-level criteria (each scenario / ticket card, 0–2)
+Deterministic checks stay in code (`evals/v3/grade.ts`): must-cover recall, requirements with a case, style
+rule violations, repeated titles, and code-status accuracy. This rubric covers what code cannot judge.
 
-| Criterion          | 0                                                        | 1                                                       | 2                                                                                                                        |
-| ------------------ | -------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Actionability**  | Vague ("should work correctly"); a tester cannot run it  | Runnable but missing data or a concrete expected result | Preconditions, test data, steps and expected result are concrete enough to execute without asking                        |
-| **Traceability**   | No source, or cites the wrong AC / code                  | Source given but loose (file only, or AC paraphrased)   | Points to the exact AC and the code location the scenario exercises                                                      |
-| **Risk relevance** | Trivial, or already guaranteed by types/framework        | Plausible but low-impact                                | Targets where this change is likely to break (boundaries, concurrency, failure paths, state transitions, data integrity) |
-| **Priority**       | P0/P2 inverted (e.g. cosmetic as P0, payment loss as P2) | Off by one level                                        | Matches business impact (P0 = data loss, money, security, core flow)                                                     |
+## Case-level criteria (each case, 0–2)
 
-## Report-level criteria (whole comment, 0–2)
+| Criterion              | 0                                                                  | 1                                                                 | 2                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Actionability**      | Vague ("should work correctly"); a tester cannot run it            | Runnable but missing data or a concrete expected result           | Preconditions, test data, steps and expected result are concrete enough to execute without asking |
+| **Traceability**       | Cites no requirement, or one that does not say what the case tests | Cites a requirement the case only loosely follows from            | Cites the requirement it tests and follows from what that requirement says or leaves open         |
+| **Priority**           | P0/P2 inverted (e.g. cosmetic as P0, payment loss as P2)           | Off by one level                                                  | Matches business impact (P0 = data loss, money, security, core flow)                              |
+| **Easy-to-miss value** | Not a real case for this spec, or another case in different words  | A case the spec states outright; needed, but nobody would miss it | A case a person reading only the spec would likely miss, and whose failure would matter           |
+| **QA-sheet style**     | Explanatory or persuasive voice, stock AI phrases                  | Partly explanatory                                                | Indistinguishable from a working QA sheet                                                         |
 
-| Criterion                 | 0                                                                                                                                                                              | 1                              | 2                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | --------------------------------------------------------------------------------------- |
-| **Alignment correctness** | Misses or invents missing/contradicting requirements                                                                                                                           | Mostly right, one wrong status | Every finding status is correct (deterministic grade when ground truth exists)          |
-| **Concision**             | Duplicates and padding bury the important items                                                                                                                                | Some redundancy                | No duplicates; a reviewer gets the verdict and P0 actions from the top section alone    |
-| **Honesty**               | States unverifiable things as fact                                                                                                                                             | Hedges inconsistently          | Anything not visible in the diff/PRD is labelled as an assumption; no invented features |
-| **Coverage**              | Leaves out two or more important risks of this change (a missing or contradicting requirement, a state transition, a failure path, a boundary or a race that the diff touches) | One important risk is left out | Every important risk of the change has a ticket, merged where they overlap              |
+## Sheet-level criteria (all cases of one spec, 0–2)
 
-Traceability note: a scenario that tests a risk found in the code rather than a written requirement cites only the
-code location and can still score 2. Citing a requirement that is only loosely related lowers the score.
+| Criterion         | 0                                                                              | 1                                                                                | 2                                                                              |
+| ----------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Spec coverage** | Three or more requirement-and-technique combinations that apply have no case   | One or two such combinations have no case                                        | Every technique that applies to every requirement has a case                   |
+| **No duplicates** | Several cases repeat the same test intent                                      | One or two repeats                                                               | No two cases test the same thing; length alone is never a fault                |
+| **Honesty**       | Tests features the spec does not mention, or states undefined behavior as fact | Stays inside the spec, but some outcomes the spec leaves open are stated as fact | Stays inside the spec, and names the open question wherever the spec is silent |
+
+Notes for both the judge and human reviewers:
+
+- **Spec coverage is the most important criterion.** For each requirement, go through the twelve techniques
+  (happy path, boundary, equivalence, invalid input, state transition, permission, concurrency, failure,
+  idempotency, compatibility, locale and time, data integrity) and decide which apply. A technique applies
+  only when the requirement gives it something to test, and what the spec leaves open counts as something
+  to test.
+- **Length is not judged.** A sheet of 60 cases is as good as a sheet of 20 if both cover the spec without
+  repeating themselves.
+- **Easy-to-miss value** is about the case, not about how its reason is worded. A plain happy path scores 1.
+- **QA-sheet style** is judged in the language of the sheet, by that language's QA conventions (SPEC v3
+  §3.1). The deterministic count of style-rule violations is reported next to it.
+- **Traceability** of a case derived from code (origin `code`) is judged on the code location it names.
+
+## PR-level criterion (verify phase)
+
+| Criterion                | How it is scored                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Code-status accuracy** | Deterministic where ground truth exists: share of requirements whose cases carry the right status. A requirement known to be missing needs a case marked `missing`, one known to be contradicted a case marked `contradicts`, and one known to be covered a case marked `implemented` and none marked `contradicts`. The share left `unknown` is shown. |
 
 ## Scoring
 
-- Scenario score = mean of the four scenario criteria over all scenarios (0–2).
-- Report score = mean of the four report criteria (0–2). Scores are compared only between runs judged with the same rubric version.
-- Overall = 0.5 × scenario score + 0.5 × report score, reported per case and averaged per variant.
-- A round "improves" only if the dev-set overall rises **and** no deterministic metric regresses
-  (alignment accuracy, findings recall, injection resistance).
+- Case score = mean of the five case criteria over the cases scored (0–2). The judge scores a fixed sample
+  of 20 cases per sheet in full and sees the whole sheet as an index.
+- Sheet score = (2 × spec coverage + no duplicates + honesty) / 4. Coverage counts double.
+- Overall = 0.5 × case score + 0.5 × sheet score, reported per spec and averaged per run.
+- A round "improves" only if the dev overall rises **and** no deterministic metric regresses (must-cover
+  recall, requirements with a case, style violations per 100 cases, code-status accuracy).
+- Scores are compared only between runs judged with the same rubric version and written in the same
+  language.
 
-## Procedure (M3.5)
+## Procedure
 
-1. **Data split:** synthetic cases with ground truth + real public PRs (judge/human only).
-   `dev` is used for iteration; `test` is touched once at the end.
-2. **Each round:** change one thing (prompt, output format, context) → run `dev` → deterministic grade +
-   LLM judge with this rubric → owner rates a 5-ticket sample in the review page → keep or revert.
-3. **Judge calibration:** compare judge scores with the owner's ratings on the same samples each round;
-   if they disagree by more than 0.5 on average, refine the judge prompt or this rubric before trusting it.
-4. Budget: about $30 for the whole loop (5 rounds + final test), every paid run approved by the owner.
+1. **Data:** the 25 synthetic cases (spec, PR, ground truth) and the real public PRs, split into `dev` and
+   `test` as before. The plan phase is evaluated from the spec alone; the verify phase uses the sheet of a
+   plan run and the case's pull request.
+2. **Each round:** change one thing, run `dev`, read the deterministic metrics and the judge's scores, keep
+   or revert.
+3. **Judge calibration and the user's own rating** are done on Korean output, as in M3.5: the judge's
+   scores are trusted only where they agree with the owner's ratings within 0.5 on average.
+4. Every paid run is approved by the owner, with the estimated cost shown first.

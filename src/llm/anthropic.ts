@@ -2,15 +2,14 @@
 import { createHash } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import type { z } from 'zod';
 import type {
   Effort,
   GenerateRequest,
-  LlmProvider,
   LlmResult,
   LlmUsage,
   Logger,
   MergeRequest,
-  PromptContext,
   QaReport,
 } from '../core/contracts';
 import { QtgError } from '../core/errors';
@@ -19,6 +18,7 @@ import { estimateCostUsd, resolvePrice } from './pricing';
 import { buildReduceTail } from './prompts/reduce';
 import { languageInstruction, SYSTEM_PROMPT } from './prompts/system';
 import { buildGenerateTail, buildMetadataSection, buildPrdSection } from './prompts/user';
+import type { StructuredProvider, StructuredRequest } from './structured';
 import { addUsage, billedError, withBilledUsage, ZERO_USAGE } from './usage';
 
 export interface AnthropicProviderOptions {
@@ -74,8 +74,16 @@ const TEXT = 'text' as const;
 // the matching validator. Only the plain schema goes on the wire; validation runs here, after the
 // stop_reason check, because the SDK's own auto-parse throws on a truncated reply before the
 // caller can see why it was truncated.
-const reportFormat = zodOutputFormat(QaReportSchema);
-const OUTPUT_FORMAT = { type: reportFormat.type, schema: reportFormat.schema };
+type OutputFormat = ReturnType<typeof zodOutputFormat>;
+const formats = new WeakMap<z.ZodType, OutputFormat>();
+function formatFor(schema: z.ZodType): OutputFormat {
+  let format = formats.get(schema);
+  if (!format) {
+    format = zodOutputFormat(schema);
+    formats.set(schema, format);
+  }
+  return format;
+}
 
 function toUsage(usage: LlmMessage['usage']): LlmUsage {
   return {
@@ -86,14 +94,14 @@ function toUsage(usage: LlmMessage['usage']): LlmUsage {
   };
 }
 
-function parseReport(message: LlmMessage): QaReport | null {
+function parseOutput<T>(message: LlmMessage, format: OutputFormat): T | null {
   const text = message.content
     .filter((block) => block.type === 'text')
     .map((block) => block.text ?? '')
     .join('');
   if (text.trim() === '') return null;
   try {
-    return reportFormat.parse(text);
+    return format.parse(text) as T;
   } catch {
     return null;
   }
@@ -146,7 +154,7 @@ function mapError(err: unknown, model: string, signal: AbortSignal): unknown {
 export function createAnthropicProvider(
   options: AnthropicProviderOptions,
   deps: AnthropicProviderDeps = {},
-): LlmProvider {
+): StructuredProvider {
   const client: AnthropicClientLike = deps.client ?? new Anthropic({ apiKey: options.apiKey });
   const { logger } = deps;
   if (!resolvePrice(options.model).known) {
@@ -161,22 +169,25 @@ export function createAnthropicProvider(
   const warmPrefixes = new Map<string, Promise<void>>();
 
   // The return type is inferred so the same literal satisfies both the stable and beta params.
-  function buildBody(context: PromptContext, tail: string) {
+  // Cache breakpoints: one after the system text and one after each prefix block, so calls that
+  // share the system prompt and the prefix read them from the cache (LLM-06). At most four
+  // breakpoints are allowed, hence at most three prefix blocks.
+  function buildBody(req: StructuredRequest<unknown>, format: OutputFormat) {
+    const prefix =
+      req.prefix.length > 3 ? [req.prefix.slice(0, -2).join('\n'), ...req.prefix.slice(-2)] : req.prefix;
     return {
       model: options.model,
       max_tokens: options.maxOutputTokens,
-      output_config: { effort: options.effort, format: OUTPUT_FORMAT },
-      system: [
-        { type: TEXT, text: SYSTEM_PROMPT },
-        { type: TEXT, text: languageInstruction(context.language), cache_control: EPHEMERAL },
-      ],
+      output_config: { effort: options.effort, format: { type: format.type, schema: format.schema } },
+      system: req.system.map((text, i) =>
+        i === req.system.length - 1 ? { type: TEXT, text, cache_control: EPHEMERAL } : { type: TEXT, text },
+      ),
       messages: [
         {
           role: 'user' as const,
           content: [
-            { type: TEXT, text: buildPrdSection(context), cache_control: EPHEMERAL },
-            { type: TEXT, text: buildMetadataSection(context), cache_control: EPHEMERAL },
-            { type: TEXT, text: tail },
+            ...prefix.map((text) => ({ type: TEXT, text, cache_control: EPHEMERAL })),
+            { type: TEXT, text: req.tail },
           ],
         },
       ],
@@ -219,18 +230,19 @@ export function createAnthropicProvider(
     }
   }
 
-  async function request(
-    context: PromptContext,
-    tail: string,
+  /** One structured call: streams, checks why the model stopped, validates, retries a bad shape once. */
+  async function generateStructured<T>(
+    req: StructuredRequest<T>,
     signal: AbortSignal,
-    sharePrefix: boolean,
-  ): Promise<LlmResult<QaReport>> {
-    const body = buildBody(context, tail);
-    const prefixKey = sharePrefix
+  ): Promise<LlmResult<T>> {
+    const format = formatFor(req.schema);
+    const body = buildBody(req, format);
+    const prefixKey = req.sharePrefix
       ? createHash('sha256')
-          .update(JSON.stringify([body.system, buildPrdSection(context), buildMetadataSection(context)]))
+          .update(JSON.stringify([req.system, req.prefix]))
           .digest('hex')
       : null;
+    const what = req.what ?? 'expected';
     let usage: LlmUsage = ZERO_USAGE;
     for (let attempt = 1; attempt <= SCHEMA_ATTEMPTS; attempt++) {
       const message = await send(body, signal, prefixKey).catch((err: unknown) => {
@@ -242,30 +254,50 @@ export function createAnthropicProvider(
         const category = message.stop_details?.category;
         throw billedError(
           'llm_refusal',
-          `The model declined to analyze this change${category ? ` (category: ${category})` : ''}.`,
+          `The model declined to analyze this ${req.subject ?? 'change'}${category ? ` (category: ${category})` : ''}.`,
           usage,
         );
       }
       if (message.stop_reason === 'max_tokens' || message.stop_reason === 'model_context_window_exceeded') {
         throw billedError('llm_truncated', 'The model response was cut off before it finished.', usage);
       }
-      const value = parseReport(message);
+      const value = parseOutput<T>(message, format);
       if (value) return { value, usage, model: message.model, stopReason: message.stop_reason ?? 'unknown' };
-      logger?.warn(`LLM response did not match the report schema (attempt ${attempt}/${SCHEMA_ATTEMPTS}).`);
+      logger?.warn(`LLM response did not match the ${what} schema (attempt ${attempt}/${SCHEMA_ATTEMPTS}).`);
     }
     throw billedError(
       'llm_schema',
-      'The model response did not match the report schema after a retry.',
+      `The model response did not match the ${what} schema after a retry.`,
       usage,
     );
   }
 
+  /** The v2 report calls, expressed as structured calls (same blocks, same order as before). */
+  const report = (
+    context: GenerateRequest['context'],
+    tailText: string,
+    signal: AbortSignal,
+    sharePrefix: boolean,
+  ) =>
+    generateStructured<QaReport>(
+      {
+        system: [SYSTEM_PROMPT, languageInstruction(context.language)],
+        prefix: [buildPrdSection(context), buildMetadataSection(context)],
+        tail: tailText,
+        schema: QaReportSchema,
+        sharePrefix,
+        what: 'report',
+      },
+      signal,
+    );
+
   return {
     id: 'anthropic',
     generateReport: (req: GenerateRequest, signal: AbortSignal) =>
-      request(req.context, buildGenerateTail(req), signal, req.phase === 'map'),
+      report(req.context, buildGenerateTail(req), signal, req.phase === 'map'),
     mergeReports: (req: MergeRequest, signal: AbortSignal) =>
-      request(req.context, buildReduceTail(req), signal, false),
+      report(req.context, buildReduceTail(req), signal, false),
+    generateStructured,
     estimateCostUsd: (usage: LlmUsage) => estimateCostUsd(options.model, usage),
   };
 }
