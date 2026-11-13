@@ -10,14 +10,23 @@
  *   P0 checklist, at most `max-scenarios`  (links)
  *   cases added from the code              (links)
  *   <details> requirement findings, all cases </details>
- *   footer
+ *   footer: model, prompt version, tokens, calls, cost, time, secrets masked
  *
  * Case text was written by the model and is sanitized like every other model text (DLV-06).
  * Ticket links come from the sinks; they are used only when they are plain https URLs.
  * Owner: qa-work-session-c(fable).
  */
 import type { CodeStatus, Priority, QaCase } from '../../core/cases';
-import type { Language, LlmUsage, PrdRef, PullRequestInfo, QaReport, Warning } from '../../core/contracts';
+import type {
+  Language,
+  LlmUsage,
+  PrdRef,
+  PullRequestInfo,
+  QaReport,
+  RedactionCount,
+  Warning,
+} from '../../core/contracts';
+import { VERIFY_PROMPT_VERSION } from '../../llm/prompts/verify';
 import { type LinkPolicy, mdCode, mdInline } from '../sanitize';
 import { strings } from './i18n';
 import {
@@ -61,6 +70,13 @@ export interface VerifySummaryInput {
     calls: number;
     warnings: Warning[];
     dryRun?: boolean;
+    /** PRE-05: secrets masked in what the model saw (PR title and body, code, pushed lines). */
+    redactions?: RedactionCount[];
+    /**
+     * Version of the verify prompt that judged this run, for issue reports. Defaults to the
+     * version built into this release.
+     */
+    promptVersion?: string;
   };
 }
 
@@ -326,6 +342,8 @@ function render(input: VerifySummaryInput, limit: number): string {
     return `| ${caseLink(c)} | ${c.priority} | ${s === 'none' ? v.notJudged : `${CODE_STATUS_ICON[s]} ${v.status[s]}`} | ${mdInline(c.title, policy)} |`;
   });
 
+  const redacted = (input.meta.redactions ?? []).reduce((sum, r) => sum + Math.max(0, r.count), 0);
+  const promptVersion = (input.meta.promptVersion ?? VERIFY_PROMPT_VERSION).replace(/[^\w.-]/g, '');
   const tail: string[] = [];
   for (const w of input.meta.warnings) tail.push(`> ⚠️ ${mdInline(w.message, policy)}`);
   if (obsolete > 0) tail.push(`> ${v.obsolete(obsolete)}`);
@@ -335,6 +353,8 @@ function render(input: VerifySummaryInput, limit: number): string {
   tail.push(
     `<sub>${[
       mdCode(input.meta.model),
+      // Someone reporting a wrong status needs to say which prompt gave it.
+      `prompt ${promptVersion}`,
       t.footer.tokens(
         formatTokens(usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens),
         formatTokens(usage.outputTokens),
@@ -342,6 +362,7 @@ function render(input: VerifySummaryInput, limit: number): string {
       t.footer.calls(input.meta.calls),
       `~$${input.meta.costUsd.toFixed(2)}`,
       `${Math.round(input.meta.durationMs / 1000)}s`,
+      ...(redacted > 0 ? [t.footer.redactions(redacted)] : []),
     ].join(' · ')}</sub>`,
   );
 

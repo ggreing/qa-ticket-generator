@@ -10,6 +10,7 @@ import {
   type VerifySummaryInput,
   verifyStrings,
 } from '../../src/delivery/render/verify-summary';
+import { VERIFY_PROMPT_VERSION } from '../../src/llm/prompts/verify';
 
 const TICKETS = 'https://github.com/acme/shop/issues';
 
@@ -109,6 +110,8 @@ function input(overrides: Partial<VerifySummaryInput> = {}): VerifySummaryInput 
       durationMs: 41_300,
       calls: 1,
       warnings: [],
+      // Fixed here so the snapshots do not move each time the prompt does.
+      promptVersion: '2026-11-13.7',
     },
     ...overrides,
   };
@@ -361,10 +364,66 @@ describe('renderVerifyComment — untrusted text and limits (DLV-03, DLV-06)', (
   });
 });
 
+describe('renderVerifyComment — footer: prompt version and masked secrets (PRE-05)', () => {
+  const footerOf = (body: string): string => body.split('\n').at(-1) as string;
+  const withRedactions = (
+    redactions: { type: string; count: number }[] | undefined,
+    language = 'en' as const,
+  ) =>
+    footerOf(
+      renderVerifyComment(
+        input({ language, meta: { ...input().meta, ...(redactions ? { redactions } : {}) } }),
+      ),
+    );
+
+  it('PRE-05 says how many secrets were masked, summed over every kind', () => {
+    expect(
+      withRedactions([
+        { type: 'github_token', count: 2 },
+        { type: 'password', count: 1 },
+      ]),
+    ).toBe(
+      '<sub><code>claude-opus-5-5</code> · prompt 2026-11-13.7 · in 12.0K / out 1.8K tokens · 1 LLM call(s) · ~$0.11 · 41s · 3 secret(s) redacted</sub>',
+    );
+  });
+
+  it('says nothing when none were masked, or when the count is not given', () => {
+    const plain =
+      '<sub><code>claude-opus-5-5</code> · prompt 2026-11-13.7 · in 12.0K / out 1.8K tokens · 1 LLM call(s) · ~$0.11 · 41s</sub>';
+    expect(withRedactions(undefined)).toBe(plain);
+    expect(withRedactions([])).toBe(plain);
+    expect(withRedactions([{ type: 'password', count: 0 }])).toBe(plain);
+  });
+
+  it.each([
+    ['ko', '비밀값 3건 마스킹'],
+    ['ja', '秘密情報 3 件をマスク'],
+    ['zh-CN', '脱敏 3 个密钥'],
+  ] as const)('the masked-secrets note is written in %s', (language, note) => {
+    const body = renderVerifyComment(
+      input({ language, meta: { ...input().meta, redactions: [{ type: 'api_key', count: 3 }] } }),
+    );
+    expect(footerOf(body).endsWith(` · ${note}</sub>`)).toBe(true);
+  });
+
+  it('shows the verify prompt version of this release when the run does not name one, and nothing but a version', () => {
+    const { promptVersion: _fixed, ...meta } = input().meta;
+    expect(footerOf(renderVerifyComment(input({ meta })))).toContain(` · prompt ${VERIFY_PROMPT_VERSION} · `);
+    const odd = footerOf(
+      renderVerifyComment(input({ meta: { ...meta, promptVersion: '2026-11-13.7</sub> [x](http://evil)' } })),
+    );
+    expect(odd).toContain(' · prompt 2026-11-13.7subxhttpevil · ');
+    expect(odd.match(/<\/sub>/g)).toHaveLength(1);
+  });
+});
+
 describe('renderVerifyComment — four languages (ADR-0010)', () => {
   it.each(['en', 'ko', 'ja', 'zh-CN'] as const)('SPEC v3 §2.2 %s summary (snapshot)', async (language) => {
     const v = verifyStrings(language);
-    const body = renderVerifyComment(input({ language }));
+    // The snapshot run masked two secrets, so the footer shows the note in each language.
+    const body = renderVerifyComment(
+      input({ language, meta: { ...input().meta, redactions: [{ type: 'github_token', count: 2 }] } }),
+    );
     for (const s of ['implemented', 'missing', 'contradicts', 'unknown'] as const) {
       expect(body, s).toContain(`${CODE_STATUS_ICON[s]} ${v.status[s]}`);
     }
