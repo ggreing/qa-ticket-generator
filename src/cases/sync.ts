@@ -11,10 +11,11 @@
  * - `c` active, ticket edited by a person (or no readable hash): `suggest`, except when the tool
  *   has nothing new to propose (same hash as last written and no revival) → `unchanged`.
  * - `c` active, not edited: `unchanged` when the rendered hash equals the last written one and the
- *   ticket is not being revived; otherwise `update`. `specDigest` is not part of the hash; when
- *   only it moved (the case carries one and it differs from the ticket's), an unedited ticket gets an
- *   `update` (same text, new payload) so the next plan run sees the digest. An edited ticket is left
- *   alone (`unchanged`): a new digest alone is not worth a suggestion.
+ *   ticket is not being revived; otherwise `update`. Two tool-owned keys can change without the
+ *   text: `specDigest` (never rendered) and `origin` (rendered only when there are no AC labels).
+ *   When the case carries a digest that differs from the ticket's, or its origin differs, an
+ *   unedited ticket gets an `update` (same text, new payload) so later runs read the right values.
+ *   An edited ticket is left alone (`unchanged`): a payload-only change is not worth a suggestion.
  * - tickets no next case refers to: `obsolete` unless already obsolete.
  * - duplicate tickets for one caseId: the first in list order is used, the rest get no op.
  * Human-owned fields are never part of an op's case: cases are built from tool-owned keys only.
@@ -32,8 +33,10 @@ function opFor(t: ExistingCaseTicket, c: QaCase, hash: () => string): SyncOp {
   const edited = t.writtenHash === null || t.currentHash !== t.writtenHash;
   const same = t.writtenHash !== null && hash() === t.writtenHash;
   if (same && !reviving) {
-    const digestMoved = c.specDigest !== undefined && c.specDigest !== t.lastWritten?.specDigest;
-    return digestMoved && !edited
+    const last = t.lastWritten;
+    const digestMoved = c.specDigest !== undefined && c.specDigest !== last?.specDigest;
+    const originMoved = last !== null && c.origin !== last.origin;
+    return (digestMoved || originMoved) && !edited
       ? { op: 'update', ticket: t, case: c }
       : { op: 'unchanged', ticket: t, case: c };
   }
