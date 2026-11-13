@@ -14,7 +14,9 @@ import {
   renderCase,
   SPEC_GAP_PREFIX,
   STYLE_RULES,
+  sameRiskKey,
   specKey,
+  titleTokens,
   toolTextHash,
   toQaCase,
 } from '../../src/cases';
@@ -365,5 +367,25 @@ describe('SPEC v3 §4.1 §4.5 specDigest (plan skips generation while the spec i
     // Content changes keep their usual ops whatever the digest does.
     expect(ops(ticket(last), { ...moved, steps: ['바뀜'] })).toEqual(['update']);
     expect(ops(ticket(last, { edited: true }), { ...moved, steps: ['바뀜'] })).toEqual(['suggest']);
+  });
+});
+
+describe('SPEC v3 §2.2 same-risk signature (verify safety net)', () => {
+  it('SPEC v3 §2.2 normalises case, full-width forms, number separators, particles and the final outcome word', () => {
+    expect(titleTokens('ＡＰＩ 키로 1,000회 요청 시 거부')).toEqual(['api', '키로', '1000회', '요청']);
+    expect(titleTokens('쿠폰을 결제에서 적용 시 처리')).toEqual(['쿠폰', '결제', '적용']);
+    // Particles only come off when two syllables remain: 길이 (length) and 결과 (result) stay whole.
+    expect(titleTokens('제목 길이 결과 확인')).toEqual(['제목', '길이', '결과', '확인']);
+    // An outcome word that is not last is a condition and stays.
+    expect(titleTokens('결제 실패 시 쿠폰 복구')).toEqual(['결제', '실패', '쿠폰', '복구']);
+    expect(titleTokens("bio = '안녕하세요' 저장")).toEqual(['bio', '저장', '"안녕하세요"']);
+  });
+
+  it('SPEC v3 §2.2 short titles have no key; keys ignore word order and include the technique', () => {
+    expect(sameRiskKey({ title: '쿠폰 처리', technique: 'failure' })).toBeNull();
+    const a = sameRiskKey({ title: '쿠폰 만료 1초 전 적용', technique: 'boundary' });
+    expect(a).not.toBeNull();
+    expect(sameRiskKey({ title: '1초 전 만료 쿠폰 적용', technique: 'boundary' })).toBe(a);
+    expect(sameRiskKey({ title: '쿠폰 만료 1초 전 적용', technique: 'locale_time' })).not.toBe(a);
   });
 });
