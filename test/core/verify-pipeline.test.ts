@@ -449,3 +449,31 @@ describe('cosmetic skip needs every case judged (SPEC v3 §2.2)', () => {
     expect(out.kind).toBe('verified');
   });
 });
+
+describe('runVerify redaction counts (PRE-05)', () => {
+  it('passes what was masked in the title, body and code to the PR summary', async () => {
+    const seen: unknown[] = [];
+    const { deps } = makeDeps(memorySink([baseCase(1)]), {
+      redactText: (t: string) =>
+        t.includes('SECRET')
+          ? { text: t.replace('SECRET', '[REDACTED:token]'), redactions: [{ type: 'token', count: 1 }] }
+          : { text: t, redactions: [] },
+      renderComment: (d) => {
+        seen.push(d.meta.redactions);
+        return 'c';
+      },
+    });
+    deps.preprocessEngine.run = vi.fn(async () => ({
+      chunks: [],
+      prdDocuments: [],
+      skipped: [],
+      redactions: [{ type: 'github_token', count: 2 }],
+      mode: 'single',
+    })) as unknown as typeof deps.preprocessEngine.run;
+    await runVerify(deps, cfg(), { ...pr, body: 'Implements #12 SECRET' }, { name: 'pull_request' }, signal);
+    expect(seen[0]).toEqual([
+      { type: 'token', count: 1 },
+      { type: 'github_token', count: 2 },
+    ]);
+  });
+});

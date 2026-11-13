@@ -31,6 +31,7 @@ import type {
   PrdRef,
   PreprocessEngine,
   PullRequestInfo,
+  RedactionCount,
   RedactText,
   TriggerEvent,
   Warning,
@@ -66,6 +67,8 @@ export interface VerifySummaryData {
     calls: number;
     warnings: Warning[];
     dryRun?: boolean;
+    /** PRE-05 — secrets masked in what the model saw (title, body, code, new-case scope). */
+    redactions?: RedactionCount[];
   };
 }
 
@@ -142,10 +145,15 @@ export async function runVerify(
   if (refs.length === 0) return { kind: 'no_spec' };
 
   const warnings: Warning[] = [];
+  const masked = new Map<string, number>();
+  const count = (r: { text: string; redactions: RedactionCount[] }): string => {
+    for (const { type, count: n } of r.redactions) masked.set(type, (masked.get(type) ?? 0) + n);
+    return r.text;
+  };
   const safePr: PullRequestInfo = {
     ...pr,
-    title: deps.redactText(pr.title).text,
-    body: deps.redactText(pr.body).text,
+    title: count(deps.redactText(pr.title)),
+    body: count(deps.redactText(pr.body)),
   };
   const sinks = cfg.dryRun ? deps.sinks.filter((s) => s.kind === 'file') : deps.sinks;
   const configured = usableSinks(sinks, refs[0] as PrdRef, warnings);
@@ -226,6 +234,7 @@ export async function runVerify(
       deps.preprocessEngine.run({ files, prdDocuments: prd.documents, options: cfg.preprocess }),
     );
     if (pre.warnings) warnings.push(...pre.warnings);
+    for (const r of pre.redactions) masked.set(r.type, (masked.get(r.type) ?? 0) + r.count);
 
     const active = cases.filter((c) => c.lifecycle === 'active');
 
@@ -239,7 +248,7 @@ export async function runVerify(
           sinceSha: state.sha,
           changes: changes
             .filter((c) => !deps.isNoisePath(c.path, cfg.preprocess))
-            .map((c) => ({ path: c.path, patch: deps.redactPatch(c.patch).text })),
+            .map((c) => ({ path: c.path, patch: count(deps.redactPatch(c.patch)) })),
         };
         // Nothing that changes behavior since the last check: keep every status, the badge and
         // the comment as they are, and spend no model call (TRG-04 for comment-only pushes).
@@ -342,6 +351,7 @@ export async function runVerify(
         calls,
         warnings,
         dryRun: cfg.dryRun,
+        redactions: [...masked].filter(([, n]) => n > 0).map(([type, n]) => ({ type, count: n })),
       },
     };
     if (!cfg.dryRun && cfg.prComment) {
