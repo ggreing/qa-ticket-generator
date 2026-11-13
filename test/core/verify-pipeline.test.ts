@@ -397,16 +397,23 @@ describe('runVerify scope hygiene (PRE-05)', () => {
 
 describe('runVerify on a cosmetic-only push (SPEC v3 §2.2)', () => {
   it('skips without a model call when every change since the last check is cosmetic', async () => {
-    const { deps, saved } = makeDeps(memorySink([baseCase(1)]), {
-      commentStore: {
-        load: vi.fn(async () => ({
-          commentId: 1,
-          state: { v: 1 as const, sha: 'c'.repeat(40) },
-          warnings: [],
-        })),
-        save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+    const { deps, saved } = makeDeps(
+      memorySink([
+        baseCase(1, {
+          codeStatus: { status: 'implemented', evidence: 'e', files: ['src/coupon.ts'], sha: 'c'.repeat(40) },
+        }),
+      ]),
+      {
+        commentStore: {
+          load: vi.fn(async () => ({
+            commentId: 1,
+            state: { v: 1 as const, sha: 'c'.repeat(40) },
+            warnings: [],
+          })),
+          save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+        },
       },
-    });
+    );
     deps.isCosmeticPatch = (_p: string, patch: string) => patch.startsWith('+//');
     deps.github.getChangesBetween = vi.fn(async () => [{ path: 'src/coupon.ts', patch: '+// note' }]);
     const out = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
@@ -417,5 +424,28 @@ describe('runVerify on a cosmetic-only push (SPEC v3 §2.2)', () => {
     deps.github.getChangesBetween = vi.fn(async () => [{ path: 'src/coupon.ts', patch: '+return 0;' }]);
     const ran = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
     expect(ran.kind).toBe('verified');
+  });
+});
+
+describe('cosmetic skip needs every case judged (SPEC v3 §2.2)', () => {
+  it('still runs when a case has no code status yet, so it gets one', async () => {
+    const judged = baseCase(1, {
+      codeStatus: { status: 'implemented', evidence: 'e', files: ['src/coupon.ts'], sha: 'c'.repeat(40) },
+    });
+    const fresh = baseCase(2, { title: '동시 적용', technique: 'concurrency', origin: 'code' });
+    const { deps } = makeDeps(memorySink([judged, fresh]), {
+      commentStore: {
+        load: vi.fn(async () => ({
+          commentId: 1,
+          state: { v: 1 as const, sha: 'c'.repeat(40) },
+          warnings: [],
+        })),
+        save: vi.fn(async () => ({ commentId: 1, url: 'u' })),
+      },
+    });
+    deps.isCosmeticPatch = () => true;
+    deps.github.getChangesBetween = vi.fn(async () => [{ path: 'src/coupon.ts', patch: '+// note' }]);
+    const out = await runVerify(deps, cfg(), pr, { name: 'pull_request', action: 'synchronize' }, signal);
+    expect(out.kind).toBe('verified');
   });
 });

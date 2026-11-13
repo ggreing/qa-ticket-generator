@@ -243,7 +243,10 @@ export async function runVerify(
         };
         // Nothing that changes behavior since the last check: keep every status, the badge and
         // the comment as they are, and spend no model call (TRG-04 for comment-only pushes).
-        if (newCaseScope.changes.every((c) => deps.isCosmeticPatch(c.path, c.patch))) {
+        if (
+          active.every((c) => c.codeStatus) &&
+          newCaseScope.changes.every((c) => deps.isCosmeticPatch(c.path, c.patch))
+        ) {
           logger.info(
             `No behavior change since ${state.sha.slice(0, 7)}; the case statuses stay as they are.`,
           );
