@@ -5,73 +5,75 @@
 - Change: prompt 2026-11-13.2: one intent one case, open outcomes as questions, merge with reasons
 - Split: selected
 - Language: ko
-- Rubric judge: claude-sonnet-5-5, rubric v3
+- Rubric judge: claude-sonnet-5-5, rubric v3.1
 - Must-cover checked by: coverage judge (any language)
 - Style violations counted by: lintCaseStyle
-- Decision: pending
+- Decision: keep
+- Scored again on 2026-11-13: rubric judge (rubric v3.1) and deterministic metrics. The sheets are the ones written on the date above.
 
 ## Run
 
 | Variant                | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) | Req. with a case | Style viol./100 | Repeated titles | Merged away | Cost  | Judge cost |
 | ---------------------- | ----- | ------ | ------- | ---- | ----- | ------------- | ---------- | --------------- | ------------------ | ---------------- | --------------- | --------------- | ----------- | ----- | ---------- |
-| claude-opus-5-5 · high | 14    | 0      | 1.60    | 1.81 | 1.39  | 1.43          | 39.2       | 56%             | 100%               | 100%             | 0.0             | 0               | 7           | $7.42 | $0.85      |
+| claude-opus-5-5 · high | 14    | 0      | 1.64    | 1.83 | 1.45  | 1.43          | 39.2       | 56%             | 100%               | 100%             | 0.0             | 0               | 7           | $7.42 | $0.86      |
 
 | Criterion          | Mean (0–2) |
 | ------------------ | ---------- |
-| Actionability      | 1.73       |
-| Traceability       | 1.78       |
-| Priority           | 1.93       |
-| Easy-to-miss value | 1.65       |
-| QA-sheet style     | 1.99       |
+| Actionability      | 1.77       |
+| Traceability       | 1.80       |
+| Priority           | 1.92       |
+| Easy-to-miss value | 1.66       |
+| QA-sheet style     | 1.98       |
 | Spec coverage      | 1.43       |
-| No duplicates      | 0.86       |
+| No duplicates      | 1.07       |
 | Honesty            | 1.86       |
 
 ## Per spec
 
 | Spec                         | Cases | P0  | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | Reqs without a case | Style viol. | Merged away | Cost  |
 | ---------------------------- | ----- | --- | ------- | ------------- | --------------- | ------------------ | ------------------- | ----------- | ----------- | ----- |
-| api-rate-limit-aligned       | 39    | 12  | 1.65    | 2             | 80%             | 100%               | —                   | 0           | 1           | $0.66 |
-| booking-hold-aligned         | 29    | 6   | 1.66    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.37 |
+| api-rate-limit-aligned       | 39    | 12  | 1.41    | 1             | 80%             | 100%               | —                   | 0           | 1           | $0.66 |
+| booking-hold-aligned         | 29    | 6   | 1.78    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.37 |
 | contact-import-js            | 34    | 8   | 1.52    | 1             | 40%             | 100%               | —                   | 0           | 0           | $0.43 |
-| coupon-expiry-missing        | 45    | 18  | 1.58    | 1             | 50%             | 100%               | —                   | 0           | 0           | $0.63 |
-| notice-schedule-ko-narrative | 43    | 9   | 1.77    | 2             | 100%            | 100%               | —                   | 0           | 0           | $0.40 |
-| order-cancel-state-java      | 38    | 21  | 1.66    | 2             | 83%             | 100%               | —                   | 0           | 5           | $0.61 |
-| payroll-rules-mapreduce      | 52    | 10  | 1.76    | 2             | 67%             | 100%               | —                   | 0           | 0           | $0.89 |
-| plan-proration-aligned       | 50    | 11  | 1.52    | 1             | 20%             | 100%               | —                   | 0           | 1           | $0.97 |
-| profile-injection            | 34    | 4   | 1.53    | 1             | 0%              | 100%               | —                   | 0           | 0           | $0.34 |
-| rbac-export-role             | 32    | 8   | 1.56    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.38 |
-| search-page-cap              | 43    | 6   | 1.79    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.49 |
-| seat-picker-aligned          | 39    | 9   | 1.42    | 1             | 40%             | 100%               | —                   | 0           | 0           | $0.51 |
-| session-expiry-ko-ts         | 38    | 9   | 1.55    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.48 |
-| stock-reserve-go             | 33    | 12  | 1.50    | 1             | 40%             | 100%               | —                   | 0           | 0           | $0.26 |
+| coupon-expiry-missing        | 45    | 18  | 1.56    | 1             | 50%             | 100%               | —                   | 0           | 0           | $0.63 |
+| notice-schedule-ko-narrative | 43    | 9   | 1.52    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.40 |
+| order-cancel-state-java      | 38    | 21  | 1.52    | 1             | 83%             | 100%               | —                   | 0           | 5           | $0.61 |
+| payroll-rules-mapreduce      | 52    | 10  | 1.43    | 1             | 67%             | 100%               | —                   | 0           | 0           | $0.89 |
+| plan-proration-aligned       | 50    | 11  | 1.53    | 1             | 20%             | 100%               | —                   | 0           | 1           | $0.97 |
+| profile-injection            | 34    | 4   | 1.94    | 2             | 0%              | 100%               | —                   | 0           | 0           | $0.34 |
+| rbac-export-role             | 32    | 8   | 1.83    | 2             | 100%            | 100%               | —                   | 0           | 0           | $0.38 |
+| search-page-cap              | 43    | 6   | 1.78    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.49 |
+| seat-picker-aligned          | 39    | 9   | 1.77    | 2             | 40%             | 100%               | —                   | 0           | 0           | $0.51 |
+| session-expiry-ko-ts         | 38    | 9   | 1.58    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.48 |
+| stock-reserve-go             | 33    | 12  | 1.76    | 2             | 40%             | 100%               | —                   | 0           | 0           | $0.26 |
 
 ## What the rubric judge found missing
 
-- api-rate-limit-aligned: AC2 / invalid_input: 429 response body/header format on other endpoints
-- booking-hold-aligned: AC3 / boundary: 5 seats rejected with specific error (C21 only in index; likely covered) and 4 seats with one conflict
-- booking-hold-aligned: AC1 / state_transition: hold released by cancel/payment failure not specified
-- contact-import-js: AC3 / concurrency: Two simultaneous imports updating the same existing contact
-- contact-import-js: AC1 / boundary: Very large file size/performance near the limit
-- coupon-expiry-missing: AC1 / permission: Another user's coupon code, or one bound to a different user
-- coupon-expiry-missing: AC2 / equivalence: Percentage coupon on a cart with zero or very small total
-- coupon-expiry-missing: AC4 / idempotency: Promotion becomes inactive and cart re-evaluated
-- notice-schedule-ko-narrative: AC3 / happy_path: The failure notice reaches the scheduling admin (content and channel)
-- order-cancel-state-java: AC2 / state_transition: Cancel response for SHIPPED vs DELIVERED separately, cancel of already-cancelled order status code
-- order-cancel-state-java: AC4 / data_integrity: History row actor id for a CS cancel in the DB
-- payroll-rules-mapreduce: AC3 / boundary: holiday spanning midnight into a normal day
-- payroll-rules-mapreduce: AC3 / equivalence: holiday plus night premium at 22:00-06:00 expected amount
-- plan-proration-aligned: AC2 / failure: Renewal charge failure when applying a scheduled downgrade
-- plan-proration-aligned: AC1 / boundary: Upgrade to a plan with equal price (zero difference)
-- profile-injection: AC2 / equivalence: Change to an e-mail already used by another account
-- rbac-export-role: AC2 / data_integrity: Log row count and actor id match actual file rows
-- rbac-export-role: AC3 / state_transition: Rate-limit counter resets and 429 response format/Retry-After
-- seat-picker-aligned: AC1 / locale: limit message language in non-English locales
-- seat-picker-aligned: AC3 / boundary: rapid repeated showtime changes (A to B to A)
-- session-expiry-ko-ts: AC1 / permission: 401 body/response for other endpoints and logout with expired session
-- session-expiry-ko-ts: AC2 / concurrency: multiple devices with different login times each hit 12h separately
-- stock-reserve-go: AC3 / boundary: Quantity 10 and 11 against stock below 10 (error precedence)
-- stock-reserve-go: AC2 / permission: Who may confirm or release a reservation (other user's reservation)
+- api-rate-limit-aligned: AC2 / invalid_input: Retry-After header format is a whole integer, not decimal
+- api-rate-limit-aligned: AC1 / boundary: 429 header presence on other response bodies and 429 body format
+- booking-hold-aligned: AC3 / boundary: 5 seats rejected: only in index; open on error code
+- booking-hold-aligned: AC1 / failure and timeout: retry after ErrSeatTaken or response lost on successful hold
+- contact-import-js: AC2 / boundary: invalid skipped row list at 10,000 rows is covered; no case on very long email length limit
+- contact-import-js: AC3 / permission: role without import permission uploading a file
+- coupon-expiry-missing: AC1 / state_transition: Per-user redemption limit when the same coupon is sent to multiple accounts or an order is refunded after use (partially covered by C21)
+- coupon-expiry-missing: AC2 / equivalence: Coupon with 0% or negative rate / cart total below any discount
+- notice-schedule-ko-narrative: AC3 / data_integrity: Resend or retry action after failure is not covered; the spec says the admin decides to resend
+- notice-schedule-ko-narrative: AC2 / boundary: Hidden cancel button state near cutoff on UI
+- order-cancel-state-java: AC2 / state_transition: Cancel with SHIPPED and DELIVERED returns 409 body checks per status (C06 only in index)
+- order-cancel-state-java: AC4 / invalid_input: Actor id missing or null on status change
+- payroll-rules-mapreduce: AC2 / boundary: exactly 06:00 end and 22:00 start inclusion with a shift starting at 06:00 or ending at 22:00 as open question
+- payroll-rules-mapreduce: AC3 / boundary: holiday spanning midnight, shift crossing into or out of a holiday
+- payroll-rules-mapreduce: Rounding / equivalence: rounding applied per line vs total, multiple lines summed
+- plan-proration-aligned: AC2 / data_integrity: downgrade leaves no refund and no credit in payment history
+- plan-proration-aligned: AC4 / idempotency: repeated upgrade retry after PAYMENT_FAILED charges once
+- profile-injection: AC1 / state_transition: Edit then cancel or leave screen: unsaved name not persisted
+- rbac-export-role: AC3 / idempotency: counter state after 403-denied or failed exports (partially present)
+- rbac-export-role: AC2 / data_integrity: audit entry fields persisted exactly (timestamp, immutability)
+- seat-picker-aligned: AC1 / boundary: Select at 6 then deselect and reselect counted limit (covered); 0 seats vs. 1 seat count is covered; no gap
+- seat-picker-aligned: AC2 / locale and time: Hold expiry timing while the user is on the screen
+- session-expiry-ko-ts: AC3 / failure: 로그아웃 시 세션 저장소 장애 상태 처리
+- session-expiry-ko-ts: AC1 / idempotency: 401 후 동일 만료 토큰 반복 요청 시 응답 동일
+- stock-reserve-go: AC2 / concurrency: Multiple reservations expiring together restoring stock correctly
 
 ## Cases the merge step removed
 
@@ -91,20 +93,20 @@ Compared with round 0 (the last one kept):
 
 | Metric                             | Round 0 | Round 1 |        |
 | ---------------------------------- | ------- | ------- | ------ |
-| Overall                            | 1.54    | 1.60    | better |
+| Overall                            | 1.51    | 1.64    | better |
 | Must-cover (judge)                 | 98%     | 100%    | better |
 | Req. with a case                   | 100%    | 100%    | same   |
 | Style viol./100                    | 0.0     | 0.0     | same   |
 | Cases/spec (context)               | 53.6    | 39.2    | worse  |
 | Merged away (context)              | 18      | 7       | —      |
-| Actionability (0–2) (context)      | 1.73    | 1.73    | better |
-| Traceability (0–2) (context)       | 1.74    | 1.78    | better |
-| Priority (0–2) (context)           | 1.92    | 1.93    | better |
-| Easy-to-miss value (0–2) (context) | 1.61    | 1.65    | better |
-| QA-sheet style (0–2) (context)     | 1.98    | 1.99    | better |
-| Spec coverage (0–2) (context)      | 1.57    | 1.43    | worse  |
-| No duplicates (0–2) (context)      | 0.57    | 0.86    | better |
-| Honesty (0–2) (context)            | 1.43    | 1.86    | better |
+| Actionability (0–2) (context)      | 1.73    | 1.77    | better |
+| Traceability (0–2) (context)       | 1.69    | 1.80    | better |
+| Priority (0–2) (context)           | 1.91    | 1.92    | better |
+| Easy-to-miss value (0–2) (context) | 1.58    | 1.66    | better |
+| QA-sheet style (0–2) (context)     | 1.98    | 1.98    | worse  |
+| Spec coverage (0–2) (context)      | 1.43    | 1.43    | same   |
+| No duplicates (0–2) (context)      | 0.64    | 1.07    | better |
+| Honesty (0–2) (context)            | 1.50    | 1.86    | better |
 
 Rows marked "context" do not affect the recommendation.
 
