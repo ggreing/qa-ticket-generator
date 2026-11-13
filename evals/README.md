@@ -87,6 +87,31 @@ node evals/cli.mjs plan --calibrate evals/rounds/v3/0/raw/ratings.ko.json evals/
 - **Calibration** prints the judge-minus-person difference per criterion, and per sheet how many
   cases the person and the judge each found missing.
 
+### Scoring saved sheets again
+
+```bash
+# The lint changed: recount style violations of a recorded round. Offline, no key.
+node evals/cli.mjs plan --regrade evals/rounds/v3/0/raw/plan.ko.json --round 0
+
+# The rubric or the judge's instructions changed: judge the stored sheets again.
+node evals/cli.mjs plan --rejudge evals/rounds/v3/0/raw/plan.ko.json --round 0         # plan and cost
+node evals/cli.mjs plan --rejudge evals/rounds/v3/0/raw/plan.ko.json --round 0 --yes
+```
+
+- Nothing is generated: the sheets are the ones in the file. `--rejudge` calls only the rubric
+  judge; `--regrade` calls nothing. Both recompute the deterministic metrics, and both keep the
+  must-cover verdicts given when the sheet was written.
+- With `--round n` the round's record, summary and raw file are replaced, and the round keeps its
+  change text and its keep/revert decision. The summary says the round was scored again. To
+  compare two rounds after a rubric change, re-judge both: rounds scored under different rubric
+  versions are not compared.
+- With `--cases a,b` only those sheets are scored again and the file is updated in place. This
+  is refused when the file was scored under another rubric version.
+- Without either, the result goes to a new file in `evals/results/`.
+- Whatever file is replaced is first copied to `<file>.bak-<time>`.
+- A sheet whose spec changed since it was written is left out, and a whole-file re-judge leaves
+  it without a score.
+
 ## Data
 
 | Kind      | Where                              | Ground truth    | Scored by               |
