@@ -1,0 +1,33 @@
+{
+  "name": "SPEC v3 §3.1 ja: QA-sheet style passes",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "有効期限1秒過ぎたクーポン適用時に拒否",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "保証期間 1年"
+      ],
+      "steps": [
+        "決済画面を開く",
+        "クーポンEXP1を入力して適用"
+      ],
+      "expected": [
+        "「このクーポンは期限切れです」と表示されること",
+        "決済金額が正常に変わらないこと",
+        "仕様確認要: 期限時刻を含むか"
+      ],
+      "whyEasyToMiss": "仕様書に期限時刻を含むかの定義がない",
+      "origin": "spec"
+    },
+    "language": "ja"
+  },
+  "expected": []
+}

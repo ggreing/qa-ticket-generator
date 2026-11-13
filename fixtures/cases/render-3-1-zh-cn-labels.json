@@ -1,0 +1,61 @@
+{
+  "name": "SPEC v3 §3.1 zh-CN labels",
+  "kind": "render",
+  "input": {
+    "case": {
+      "title": "过期1秒的优惠券在结算时被拒绝",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "failure",
+      "priority": "P0",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "결제 화면 진입",
+        "쿠폰 EXP1 입력 후 적용"
+      ],
+      "expected": [
+        "\"만료된 쿠폰입니다\" 토스트 노출",
+        "결제 금액 변화 없음"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "caseId": "7c1e4b2a-C02",
+      "specRef": "SHOP-101",
+      "lifecycle": "active"
+    },
+    "language": "zh-CN"
+  },
+  "expected": {
+    "title": "[P0][失败/超时] 过期1秒的优惠券在结算时被拒绝",
+    "markdown": "### 前置条件\n\n- 로그인 상태\n\n### 测试数据\n\n- 쿠폰 EXP1 / 만료 2026-11-13 23:59:59\n\n### 步骤\n\n1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용\n\n### 预期结果\n\n- **\"만료된 쿠폰입니다\" 토스트 노출**\n- 결제 금액 변화 없음\n\n### 容易遗漏的原因\n\n기획서에 만료 시각 포함 여부 정의 없음\n\n### 相关AC\n\nAC1",
+    "fields": {
+      "case_id": "7c1e4b2a-C02",
+      "spec_ref": "SHOP-101",
+      "title": "[P0][失败/超时] 过期1秒的优惠券在结算时被拒绝",
+      "name": "过期1秒的优惠券在结算时被拒绝",
+      "priority": "P0",
+      "technique": "failure",
+      "technique_label": "失败/超时",
+      "ac": "AC1",
+      "preconditions": "로그인 상태",
+      "test_data": "쿠폰 EXP1 / 만료 2026-11-13 23:59:59",
+      "steps": "1. 결제 화면 진입\n2. 쿠폰 EXP1 입력 후 적용",
+      "expected": "\"만료된 쿠폰입니다\" 토스트 노출\n결제 금액 변화 없음",
+      "why_easy_to_miss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec",
+      "lifecycle": "active",
+      "code_status": "",
+      "code_status_label": "",
+      "code_evidence": "",
+      "code_files": "",
+      "code_sha": ""
+    },
+    "hash": "8d1a40c878129dd96567bef9e31892259e30f31981c97e393538882ec8d515a8"
+  }
+}

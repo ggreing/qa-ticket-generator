@@ -1,0 +1,119 @@
+{
+  "name": "SPEC v3 §4.1 spec keys: GitHub issue becomes repo-number",
+  "kind": "reconcile",
+  "input": {
+    "specRef": "acme/shop#12",
+    "existing": [],
+    "planned": [
+      {
+        "title": "A",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "reuseCaseId": null
+      },
+      {
+        "title": "B",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "reuseCaseId": null
+      }
+    ]
+  },
+  "expected": {
+    "cases": [
+      {
+        "caseId": "shop-12-C01",
+        "specRef": "acme/shop#12",
+        "lifecycle": "active",
+        "title": "A",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      },
+      {
+        "caseId": "shop-12-C02",
+        "specRef": "acme/shop#12",
+        "lifecycle": "active",
+        "title": "B",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      }
+    ],
+    "warnings": []
+  }
+}

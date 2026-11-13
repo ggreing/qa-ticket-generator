@@ -1,0 +1,93 @@
+{
+  "name": "SPEC v3 §3.1 en: AI-style phrasing is flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "Verify that expired coupons are handled correctly: a test",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+      ],
+      "steps": [
+        "First, the user navigates to checkout",
+        "The user should apply the coupon"
+      ],
+      "expected": [
+        "The system should be able to handle the error gracefully",
+        "Ensure the total is updated properly"
+      ],
+      "whyEasyToMiss": "This test is crucial. It covers an edge case.",
+      "origin": "spec"
+    },
+    "language": "en"
+  },
+  "expected": [
+    {
+      "rule": "title-colon",
+      "text": ": a"
+    },
+    {
+      "rule": "verify-claim",
+      "text": "Verify that"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "correctly"
+    },
+    {
+      "rule": "title-test-word",
+      "text": "Verify"
+    },
+    {
+      "rule": "title-test-word",
+      "text": "test"
+    },
+    {
+      "rule": "step-not-imperative",
+      "text": "First,"
+    },
+    {
+      "rule": "should-statement",
+      "text": "should"
+    },
+    {
+      "rule": "step-not-imperative",
+      "text": "The user should"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "gracefully"
+    },
+    {
+      "rule": "must-be-able",
+      "text": "should be able to"
+    },
+    {
+      "rule": "ensure",
+      "text": "Ensure"
+    },
+    {
+      "rule": "vague-adverb",
+      "text": "properly"
+    },
+    {
+      "rule": "why-multi-sentence",
+      "text": "."
+    },
+    {
+      "rule": "meta-reference",
+      "text": "This test"
+    },
+    {
+      "rule": "importance-claim",
+      "text": "crucial"
+    }
+  ]
+}

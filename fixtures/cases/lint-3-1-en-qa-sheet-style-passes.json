@@ -1,0 +1,35 @@
+{
+  "name": "SPEC v3 §3.1 en: QA-sheet style passes",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "Coupon expired 1 second ago is rejected at checkout",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "Signed in as buyer01"
+      ],
+      "testData": [
+        "Coupon EXP1, expires 2026-11-13 23:59:59",
+        "Verification code 123456"
+      ],
+      "steps": [
+        "Open checkout",
+        "Enter EXP1 and apply",
+        "Check that the total stays 30,000"
+      ],
+      "expected": [
+        "Toast \"This coupon has expired\" shown",
+        "Order total unchanged",
+        "Spec decision needed: is the expiry instant inclusive"
+      ],
+      "whyEasyToMiss": "The spec does not say whether the expiry instant itself is still valid.",
+      "origin": "spec"
+    },
+    "language": "en"
+  },
+  "expected": []
+}

@@ -1,0 +1,33 @@
+{
+  "name": "SPEC v3 §3.1 ko: domain nouns and quoted UI copy are not flagged",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "로그인 보장 기간 만료 후 재로그인 요구",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "보장 금액 1,000,000원",
+        "보장형 상품 P-1"
+      ],
+      "steps": [
+        "결제 화면 진입",
+        "쿠폰 EXP1 입력 후 적용"
+      ],
+      "expected": [
+        "\"결제가 원활하게 처리되지 않았습니다\" 문구 노출",
+        "‘정상적으로 저장되었습니다’ 토스트 미노출"
+      ],
+      "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+      "origin": "spec"
+    },
+    "language": "ko"
+  },
+  "expected": []
+}

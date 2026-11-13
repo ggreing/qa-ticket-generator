@@ -1,0 +1,67 @@
+{
+  "name": "SPEC v3 §4.1 spec keys: Notion page id becomes its first 8 hex characters",
+  "kind": "reconcile",
+  "input": {
+    "specRef": "7c1e4b2a-9d3f-4e8a-8b6c-5d4e3f2a1b0c",
+    "existing": [],
+    "planned": [
+      {
+        "title": "A",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec",
+        "reuseCaseId": null
+      }
+    ]
+  },
+  "expected": {
+    "cases": [
+      {
+        "caseId": "7c1e4b2a-C01",
+        "specRef": "7c1e4b2a-9d3f-4e8a-8b6c-5d4e3f2a1b0c",
+        "lifecycle": "active",
+        "title": "A",
+        "acLabels": [
+          "AC1"
+        ],
+        "technique": "boundary",
+        "priority": "P1",
+        "preconditions": [
+          "로그인 상태"
+        ],
+        "testData": [
+          "쿠폰 EXP1 / 만료 2026-11-13 23:59:59"
+        ],
+        "steps": [
+          "결제 화면 진입",
+          "쿠폰 EXP1 입력 후 적용"
+        ],
+        "expected": [
+          "\"만료된 쿠폰입니다\" 토스트 노출",
+          "결제 금액 변화 없음"
+        ],
+        "whyEasyToMiss": "기획서에 만료 시각 포함 여부 정의 없음",
+        "origin": "spec"
+      }
+    ],
+    "warnings": []
+  }
+}

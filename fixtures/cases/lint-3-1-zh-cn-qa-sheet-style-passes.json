@@ -1,0 +1,34 @@
+{
+  "name": "SPEC v3 §3.1 zh-CN: QA-sheet style passes",
+  "kind": "lint",
+  "input": {
+    "case": {
+      "title": "过期1秒的优惠券在结算时被拒绝",
+      "acLabels": [
+        "AC1"
+      ],
+      "technique": "boundary",
+      "priority": "P1",
+      "preconditions": [
+        "로그인 상태"
+      ],
+      "testData": [
+        "验证码 123456",
+        "保证金 500元"
+      ],
+      "steps": [
+        "打开结算页",
+        "输入优惠券EXP1并应用"
+      ],
+      "expected": [
+        "提示“优惠券已过期”",
+        "订单金额不变",
+        "需确认需求: 过期时刻是否包含在内"
+      ],
+      "whyEasyToMiss": "需求中未定义过期时刻是否有效",
+      "origin": "spec"
+    },
+    "language": "zh-CN"
+  },
+  "expected": []
+}
