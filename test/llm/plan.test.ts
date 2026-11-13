@@ -598,3 +598,53 @@ describe('plan prompt (SPEC v3 §2.1, §3, §3.1)', () => {
     }
   });
 });
+
+describe('generatePlan diagnostics — what the merge step removed (merge-misjudgment watch)', () => {
+  it('records the cases generated, the cases left, and every case removed with the one kept in its place', async () => {
+    const p = provider(
+      (labels) => [
+        ...labels.map((label) => draft(`Limit reached for ${label}`, { acLabels: [label], priority: 'P2' })),
+        // The same title and technique again from another group: removed in code, before the merge call.
+        draft('Shared check', { acLabels: [labels[0] as string], technique: 'permission' }),
+      ],
+      {
+        duplicates: [{ keep: 0, drop: [4, 4] }],
+        priorities: [
+          { index: 1, priority: 'P0' },
+          { index: 2, priority: 'P2' },
+        ],
+      },
+    );
+    const result = await run(request(), p);
+    const d = result.diagnostics;
+    expect(d.generated).toBe(7 + 3); // one per requirement plus "Shared check" from each of the 3 groups
+    expect(d.mergeRan).toBe(true);
+    expect(d.mergedAway.filter((m) => m.by === 'exact')).toEqual([
+      expect.objectContaining({ title: 'Shared check', keptTitle: 'Shared check', technique: 'permission' }),
+      expect.objectContaining({ title: 'Shared check', keptTitle: 'Shared check' }),
+    ]);
+    // Index 4 of the sheet the merge call saw; naming it twice removes it once.
+    const byMerge = d.mergedAway.filter((m) => m.by === 'merge');
+    expect(byMerge).toHaveLength(1);
+    expect(byMerge[0]).toMatchObject({ keptTitle: 'Limit reached for AC1', priority: 'P2' });
+    expect(d.afterMerge).toBe(d.generated - d.mergedAway.length);
+    expect(result.cases).toHaveLength(d.afterMerge);
+    expect(d.priorityChanges).toBe(1); // index 2 was already P2
+  });
+
+  it('says when no merge ran: a single group, or a merge call that failed', async () => {
+    const single = await run(request({ spec: spec(SEVEN.slice(0, 2)) }), provider(perLabel));
+    expect(single.diagnostics).toEqual({
+      generated: 2,
+      afterMerge: 2,
+      mergedAway: [],
+      priorityChanges: 0,
+      mergeRan: false,
+    });
+    const failed = await run(
+      request(),
+      provider(perLabel, new QtgError('llm_schema', 'bad', { usage: usage(1, 1) })),
+    );
+    expect(failed.diagnostics).toMatchObject({ generated: 7, afterMerge: 7, mergeRan: false });
+  });
+});

@@ -1,1 +1,3 @@
 .build/
+# raw v3 round results (every sheet and score); summaries and the index are committed
+rounds/v3/*/raw/
