@@ -368,6 +368,36 @@ describe('SPEC v3 §4.1 §4.5 specDigest (plan skips generation while the spec i
     expect(ops(ticket(last), { ...moved, steps: ['바뀜'] })).toEqual(['update']);
     expect(ops(ticket(last, { edited: true }), { ...moved, steps: ['바뀜'] })).toEqual(['suggest']);
   });
+
+  it('SPEC v3 §4.4 only the origin moved (AC labels hide it from the text): update an unedited ticket', () => {
+    const asCode = qaCase('SHOP-101-C01', 'a', { origin: 'code', acLabels: ['AC2'] });
+    const asSpec = { ...asCode, origin: 'spec' as const };
+    expect(render(asSpec).hash).toBe(render(asCode).hash);
+    const ops = (t: ReturnType<typeof ticket>, c: QaCase) => planSync([t], [c], render).map((o) => o.op);
+    expect(ops(ticket(asCode), asSpec)).toEqual(['update']);
+    expect(ops(ticket(asSpec), asCode)).toEqual(['update']);
+    expect(ops(ticket(asCode, { edited: true }), asSpec)).toEqual(['unchanged']);
+    expect(ops(ticket(asCode), asCode)).toEqual(['unchanged']);
+  });
+
+  it('SPEC v3 §4.4 a code case the plan reuses word for word becomes spec-origin and is retired when the spec drops it', () => {
+    const code = qaCase('SHOP-101-C01', 'a', { origin: 'code', acLabels: ['AC2'] });
+    const { origin: _origin, caseId: _id, specRef: _ref, lifecycle: _lc, ...content } = code;
+    const run1 = reconcileCases(
+      'SHOP-101',
+      [ticket(code)],
+      [{ ...content, origin: 'spec', reuseCaseId: 'SHOP-101-C01' }],
+    );
+    expect(run1.cases.map((c) => [c.caseId, c.origin])).toEqual([['SHOP-101-C01', 'spec']]);
+    const op = planSync([ticket(code)], run1.cases, render)[0] as Extract<SyncOp, { op: 'update' }>;
+    expect(op.op).toBe('update');
+    // What the sink wrote is what the next run reads; the spec no longer produces the case.
+    const run2 = reconcileCases('SHOP-101', [ticket(op.case)], [planned('b')]);
+    expect(run2.cases.map((c) => [c.caseId, c.lifecycle])).toEqual([
+      ['SHOP-101-C02', 'active'],
+      ['SHOP-101-C01', 'obsolete'],
+    ]);
+  });
 });
 
 describe('SPEC v3 §2.2 same-risk signature (verify safety net)', () => {
