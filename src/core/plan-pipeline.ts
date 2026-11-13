@@ -121,9 +121,13 @@ export function specDigestOf(
   return createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16);
 }
 
-/** True when every active spec-origin case was planned from this exact spec text. */
+/**
+ * True when every active spec-origin case was planned from this exact spec text. Tickets a person
+ * edited are left out: the tool never rewrites them, so their payload keeps an older digest.
+ */
 export function specUnchanged(existing: ExistingCaseTicket[], digest: string): boolean {
   const planned = existing
+    .filter((t) => t.writtenHash !== null && t.currentHash === t.writtenHash)
     .map((t) => t.lastWritten)
     .filter((c): c is QaCase => c !== null && c.lifecycle === 'active' && c.origin === 'spec');
   return planned.length > 0 && planned.every((c) => c.specDigest === digest);
@@ -181,6 +185,22 @@ export async function runPlan(
       );
       outcome.skipped = 'spec_unchanged';
       outcome.cases = existing.map((t) => t.lastWritten).filter((c): c is QaCase => c !== null);
+      // The file sink starts empty on every Action run: write the unchanged cases again so the
+      // artifact (and the next run's previous-cases) still exists.
+      for (const sink of sinks.filter((s) => s.kind === 'file')) {
+        const urls = new Map<string, string>();
+        try {
+          const known = sink === primary ? existing : await sink.list(specRef, signal);
+          for (const t of known) urls.set(t.caseId, t.url);
+          await sink.publishSummary(
+            specRef,
+            buildSummary(specRef, spec.title, cfg.language, outcome.cases, urls, deps.llm, 0),
+            signal,
+          );
+        } catch (err) {
+          logger.warn(`file: could not write the unchanged cases: ${(err as Error).message}`);
+        }
+      }
       return outcome;
     }
 

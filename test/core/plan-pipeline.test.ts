@@ -266,3 +266,41 @@ describe('spec digest (SPEC v3 §4)', () => {
     expect(specUnchanged([], specDigestOf(spec0))).toBe(false);
   });
 });
+
+describe('spec digest edge cases (SPEC v3 §4)', () => {
+  const spec0 = {
+    title: '쿠폰 적용',
+    bodyMarkdown: '토큰 [REDACTED:github_token] 포함',
+    acceptanceCriteria: ['AC1: 만료 쿠폰 거부'],
+  };
+  const digest = () => specDigestOf(spec0);
+  const caseWith = (id: string, d: string): QaCase => ({
+    ...planned(id),
+    caseId: id,
+    specRef: 'PROJ-123',
+    lifecycle: 'active',
+    specDigest: d,
+  });
+
+  it('ignores tickets a person edited (their payload keeps the older digest)', () => {
+    const fresh = { ...existingTicket, caseId: 'A', lastWritten: caseWith('A', digest()) };
+    const edited = {
+      ...existingTicket,
+      caseId: 'B',
+      lastWritten: caseWith('B', 'older'),
+      currentHash: 'edited:x',
+    };
+    expect(specUnchanged([fresh, edited], digest())).toBe(true);
+    expect(specUnchanged([edited], digest())).toBe(false);
+  });
+
+  it('still writes the file sink when generation is skipped', async () => {
+    const ticket = { ...existingTicket, lastWritten: caseWith('PROJ-123-C01', digest()) };
+    const jira = fakeSink('jira', [ticket]);
+    const file = fakeSink('file');
+    const out = await runPlan(makeDeps([jira.sink, file.sink]), cfg({ sinks: 'jira,file' }), spec, signal);
+    expect(out.skipped).toBe('spec_unchanged');
+    expect(file.sink.publishSummary).toHaveBeenCalledOnce();
+    expect(jira.sink.publishSummary).not.toHaveBeenCalled();
+  });
+});
