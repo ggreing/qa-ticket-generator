@@ -30,11 +30,18 @@ rule violations, repeated titles, and code-status accuracy. This rubric covers w
 
 Notes for both the judge and human reviewers:
 
-- **Spec coverage is the most important criterion.** For each requirement, go through the twelve techniques
-  (happy path, boundary, equivalence, invalid input, state transition, permission, concurrency, failure,
-  idempotency, compatibility, locale and time, data integrity) and decide which apply. A technique applies
-  only when the requirement gives it something to test, and what the spec leaves open counts as something
-  to test.
+- **Spec coverage.** For each requirement, go through the twelve techniques (happy path, boundary,
+  equivalence, invalid input, state transition, permission, concurrency, failure, idempotency,
+  compatibility, locale and time, data integrity) and decide which apply. A technique applies only when the
+  requirement gives it something to test, and what the spec leaves open counts as something to test. Look
+  for each in the whole sheet before calling it missing. Finding nothing missing is a valid result and scores
+  2; do not list a combination to have something to list (v3.2).
+- **Spec coverage is not how rounds are compared** (v3.2). Asked what is missing, a judge finds one to three
+  things in almost any sheet, and finer ones each time: over plan rounds 0 to 2 the score was 1.43 with the
+  same distribution and the same number of listed gaps, for sheets of 54, 39 and 43 cases. Coverage is
+  compared by the **second-order recall**: the share of a fixed list of combinations per spec
+  (`expected.secondOrder`) that have a case, checked the way must-cover is. The judge's coverage score stays
+  as a second opinion, with the same weight as the other sheet criteria.
 - **Length is not judged.** A sheet of 60 cases is as good as a sheet of 20 if both cover the spec without
   repeating themselves.
 - **What counts as a duplicate** (v3.1). Two cases repeat each other only when a tester who ran one would
@@ -58,11 +65,15 @@ Notes for both the judge and human reviewers:
 ## Scoring
 
 - Case score = mean of the five case criteria over the cases scored (0–2). The judge scores a fixed sample
-  of 20 cases per sheet in full and sees the whole sheet as an index.
-- Sheet score = (2 × spec coverage + no duplicates + honesty) / 4. Coverage counts double.
+  of 20 cases per sheet in full and sees the whole sheet as an index, each case with its steps and expected
+  results on one line (v3.2).
+- Sheet score = (spec coverage + no duplicates + honesty) / 3. Until v3.1 coverage counted double.
 - Overall = 0.5 × case score + 0.5 × sheet score, reported per spec and averaged per run.
 - A round "improves" only if the dev overall rises **and** no deterministic metric regresses (must-cover
-  recall, requirements with a case, style violations per 100 cases, code-status accuracy).
+  recall, second-order recall, requirements with a case, style violations per 100 cases, code-status
+  accuracy).
+- The judge does not give the same sheet the same score twice. `plan --judge-noise` compares two judgings
+  of identical sheets; a difference between rounds that is not clearly larger than that is not a result.
 - Scores are compared only between runs judged with the same rubric version and written in the same
   language.
 

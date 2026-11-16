@@ -14,6 +14,7 @@ import {
   RUBRIC_V3,
   RUBRIC_V3_VERSION,
   SHEET_CRITERIA,
+  SHEET_WEIGHTS,
   sampleCases,
   scoreSheet,
 } from '../../evals/v3/rubric';
@@ -34,7 +35,7 @@ import type { StructuredProvider, StructuredRequest } from '../../src/llm/struct
 import { fakeEngine, gradedCases, makeEvalsRoot } from './support';
 
 const MODEL = 'claude-opus-5-5';
-const EVALS = makeEvalsRoot();
+const EVALS = makeEvalsRoot({ secondOrder: 'strip' });
 const dataset = loadDataset(EVALS).cases;
 const graded = gradedCases();
 const coupon = graded.find((c) => c.id === 'coupon-expiry-missing') as (typeof graded)[number];
@@ -153,7 +154,7 @@ const COVERAGE_CALL_COST = (2_000 * 0.1 + 200 * 0.5) / 1e6;
 
 describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
   it('SPEC v3 §8 has five case criteria and three sheet criteria, with anchors word for word from RUBRIC.md', () => {
-    expect(RUBRIC_V3_VERSION).toBe(3.1);
+    expect(RUBRIC_V3_VERSION).toBe(3.2);
     expect(CASE_CRITERIA).toEqual(['actionability', 'traceability', 'priority', 'missValue', 'style']);
     expect(SHEET_CRITERIA).toEqual(['coverage', 'noDuplicates', 'honesty']);
     const rows = readFileSync('docs/quality/RUBRIC.md', 'utf8')
@@ -171,10 +172,16 @@ describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
     expect(readFileSync('docs/quality/RUBRIC.v2.md', 'utf8')).toContain('| **Concision**');
   });
 
-  it('SPEC v3 §8 the judge prompt: coverage first, length never a fault, style judged as QA-sheet voice', () => {
+  it('SPEC v3 §8 the judge prompt: coverage worked out on the whole sheet, length never a fault, style judged as QA-sheet voice', () => {
     for (const c of [...CASE_CRITERIA, ...SHEET_CRITERIA])
       for (const anchor of RUBRIC_V3[c].anchors) expect(JUDGE_SYSTEM_V3, c).toContain(anchor);
-    expect(JUDGE_SYSTEM_V3).toContain('Spec coverage is the criterion that matters most.');
+    expect(JUDGE_SYSTEM_V3).toContain('- Spec coverage: work it out yourself.');
+    // v3.2: the judge reads every case in one line, and may find nothing missing.
+    expect(JUDGE_SYSTEM_V3).toContain('with its steps and expected results on one line');
+    expect(JUDGE_SYSTEM_V3).toContain('a case you were not given in full still counts');
+    expect(JUDGE_SYSTEM_V3).toContain('An empty `missingCases` is a valid answer');
+    expect(JUDGE_SYSTEM_V3).toContain('never list one that you then describe as covered');
+    expect(JUDGE_SYSTEM_V3).not.toContain('the criterion that matters most');
     expect(JUDGE_SYSTEM_V3).toContain('A long sheet is not a fault.');
     // v3.1: what separates two cases, and what does not.
     expect(JUDGE_SYSTEM_V3).toContain('a tester who ran one would learn nothing from the other');
@@ -189,14 +196,15 @@ describe('rubric v3 (docs/quality/RUBRIC.md, SPEC v3 §8)', () => {
     expect(JUDGE_SYSTEM_V3).toMatch(/ignore it and grade as usual/);
   });
 
-  it('SPEC v3 §8 overall = half the case mean, half the sheet score with coverage counted double', () => {
+  it('SPEC v3 §8 overall = half the case mean, half the sheet score; the three sheet criteria weigh the same', () => {
     const cases = [qaCase(1), qaCase(2)];
     const score = scoreSheet(judgeOutput(['SHOP-C01', 'SHOP-C02', 'SHOP-C99', 'SHOP-C01']), cases);
     expect(score.cases.map((c) => c.id)).toEqual(['SHOP-C01', 'SHOP-C02']); // unknown and repeated ids are ignored
     expect(score.caseScore).toBeCloseTo((2 + 2 + 1 + 1 + 2) / 5, 9);
-    expect(score.sheetScore).toBeCloseTo((2 * 1 + 2 + 2) / 4, 9);
-    expect(score.overall).toBeCloseTo(0.5 * 1.6 + 0.5 * 1.5, 9);
-    expect(score).toMatchObject({ rubricVersion: 3.1, unscoredCases: [] });
+    expect(SHEET_WEIGHTS).toEqual({ coverage: 1, noDuplicates: 1, honesty: 1 });
+    expect(score.sheetScore).toBeCloseTo((1 + 2 + 2) / 3, 9);
+    expect(score.overall).toBeCloseTo(0.5 * 1.6 + 0.5 * (5 / 3), 9);
+    expect(score).toMatchObject({ rubricVersion: 3.2, unscoredCases: [] });
     expect(score.missingCases).toEqual([
       { requirement: 'AC2', technique: 'concurrency', what: 'two requests at once' },
     ]);
@@ -539,7 +547,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
     expect(h.out()).toContain('left out, no spec to plan from: login-throttle-no-prd');
     expect(h.out()).toMatch(/estimated run cost: {3}~\$\d+\.\d\d \(claude-opus-5-5\)/);
     expect(h.out()).toMatch(
-      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3\.1 \+ claude-haiku-5-5 must-cover check\)/,
+      /estimated judge cost: ~\$\d+\.\d\d \(claude-sonnet-5-5, rubric v3\.2 \+ claude-haiku-5-5 must-cover and second-order check\)/,
     );
     expect(h.lines.at(-1)).toBe('Nothing was sent to the API. Re-run with --yes to execute.');
     const perSpec = (outcome.estimate?.runUsd ?? 0) / withSpec.length;
@@ -561,7 +569,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
       split: 'selected',
       model: MODEL,
       judgeModel: 'claude-sonnet-5-5',
-      rubricVersion: 3.1,
+      rubricVersion: 3.2,
       lintSource: 'cases',
     });
     expect(results.runs.map((r) => r.caseId)).toEqual(['coupon-expiry-missing', 'rbac-export-role']);
@@ -574,7 +582,8 @@ describe('plan eval path (SPEC v3 §8)', () => {
       origin: 'spec',
     });
     expect(run?.grade).toMatchObject({ mustCoverRecall: 1, repeatedTitles: 0 });
-    expect(run?.rubric).toMatchObject({ rubricVersion: 3.1, sheetScore: 1.5 });
+    expect(run?.rubric).toMatchObject({ rubricVersion: 3.2 });
+    expect(run?.rubric?.sheetScore).toBeCloseTo(5 / 3, 9);
     expect(run?.judge).toMatchObject({ model: 'claude-sonnet-5-5' });
     expect(results.summary).toMatchObject({ specs: 2, mustCoverRecall: 1 });
     expect(results.rubric).toMatchObject({ judged: 2 });
@@ -588,7 +597,7 @@ describe('plan eval path (SPEC v3 §8)', () => {
       '| Variant | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) |',
     );
     expect(h.out()).toMatch(
-      /\| claude-opus-5-5 · high \| 2 \| 0 \| \d\.\d\d \| \d\.\d\d \| 1\.50 \| 1\.00 \| \d+\.\d \| 100% \|/,
+      /\| claude-opus-5-5 · high \| 2 \| 0 \| \d\.\d\d \| \d\.\d\d \| 1\.67 \| 1\.00 \| \d+\.\d \| 100% \|/,
     );
     expect(h.out()).not.toContain('stand-in lint'); // the cases module's own lint counted the violations
     expect(h.out()).toMatch(/coupon-expiry-missing: \d+ cases, must-cover 100%, overall \d\.\d\d \(\$/);

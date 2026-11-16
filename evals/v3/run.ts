@@ -33,7 +33,7 @@ import { planVerifyRun, type VerifyDiagnostics, verifyCases } from '../../src/ll
 import type { RubricClientLike } from '../rubric';
 import type { ProviderRequest } from '../run';
 import { type EvalCase, type GradedCase, inputHashOf, loadDataset } from '../schema';
-import { COVERAGE_MODEL, estimateCoverageCost, judgeMustCover } from './coverage';
+import { COVERAGE_MODEL, estimateCoverageCost, judgeChecklist, judgeMustCover } from './coverage';
 import {
   fallbackLint,
   gradePlan,
@@ -45,8 +45,9 @@ import {
   type VerifyGrade,
   type VerifySummary,
   withCoverageVerdicts,
+  withSecondOrderVerdicts,
 } from './grade';
-import { rescorePlan } from './rejudge';
+import { reportJudgeNoise, rescorePlan } from './rejudge';
 import { buildReviewPackV3, calibrateV3 } from './review';
 import { decideRoundV3, recordRoundV3, roundResultsPath } from './rounds';
 import {
@@ -107,6 +108,10 @@ export interface V3Options {
   rejudge: string | null;
   /** plan: recompute the deterministic metrics of this results file. Offline. */
   regrade: string | null;
+  /** plan: check the second-order combinations of this results file again. */
+  regradeCoverage: string | null;
+  /** plan: two judgings of the same sheets, to compare. Offline. */
+  judgeNoise: [string, string] | null;
   yes: boolean;
   help: boolean;
 }
@@ -133,6 +138,11 @@ plan, scoring saved sheets again (nothing is generated):
                         With --round the round's record is replaced and keeps its decision.
   --regrade <plan-results.json> [--round <n>] [--cases <id,id>]
                         style lint and keyword must-cover again; offline, no key
+  --regrade-coverage <plan-results.json> [--round <n>] [--cases <id,id>]
+                        which case tests each second-order combination (expected.secondOrder),
+                        asked of ${COVERAGE_MODEL}; a few cents, needs --yes like a run
+  --judge-noise <a.json> <b.json>
+                        how far two judgings of the same sheets are apart; offline
 plan, offline (no API call, no key):
   --round <n> --decision keep|revert     record the decision for a round
   --review-pack <plan-results.json> [--sample <n>] [--out <path>]
@@ -166,6 +176,8 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     calibrate: null,
     rejudge: null,
     regrade: null,
+    regradeCoverage: null,
+    judgeNoise: null,
     yes: false,
     help: false,
   };
@@ -188,6 +200,8 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     else if (flag === '--review-pack') o.reviewPack = value();
     else if (flag === '--rejudge') o.rejudge = value();
     else if (flag === '--regrade') o.regrade = value();
+    else if (flag === '--regrade-coverage') o.regradeCoverage = value();
+    else if (flag === '--judge-noise') o.judgeNoise = [value(), value()];
     else if (flag === '--out') o.out = value();
     else if (flag === '--calibrate') o.calibrate = [value(), value()];
     else if (flag === '--round' || flag === '--sample') {
@@ -226,7 +240,9 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
   if (o.decision && o.round === null) throw new Error('--decision needs --round <n>.');
   if (o.rejudge !== null && o.regrade !== null)
     throw new Error('--rejudge and --regrade cannot be combined; --rejudge regrades as well.');
-  const rescore = o.rejudge !== null || o.regrade !== null;
+  if (o.regradeCoverage !== null && (o.rejudge !== null || o.regrade !== null))
+    throw new Error('--regrade-coverage runs on its own; it regrades as well and keeps the rubric scores.');
+  const rescore = o.rejudge !== null || o.regrade !== null || o.regradeCoverage !== null;
   if (rescore && o.decision) throw new Error('--decision cannot be combined with --rejudge or --regrade.');
   // A round scored again keeps the change text it was recorded with.
   if (o.round !== null && !o.decision && !rescore && o.change.trim() === '') {
@@ -256,6 +272,8 @@ export interface PlanRun {
   /** What the merge step did to this sheet. Absent in results written before it was recorded. */
   merge?: PlanDiagnostics;
   coverageJudge?: { usage: LlmUsage; costUsd: number; error?: string };
+  /** The check of the spec's second-order combinations, when the spec has such a list. */
+  secondOrderJudge?: { usage: LlmUsage; costUsd: number; error?: string };
   warnings: string[];
   seconds: number;
 }
@@ -454,6 +472,7 @@ export function formatPlanTable(
     'Cases/spec',
     'Must-cover (kw)',
     'Must-cover (judge)',
+    '2nd-order recall',
     'Req. with a case',
     'Style viol./100',
     'Repeated titles',
@@ -475,6 +494,7 @@ export function formatPlanTable(
     s.casesPerSpec.toFixed(1),
     graded ? pct(s.mustCoverRecall) : '—',
     s.mustCoverRecallJudge === null ? '—' : pct(s.mustCoverRecallJudge),
+    s.secondOrderRecall == null ? '—' : pct(s.secondOrderRecall),
     graded ? pct(s.requirementCoverage) : '—',
     s.styleViolationsPer100.toFixed(1),
     s.repeatedTitles,
@@ -512,6 +532,10 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     return none(decideRoundV3(options.round, options.decision, deps));
   if (options.rejudge !== null) return rescorePlan(options.rejudge, 'rejudge', options, deps);
   if (options.regrade !== null) return rescorePlan(options.regrade, 'regrade', options, deps);
+  if (options.regradeCoverage !== null)
+    return rescorePlan(options.regradeCoverage, 'coverage', options, deps);
+  if (options.judgeNoise !== null)
+    return none(reportJudgeNoise(options.judgeNoise[0], options.judgeNoise[1], deps));
   const withSpec = s.cases.filter((c) => c.prdDocuments.length > 0);
   const withoutSpec = s.cases.filter((c) => c.prdDocuments.length === 0).map((c) => c.id);
   if (withSpec.length === 0) {
@@ -536,7 +560,10 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
       judgeUsd:
         (options.judge ? estimateJudgeCost(options.judgeModel, req.spec, expectedCases) : 0) +
         (options.coverageJudge && hasTruth(evalCase)
-          ? estimateCoverageCost(expectedCases, evalCase.expected.mustScenarios.length)
+          ? estimateCoverageCost(expectedCases, evalCase.expected.mustScenarios.length) +
+            ((evalCase.expected.secondOrder ?? []).length > 0
+              ? estimateCoverageCost(expectedCases, (evalCase.expected.secondOrder ?? []).length)
+              : 0)
           : 0),
     };
   });
@@ -564,7 +591,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   print(`  estimated run cost:   ~$${runUsd.toFixed(2)} (${options.model})`);
   const judges = [
     ...(options.judge ? [`${options.judgeModel}, rubric v${RUBRIC_V3_VERSION}`] : []),
-    ...(options.coverageJudge ? [`${COVERAGE_MODEL} must-cover check`] : []),
+    ...(options.coverageJudge ? [`${COVERAGE_MODEL} must-cover and second-order check`] : []),
   ];
   print(
     `  estimated judge cost: ~$${judgeUsd.toFixed(2)} (${judges.length > 0 ? judges.join(' + ') : 'no judge'}${options.judge ? '' : '; add --judge for rubric scores'})`,
@@ -614,6 +641,25 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
           ...(verdict.error ? { error: verdict.error } : {}),
         };
       }
+      // The fixed list of second-order combinations, checked the same way: the figure spec
+      // coverage is compared by, since what a judge finds missing changes with every reading.
+      let secondOrderJudge: PlanRun['secondOrderJudge'];
+      const list = hasTruth(evalCase) ? (evalCase.expected.secondOrder ?? []) : [];
+      if (coverageClient && grade && list.length > 0) {
+        const verdict = await judgeChecklist(coverageClient, list, cases);
+        if (verdict.verdicts) {
+          grade = withSecondOrderVerdicts(
+            grade,
+            list.map((s) => s.id),
+            verdict.verdicts,
+          );
+        }
+        secondOrderJudge = {
+          usage: verdict.usage,
+          costUsd: verdict.costUsd,
+          ...(verdict.error ? { error: verdict.error } : {}),
+        };
+      }
       let rubric: SheetScore | undefined;
       let judge: PlanRun['judge'];
       if (judgeClient) {
@@ -642,12 +688,13 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
         dropped: result.dropped,
         merge: result.diagnostics,
         ...(coverageJudge ? { coverageJudge } : {}),
+        ...(secondOrderJudge ? { secondOrderJudge } : {}),
         warnings: result.warnings.map((w) => `${w.code}: ${w.message}`),
         seconds: (deps.now() - started) / 1000,
       });
       const merged = result.diagnostics.mergedAway.length;
       const cover = grade
-        ? `, must-cover ${pct(grade.mustCoverRecallJudge ?? grade.mustCoverRecall)}${grade.mustCoverRecallJudge === undefined ? ' (kw)' : ''}`
+        ? `, must-cover ${pct(grade.mustCoverRecallJudge ?? grade.mustCoverRecall)}${grade.mustCoverRecallJudge === undefined ? ' (kw)' : ''}${grade.secondOrderRecall === undefined ? '' : `, 2nd-order ${pct(grade.secondOrderRecall)}`}`
         : '';
       const overall = rubric
         ? `, overall ${rubric.overall.toFixed(2)}`
@@ -687,7 +734,11 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     summary: summarizePlan(runs.flatMap((r) => (r.grade ? [r.grade] : [fallbackGrade(r)]))),
     rubric: summarizeSheets(runs.flatMap((r) => (r.rubric ? [r.rubric] : []))),
     costUsd: runs.reduce((n, r) => n + r.costUsd, 0) + errors.reduce((n, e) => n + e.costUsd, 0),
-    judgeCostUsd: runs.reduce((n, r) => n + (r.judge?.costUsd ?? 0) + (r.coverageJudge?.costUsd ?? 0), 0),
+    judgeCostUsd: runs.reduce(
+      (n, r) =>
+        n + (r.judge?.costUsd ?? 0) + (r.coverageJudge?.costUsd ?? 0) + (r.secondOrderJudge?.costUsd ?? 0),
+      0,
+    ),
   };
   const resultsPath =
     options.round === null

@@ -1,5 +1,14 @@
 /** Helpers for eval tests: an oracle report, a null report and a stand-in preprocess engine. */
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { vi } from 'vitest';
@@ -124,10 +133,24 @@ export const REAL_ABSENT = 'real-absent-3';
 /**
  * A throwaway `evals/` directory: the committed synthetic cases and splits, plus two real-PR
  * snapshots (no expected.json; the first one with options.json) and one listed-but-absent one.
+ *
+ * With `secondOrder: 'strip'` the copies have no second-order lists. Tests of that figure add the
+ * lists they assert on, so the committed data can grow without changing what they check.
  */
-export function makeEvalsRoot(): string {
+export function makeEvalsRoot(options: { secondOrder?: 'keep' | 'strip' } = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'qtg-evals-'));
   cpSync(CASES_ROOT, join(root, 'cases'), { recursive: true });
+  if (options.secondOrder === 'strip') {
+    for (const id of readdirSync(join(root, 'cases'))) {
+      const file = join(root, 'cases', id, 'expected.json');
+      if (!existsSync(file)) continue;
+      const { secondOrder: _list, ...rest } = JSON.parse(readFileSync(file, 'utf8')) as Record<
+        string,
+        unknown
+      >;
+      writeFileSync(file, JSON.stringify(rest));
+    }
+  }
   cpSync(join(EVALS_ROOT, 'splits.json'), join(root, 'splits.json'));
   for (const [id, { source, number }] of Object.entries(REAL_DEMO)) {
     const dir = join(root, 'real', id);

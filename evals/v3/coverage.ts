@@ -48,8 +48,14 @@ export interface CoverageResult {
 const ZERO: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const guard = (text: string): string => text.replace(/<(\/?)(checklist|cases)\b/gi, '&lt;$1$2');
 
-export function buildCoverageInput(evalCase: GradedCase, cases: QaCase[]): string {
-  const risks = evalCase.expected.mustScenarios.map((m) => `- ${m.id}: ${m.risk}`).join('\n');
+/** One item of a checklist: something a sheet should have a case for. */
+export interface Risk {
+  id: string;
+  risk: string;
+}
+
+export function buildCoverageInput(checklist: Risk[], cases: QaCase[]): string {
+  const risks = checklist.map((m) => `- ${m.id}: ${guard(m.risk)}`).join('\n');
   const sheet = cases
     .filter((c) => c.lifecycle === 'active')
     .map(
@@ -61,9 +67,19 @@ export function buildCoverageInput(evalCase: GradedCase, cases: QaCase[]): strin
 }
 
 /** Asks which case tests each must-cover risk. Never throws. */
-export async function judgeMustCover(
+export const judgeMustCover = (
   client: RubricClientLike,
   evalCase: GradedCase,
+  cases: QaCase[],
+): Promise<CoverageResult> => judgeChecklist(client, evalCase.expected.mustScenarios, cases);
+
+/**
+ * Asks which case tests each item of a checklist, reading the whole sheet. Used for the must-cover
+ * risks and for the second-order combinations. Never throws.
+ */
+export async function judgeChecklist(
+  client: RubricClientLike,
+  checklist: Risk[],
   cases: QaCase[],
 ): Promise<CoverageResult> {
   try {
@@ -72,7 +88,7 @@ export async function judgeMustCover(
       max_tokens: MAX_TOKENS,
       system: COVERAGE_SYSTEM,
       output_config: { effort: 'low', format: FORMAT },
-      messages: [{ role: 'user', content: buildCoverageInput(evalCase, cases) }],
+      messages: [{ role: 'user', content: buildCoverageInput(checklist, cases) }],
     });
     const usage: LlmUsage = {
       inputTokens: message.usage.input_tokens,
@@ -86,7 +102,7 @@ export async function judgeMustCover(
       return { verdicts: null, usage, costUsd, error: 'coverage judge returned no verdicts' };
     const known = new Set(cases.map((c) => c.caseId));
     const verdicts: Record<string, string | null> = {};
-    for (const must of evalCase.expected.mustScenarios) verdicts[must.id] = null;
+    for (const item of checklist) verdicts[item.id] = null;
     for (const v of parsed.data.verdicts) {
       const caseId = v.caseId.trim();
       // A risk is covered only by a case that exists; an invented id is no evidence.
