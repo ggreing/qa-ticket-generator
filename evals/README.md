@@ -96,6 +96,35 @@ node evals/cli.mjs plan --calibrate evals/rounds/v3/0/raw/ratings.ko.json evals/
 - **Calibration** prints the judge-minus-person difference per criterion, and per sheet how many
   cases the person and the judge each found missing.
 
+### Deciding a prompt change on the test split
+
+The dev specs are the ones prompts get written from: their sheets are read, and their second-order lists
+were written with those sheets known. A change that came from reading them can fit them without finding
+more anywhere else. Round 3 did: dev recall went from 82% to 93%, test recall from 89% to 90%
+(`docs/quality/PLAN_QUESTIONS.md`). Such a change is decided on the test split, with the same spec ids
+in both runs:
+
+```bash
+TEST=catalog-sync-mapreduce,feature-rollout-noise,ledger-export-narrative-go,loyalty-points-injection,migration-split-name,notification-retry-aligned,refund-webhook-ko-py,report-timezone,upload-size-scan
+
+# A: the prompt in use. Run it from a checkout of the commit that has it.
+node evals/cli.mjs plan --cases $TEST --language ko --judge --yes
+# B: the new prompt, from the checkout that has it.
+node evals/cli.mjs plan --cases $TEST --language ko --judge --yes
+
+# B against A by the rule rounds are kept by. Offline; records nothing.
+node evals/cli.mjs plan --compare evals/results/<A>-plan.json evals/results/<B>-plan.json
+```
+
+- `--cases` and not `--split test`: the split also picks up real cases that happen to be on the
+  machine, and then the two runs hold different sheets. `--compare` takes every figure over the
+  sheets both files hold and names the ones it left out, so such a pair can still be compared, but
+  the tables each run printed are then not the ones to quote.
+- Neither run is a round. `--compare` refuses runs in different languages, of different splits, or
+  scored under different rubric versions.
+- Do not read the test sheets to write the next change. Their numbers decide; a prompt written from
+  their cases makes the test split a second dev split.
+
 ### Scoring saved sheets again
 
 ```bash

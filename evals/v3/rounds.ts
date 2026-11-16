@@ -11,9 +11,9 @@
  * Owner: qa-work-session-c(fable).
  */
 import { join } from 'node:path';
-import { mustCoverOf } from './grade';
-import { CASE_CRITERIA, type CriterionV3, RUBRIC_V3, SHEET_CRITERIA } from './rubric';
-import type { PlanResults, V3Deps } from './run';
+import { mustCoverOf, summarizePlan } from './grade';
+import { CASE_CRITERIA, type CriterionV3, RUBRIC_V3, SHEET_CRITERIA, summarizeSheets } from './rubric';
+import { fallbackGrade, type PlanResults, type V3Deps } from './run';
 
 export interface RoundRecordV3 {
   round: number;
@@ -332,10 +332,25 @@ export function compareV3(record: RoundRecordV3, records: RoundRecordV3[]): Comp
   };
 }
 
+/** The same results over fewer sheets: every mean is taken again, over those sheets only. */
+function narrowTo(r: PlanResults, ids: ReadonlySet<string>): PlanResults {
+  const runs = r.runs.filter((x) => ids.has(x.caseId));
+  return {
+    ...r,
+    runs,
+    errors: r.errors.filter((e) => ids.has(e.caseId)),
+    summary: summarizePlan(runs.map((x) => x.grade ?? fallbackGrade(x))),
+    rubric: summarizeSheets(runs.flatMap((x) => (x.rubric ? [x.rubric] : []))),
+  };
+}
+
 /**
  * `plan --compare <a.json> <b.json>`: two result files of the same specs, compared by the rule
  * rounds are kept by, without recording either as a round. For runs that are not rounds, such as
  * the test split under two prompts. Offline.
+ *
+ * Every figure is over the sheets both files hold. A run that picked up more specs than the other
+ * (real cases that are on one machine only) would otherwise be averaged over other sheets.
  */
 export function compareResultFiles(pathA: string, pathB: string, deps: V3Deps): number {
   const read = (path: string): PlanResults | null => {
@@ -346,23 +361,38 @@ export function compareResultFiles(pathA: string, pathB: string, deps: V3Deps): 
       return null;
     }
   };
-  const a = read(pathA);
-  const b = read(pathB);
-  if (!a || !b) {
-    deps.print(`Cannot compare: ${!a ? pathA : pathB} is not a readable plan results file.`);
+  const fileA = read(pathA);
+  const fileB = read(pathB);
+  if (!fileA || !fileB) {
+    deps.print(`Cannot compare: ${!fileA ? pathA : pathB} is not a readable plan results file.`);
     return 2;
   }
+  const inA = new Set(fileA.runs.map((x) => x.caseId));
+  const both = new Set(fileB.runs.map((x) => x.caseId).filter((id) => inA.has(id)));
+  const onlyA = fileA.runs.map((x) => x.caseId).filter((id) => !both.has(id));
+  const onlyB = fileB.runs.map((x) => x.caseId).filter((id) => !both.has(id));
+  const a = narrowTo(fileA, both);
+  const b = narrowTo(fileB, both);
   const base: RoundRecordV3 = { ...toRecordV3(0, 'A', a), decision: 'keep' };
   const record = toRecordV3(1, 'B', b);
   const c = compareV3(record, [base]);
   const shared = Object.keys(record.specOverall).filter((k) => base.specOverall[k] !== undefined).length;
   deps.print('Comparison of two plan runs (B against A)');
   deps.print(
-    `  A: ${pathA}   prompt ${a.promptVersion}   ${a.split}   ${a.language}   ${a.runs.length} sheet(s)   rubric v${a.rubricVersion ?? '—'}`,
+    `  A: ${pathA}   prompt ${a.promptVersion}   ${a.split}   ${a.language}   ${fileA.runs.length} sheet(s)   rubric v${a.rubricVersion ?? '—'}`,
   );
   deps.print(
-    `  B: ${pathB}   prompt ${b.promptVersion}   ${b.split}   ${b.language}   ${b.runs.length} sheet(s)   rubric v${b.rubricVersion ?? '—'}`,
+    `  B: ${pathB}   prompt ${b.promptVersion}   ${b.split}   ${b.language}   ${fileB.runs.length} sheet(s)   rubric v${b.rubricVersion ?? '—'}`,
   );
+  if (both.size === 0) {
+    deps.print('Cannot compare: the two runs have no sheet in common.');
+    return 2;
+  }
+  if (onlyA.length > 0 || onlyB.length > 0) {
+    deps.print(
+      `  Every figure below is over the ${both.size} sheet(s) both runs hold. Left out:${onlyA.length > 0 ? ` from A ${onlyA.join(', ')}` : ''}${onlyA.length > 0 && onlyB.length > 0 ? ';' : ''}${onlyB.length > 0 ? ` from B ${onlyB.join(', ')}` : ''}.`,
+    );
+  }
   if (c.rows.length === 0) {
     deps.print(`Cannot compare: ${c.reason}`);
     return 2;
