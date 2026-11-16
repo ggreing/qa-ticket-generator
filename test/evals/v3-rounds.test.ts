@@ -38,6 +38,7 @@ import {
 import { lintCaseStyle } from '../../src/cases';
 import type { QaCase } from '../../src/core/cases';
 import type { LlmResult, LlmUsage } from '../../src/core/contracts';
+import { QtgError } from '../../src/core/errors';
 import type { PlanOutput } from '../../src/core/schema';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import { styleExamples } from '../../src/llm/prompts/style';
@@ -376,6 +377,40 @@ describe('plan eval records what the coverage judge and the merge step did (SPEC
       '  coupon-expiry-missing: "중복 확인 케이스" -> "중복 확인 케이스" (같은 준비 상태에서 같은 결과 확인)',
     );
     expect(h.out()).toMatch(/\| Merged away \| Cost \|/);
+  });
+});
+
+describe('plan eval says when a sheet ran into the output limit', () => {
+  it('a reply that was cut off and written again in halves is counted and named', async () => {
+    const h = harness();
+    const inner = h.deps.createProvider({} as never) as StructuredProvider;
+    let cut = false;
+    const provider: StructuredProvider = {
+      ...inner,
+      generateStructured: ((req: StructuredRequest<unknown>, signal: AbortSignal) => {
+        if (!cut && req.what !== 'merge') {
+          cut = true;
+          return Promise.reject(new QtgError('llm_truncated', 'cut off', { usage: usage(3_000, 32_000) }));
+        }
+        return inner.generateStructured(req, signal);
+      }) as StructuredProvider['generateStructured'],
+    };
+    const outcome = await runPlanEval(['--cases', 'rbac-export-role', '--language', 'ko', '--yes'], {
+      ...h.deps,
+      createProvider: () => provider,
+    });
+    const run = outcome.plan?.runs[0] as PlanRun;
+    // Planned: one call for the three requirements. Made: the cut-off one, then two halves, then a merge.
+    expect(run.calls).toBeGreaterThan(1);
+    expect(run.extraCalls).toBe(run.calls - 1);
+    expect(h.out()).toContain(
+      `1 sheet(s) needed more calls than planned, because a reply was cut off at the output limit and written again in halves: rbac-export-role (+${run.extraCalls}). Those sheets cost more than estimated.`,
+    );
+    // A run that stays inside the limit says nothing and records nothing.
+    const calm = harness();
+    const fine = await runPlanEval(['--cases', 'rbac-export-role', '--language', 'ko', '--yes'], calm.deps);
+    expect(fine.plan?.runs[0]?.extraCalls).toBeUndefined();
+    expect(calm.out()).not.toContain('cut off at the output limit');
   });
 });
 
