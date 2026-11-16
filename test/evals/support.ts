@@ -2,9 +2,15 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { vi } from 'vitest';
 import type { RubricClientLike } from '../../evals/rubric';
 import { type EvalCase, type GradedCase, loadCases } from '../../evals/schema';
 import type { CreatePreprocessEngine, QaReport } from '../../src/core/contracts';
+
+// The eval tests do dry runs over the whole dataset, several per test. On a machine that is also
+// running other suites a test takes five to six seconds, which is the default limit; a file that
+// imports this module gets room instead of failing now and then.
+vi.setConfig({ testTimeout: 20_000 });
 
 export const CASES_ROOT = resolve('evals/cases');
 export const EVALS_ROOT = resolve('evals');
