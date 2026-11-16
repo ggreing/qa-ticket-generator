@@ -405,9 +405,9 @@ describe('plan eval says when a sheet ran into the output limit', () => {
       createProvider: () => provider,
     });
     const run = outcome.plan?.runs[0] as PlanRun;
-    // Planned: one call for the three requirements and the merge pass. Made: the cut-off one, two
-    // halves, and the merge.
-    expect(run.calls).toBe(4);
+    // Planned: one call for the three requirements, and no merge pass for a sheet written in one
+    // call. Made: the cut-off one and the two halves.
+    expect(run.calls).toBe(3);
     expect(run.extraCalls).toBe(2);
     expect(h.out()).toContain(
       `1 sheet(s) needed more calls than planned, because a reply was cut off at the output limit and written again in halves: rbac-export-role (+${run.extraCalls}). Those sheets cost more than estimated.`,
