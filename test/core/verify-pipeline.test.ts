@@ -477,3 +477,45 @@ describe('runVerify redaction counts (PRE-05)', () => {
     ]);
   });
 });
+
+describe('runVerify Slack notice (SPEC v3)', () => {
+  it('posts before saving the comment and stores the message id in the comment state', async () => {
+    const order: string[] = [];
+    const postVerify = vi.fn(async () => {
+      order.push('slack');
+      return { ok: true, statePatch: { slack: { channel: 'C1', ts: '1.2' } } };
+    });
+    const save = vi.fn(async (_pr, _id, _body, st: unknown) => {
+      order.push('comment');
+      return { commentId: 1, url: String(JSON.stringify(st)) };
+    });
+    const { deps } = makeDeps(memorySink([baseCase(1)]), {
+      slack: { postVerify, postPlan: vi.fn() } as never,
+      commentStore: {
+        load: vi.fn(async () => ({ commentId: null, state: { v: 1 as const }, warnings: [] })),
+        save,
+      },
+    });
+    await runVerify(deps, cfg(), pr, { name: 'pull_request' }, signal);
+    expect(order).toEqual(['slack', 'comment']);
+    expect(save.mock.calls[0]?.[3]).toMatchObject({ slack: { channel: 'C1', ts: '1.2' }, sha: pr.headSha });
+  });
+
+  it('keeps going and reports a warning when Slack fails; sends nothing in dry-run', async () => {
+    const postVerify = vi.fn(async () => ({
+      ok: false,
+      warning: { code: 'slack_failed' as const, message: 'x' },
+    }));
+    const { deps } = makeDeps(memorySink([baseCase(1)]), {
+      slack: { postVerify, postPlan: vi.fn() } as never,
+    });
+    const out = await runVerify(deps, cfg(), pr, { name: 'pull_request' }, signal);
+    expect(out).toMatchObject({ kind: 'verified', status: 'ok' });
+    if (out.kind === 'verified') expect(out.warnings.some((w) => w.code === 'slack_failed')).toBe(true);
+
+    const dry = makeDeps(memorySink([baseCase(1)]), { slack: { postVerify, postPlan: vi.fn() } as never });
+    postVerify.mockClear();
+    await runVerify(dry.deps, cfg({ 'dry-run': 'true' }), pr, { name: 'pull_request' }, signal);
+    expect(postVerify).not.toHaveBeenCalled();
+  });
+});

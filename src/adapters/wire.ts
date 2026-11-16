@@ -26,6 +26,7 @@ import { createPrCommentStore } from '../delivery/comment-store';
 import { renderPrComment } from '../delivery/render/markdown';
 import { renderVerifyComment, renderVerifySummaryMarkdown } from '../delivery/render/verify-summary';
 import { createSlackDeliverer } from '../delivery/slack';
+import { createSlackNotifier } from '../delivery/slack-v3';
 import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
 import { createAnthropicProvider } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
@@ -160,6 +161,7 @@ export async function execute(req: ExecuteRequest): Promise<ExecuteResult> {
       redactText,
       llm,
       verifyCases,
+      slack: createSlackNotifier(cfg.slack, logger),
       redactPatch,
       isCosmeticPatch,
       applyVerify,
@@ -304,6 +306,7 @@ function planDeps(
     renderCase,
     lintCaseStyle,
     sinks,
+    slack: createSlackNotifier(cfg.slack, req.logger),
   };
 }
 

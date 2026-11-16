@@ -228,8 +228,8 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 - 워크플로를 추가하기 _전에_ 열린 PR은 라벨을 붙여도 아무 일이 없을 수 있습니다. GitHub가 그 PR의 merge
   커밋을 갱신하지 않아서 새 워크플로를 못 보기 때문이에요. 브랜치를 갱신하면("Update branch" 버튼이나
   `gh pr update-branch <number>`) 다음 push부터 실행됩니다.
-- Slack에는 기획서를 링크하지 않은 PR만 올라갑니다. 기획 실행과 케이스 티켓 대조 결과는 아직 Slack으로
-  보내지 않습니다.
+- Slack에는 기획 실행마다 한 번, PR 대조마다 한 번 올라갑니다(bot token이면 같은 메시지를 갱신). 실패한
+  실행은 올리지 않습니다.
 - Slack incoming webhook은 게시만 할 수 있어서 실행할 때마다 새 메시지가 쌓입니다. 같은 메시지를 고치고
   스레드를 쓰려면 bot 토큰(`slack-bot-token`, `slack-channel`)을 쓰세요.
 - 기본 `GITHUB_TOKEN`으로는 다른 private 레포의 이슈를 읽지 못합니다. 기획서가 다른 레포에 있다면 PAT나

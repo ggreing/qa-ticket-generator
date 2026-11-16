@@ -55,6 +55,8 @@ export interface PlanDeps {
   renderCase: (c: QaCase, language: Language) => RenderedCase;
   lintCaseStyle: LintCaseStyle;
   sinks: CaseSink[];
+  /** Optional Slack notice (null when Slack is not configured). */
+  slack?: import('./notify').SlackNotifier | null;
 }
 
 export interface SinkOutcome {
@@ -284,6 +286,17 @@ export async function runPlan(
         logger.warn(`${sink.kind}: summary failed: ${(err as Error).message}`);
         warnings.push({ code: 'other', message: `${sink.kind}: could not publish the case summary.` });
       }
+    }
+    if (!cfg.dryRun && deps.slack && outcome.sinks.some((s) => s.ok)) {
+      const main = outcome.sinks.find((s) => s.kind === primary?.kind);
+      const listUrl = main?.summaryUrl ?? outcome.sinks.find((s) => s.summaryUrl)?.summaryUrl;
+      const res = await deps.slack.postPlan(summary, {
+        ...(listUrl ? { listUrl } : {}),
+        ...(main
+          ? { changes: { created: main.created, updated: main.updated, obsoleted: main.obsoleted } }
+          : {}),
+      });
+      if (res.warning) warnings.push(res.warning);
     }
     if (outcome.sinks.every((s) => !s.ok)) {
       throw new QtgError('internal', 'No sink accepted the QA cases. See the warnings for each sink.');

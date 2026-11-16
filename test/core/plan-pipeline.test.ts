@@ -319,3 +319,38 @@ describe('case links in the summary (SPEC v3 §5)', () => {
     ]);
   });
 });
+
+describe('runPlan Slack notice (SPEC v3)', () => {
+  it('posts once after syncing, with the primary sink list link and changes; not when skipped', async () => {
+    const postPlan = vi.fn(async (_s: unknown, _ctx?: unknown) => ({ ok: true }));
+    const jira = fakeSink('jira');
+    const deps = makeDeps([jira.sink, fakeSink('file').sink], {
+      slack: { postPlan, postVerify: vi.fn() } as never,
+    });
+    await runPlan(deps, cfg({ sinks: 'jira,file' }), spec, signal);
+    expect(postPlan).toHaveBeenCalledOnce();
+    expect(postPlan.mock.calls[0]?.[1]).toEqual({
+      listUrl: 'https://jira/summary',
+      changes: { created: 2, updated: 0, obsoleted: 0 },
+    });
+
+    postPlan.mockClear();
+    const spec0 = {
+      title: '쿠폰 적용',
+      bodyMarkdown: '토큰 [REDACTED:github_token] 포함',
+      acceptanceCriteria: ['AC1: 만료 쿠폰 거부'],
+    };
+    const last: QaCase = {
+      ...planned('a'),
+      caseId: 'PROJ-123-C01',
+      specRef: 'PROJ-123',
+      lifecycle: 'active',
+      specDigest: specDigestOf(spec0),
+    };
+    const skip = makeDeps([fakeSink('jira', [{ ...existingTicket, lastWritten: last }]).sink], {
+      slack: { postPlan, postVerify: vi.fn() } as never,
+    });
+    await runPlan(skip, cfg({ sinks: 'jira' }), spec, signal);
+    expect(postPlan).not.toHaveBeenCalled();
+  });
+});

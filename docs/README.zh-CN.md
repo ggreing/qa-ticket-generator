@@ -216,7 +216,7 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 - 在你添加 workflow *之前*就已经打开的 PR,打上标签可能没有任何反应。因为 GitHub 不会刷新那个 PR 的 merge
   提交,它看不到新的 workflow。更新一下分支("Update branch" 按钮或 `gh pr update-branch <number>`),
   之后的 push 就会触发运行。
-- 目前只有没关联需求的 PR 会发到 Slack。规划和对照用例单的结果还不会发到 Slack。
+- 每次规划和每次 PR 对照各发一条 Slack 消息(用 bot token 时原地更新)。失败的运行不发。
 - Slack 的 incoming webhook 只能发消息,所以每次运行都会多一条新消息。想要原地更新和回复串,请用 bot token
   (`slack-bot-token` 和 `slack-channel`)。
 - 默认的 `GITHUB_TOKEN` 读不了其他私有仓库里的 issue。如果需求写在别的仓库,请把 PAT 或 GitHub App 的 token

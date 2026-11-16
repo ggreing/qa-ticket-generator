@@ -238,8 +238,8 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 - Labeling a PR that was opened _before_ you added the workflow may do nothing. GitHub doesn't refresh that
   PR's merge commit, so it never sees the new workflow. Update the branch (the "Update branch" button or
   `gh pr update-branch <number>`) and the next push starts a run.
-- Slack only hears about PRs that link no spec. Plan runs and PR checks against case tickets don't post
-  there yet.
+- Slack gets one message per plan run and one per PR check (updated in place with a bot token). A failed
+  run doesn't post.
 - Slack incoming webhooks can only post, so each run adds a new message. For update-in-place and threads,
   use a bot token (`slack-bot-token` and `slack-channel`).
 - The default `GITHUB_TOKEN` can't read issues in other private repositories. Pass a personal access token

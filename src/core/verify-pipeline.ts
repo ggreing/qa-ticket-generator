@@ -86,6 +86,8 @@ export interface VerifyDeps {
   redactPatch: RedactText;
   /** §2.2 — true when a file's patch only touches comments, blank lines or whitespace. */
   isCosmeticPatch: (path: string, patch: string) => boolean;
+  /** Optional Slack notice (null when Slack is not configured). */
+  slack?: import('./notify').SlackNotifier | null;
   llm: LlmProvider;
   verifyCases: (
     req: VerifyRequest,
@@ -354,9 +356,20 @@ export async function runVerify(
         redactions: [...masked].filter(([, n]) => n > 0).map(([type, n]) => ({ type, count: n })),
       },
     };
+    // Slack goes first so the message id it returns lands in the saved comment state.
+    let slackPatch: Partial<DeliveryState> = {};
+    if (!cfg.dryRun && deps.slack) {
+      const res = await deps.slack.postVerify(data, state);
+      if (res.warning) warnings.push(res.warning);
+      if (res.statePatch) slackPatch = res.statePatch;
+    }
     if (!cfg.dryRun && cfg.prComment) {
       try {
-        await deps.commentStore.save(pr, commentId, deps.renderComment(data), { ...state, sha: pr.headSha });
+        await deps.commentStore.save(pr, commentId, deps.renderComment(data), {
+          ...state,
+          ...slackPatch,
+          sha: pr.headSha,
+        });
       } catch (err) {
         logger.warn(`PR comment failed: ${(err as Error).message}`);
         warnings.push({ code: 'comment_failed', message: 'Could not write the PR comment.' });
