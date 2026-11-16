@@ -248,6 +248,11 @@ export interface PlanRun {
   costUsd: number;
   calls: number;
   dropped: number;
+  /**
+   * Calls beyond the ones planned. A reply that is cut off at the output limit is written again in
+   * two halves, which is paid for twice; more than zero means the sheet is close to that limit.
+   */
+  extraCalls?: number;
   /** What the merge step did to this sheet. Absent in results written before it was recorded. */
   merge?: PlanDiagnostics;
   coverageJudge?: { usage: LlmUsage; costUsd: number; error?: string };
@@ -589,10 +594,11 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
   const runs: PlanRun[] = [];
   const errors: RunErrorV3[] = [];
 
-  await pool(planned, options.concurrency, async ({ evalCase, req }) => {
+  await pool(planned, options.concurrency, async ({ evalCase, req, plan }) => {
     const started = deps.now();
     try {
       const result = await generatePlan(req, provider, guard, new AbortController().signal);
+      const extraCalls = Math.max(0, result.calls - (plan.groups.length + (plan.merge ? 1 : 0)));
       const cases = assignIds(
         req.spec.ref.id,
         result.cases.map(({ reuseCaseId: _reuse, ...draft }) => draft),
@@ -632,6 +638,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
         usage: result.usage,
         costUsd: result.costUsd,
         calls: result.calls,
+        ...(extraCalls > 0 ? { extraCalls } : {}),
         dropped: result.dropped,
         merge: result.diagnostics,
         ...(coverageJudge ? { coverageJudge } : {}),
@@ -712,6 +719,11 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     for (const line of mergedAway.slice(0, 20)) print(`  ${line}`);
     if (mergedAway.length > 20) print(`  … and ${mergedAway.length - 20} more, all in the results file`);
   }
+  const cutOff = runs.filter((r) => (r.extraCalls ?? 0) > 0).map((r) => `${r.caseId} (+${r.extraCalls})`);
+  if (cutOff.length > 0)
+    print(
+      `${cutOff.length} sheet(s) needed more calls than planned, because a reply was cut off at the output limit and written again in halves: ${cutOff.join(', ')}. Those sheets cost more than estimated.`,
+    );
   print(`Results written to ${resultsPath}`);
   // Last, so the recommendation is the final thing on screen.
   if (options.round !== null)
