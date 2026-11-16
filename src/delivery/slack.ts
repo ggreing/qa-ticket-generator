@@ -31,15 +31,31 @@ export interface SlackDelivererDeps {
   fullReportUrl?: (final: FinalReport) => string | undefined;
 }
 
-type SlackState = NonNullable<DeliveryState['slack']>;
+export type SlackState = NonNullable<DeliveryState['slack']>;
 
-const CHANNEL_ID = /^[CGD][A-Z0-9]{6,}$/;
+// Shared with the v3 notices (./slack-v3.ts).
+export const CHANNEL_ID = /^[CGD][A-Z0-9]{6,}$/;
 /** Slack is a side channel: fail fast instead of the SDK default of ten retries over ~30 minutes. */
-const REQUEST_TIMEOUT_MS = 15_000;
+export const REQUEST_TIMEOUT_MS = 15_000;
 const RETRIES = 2;
 
+/** Bot-mode client with the timeout and retry policy above. */
+export function createSlackClient(token: string): SlackChatClient {
+  return new WebClient(token, {
+    timeout: REQUEST_TIMEOUT_MS,
+    retryConfig: { retries: RETRIES, factor: 2, minTimeout: 500 },
+    rejectRateLimitedCalls: false,
+  });
+}
+
+/** State written for another channel is ignored, so a config change starts a new message. */
+export function previousMessage(channel: string, state: DeliveryState): SlackState | undefined {
+  const same = !state.slack || !CHANNEL_ID.test(channel) || state.slack.channel === channel;
+  return same ? state.slack : undefined;
+}
+
 /** Short, content-free description of a failure for the log (never a URL, token or message body). */
-function describeError(err: unknown): string {
+export function describeError(err: unknown): string {
   const e = err as { data?: { error?: string }; code?: string; name?: string } | null;
   return e?.data?.error ?? e?.code ?? e?.name ?? 'unknown error';
 }
@@ -100,13 +116,7 @@ export function createSlackDeliverer(
     };
   }
 
-  const client: SlackChatClient =
-    deps.client ??
-    new WebClient(slack.token, {
-      timeout: REQUEST_TIMEOUT_MS,
-      retryConfig: { retries: RETRIES, factor: 2, minTimeout: 500 },
-      rejectRateLimitedCalls: false,
-    });
+  const client: SlackChatClient = deps.client ?? createSlackClient(slack.token);
   const postMessage = async (channel: string, message: SlackMessage, threadTs?: string) => {
     const res = await client.chat.postMessage({
       channel,
@@ -123,10 +133,7 @@ export function createSlackDeliverer(
   return {
     channel: 'slack',
     async deliver(final, state) {
-      // State written for another channel is ignored, so a config change starts a new message.
-      const sameChannel =
-        !state.slack || !CHANNEL_ID.test(slack.channel) || state.slack.channel === slack.channel;
-      const previous: SlackState | undefined = sameChannel ? state.slack : undefined;
+      const previous = previousMessage(slack.channel, state);
       const card = buildSummaryCard(final, reportUrl(final));
 
       if (final.status !== 'ok') {
