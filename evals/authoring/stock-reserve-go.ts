@@ -288,6 +288,38 @@ func (r *Reserver) Confirm(ctx context.Context, id string) error {
         keywords: [['confirm']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'confirm-at-15-min',
+        risk: 'A reservation is confirmed exactly 15 minutes after it was made.',
+        why: 'across-the-line; judge r0',
+      },
+      {
+        id: 'confirm-after-release',
+        risk: 'A reservation is confirmed after it was already released.',
+        why: 'and-then',
+      },
+      {
+        id: 'other-users-reservation',
+        risk: 'A user confirms or releases a reservation that belongs to another user.',
+        why: 'who-else; judge r0',
+      },
+      {
+        id: 'expire-together',
+        risk: 'Several reservations of the same product expire at the same moment.',
+        why: 'per-what; judge r1',
+      },
+      {
+        id: 'confirm-twice',
+        risk: 'The same reservation is confirmed twice.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'exactly-remaining-stock',
+        risk: 'A request for exactly the remaining stock of several units, such as 3 units with 3 left.',
+        why: 'across-the-line',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

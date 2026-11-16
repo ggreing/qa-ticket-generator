@@ -62,6 +62,43 @@
       "keywords": [["101", "-1", "negative", "invalid", "rangeerror", "non-integer", "12.5"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "lower-percentage",
+      "risk": "A rollout percentage is lowered, for example from 50% to 20%.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "same-percentage-saved",
+      "risk": "A rollout percentage is saved without changing its value.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "one-user-two-flags",
+      "risk": "The same user is evaluated for two different flags at the same rollout percentage.",
+      "why": "per-what; spec only"
+    },
+    {
+      "id": "no-user-id",
+      "risk": "A flag is evaluated for a request without a user id, such as a signed-out visitor.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "flag-deleted-while-cached",
+      "risk": "A flag is deleted while servers still hold its definition in cache.",
+      "why": "other-state; spec only"
+    },
+    {
+      "id": "change-without-actor",
+      "risk": "A rollout change made by an automated job with no human actor.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "concurrent-changes",
+      "risk": "Two people change the same flag's rollout percentage at the same time.",
+      "why": "who-else; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

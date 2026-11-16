@@ -63,6 +63,38 @@
       "keywords": [["network", "throws", "no response", "timeout", "connection"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "success-on-retry",
+      "risk": "Delivery fails once and succeeds on the first retry.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "429-with-retry-after",
+      "risk": "The provider answers 429 with a Retry-After header longer than the planned backoff.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "keys-per-notification",
+      "risk": "Two different notifications for the same order, such as a confirmation and a shipping notice.",
+      "why": "per-what; spec only"
+    },
+    {
+      "id": "slow-provider",
+      "risk": "The provider accepts the connection but answers only after a long time.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "5xx-then-4xx",
+      "risk": "The first attempt gets a 503 and the retry gets a 400.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "outage-many-notifications",
+      "risk": "Many notifications fail at once during a provider deploy.",
+      "why": "per-what; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

@@ -43,6 +43,43 @@
       "keywords": [["locale", "de_de", "separator", "format"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "dst-day",
+      "risk": "The report for a day on which the store's clock changes for daylight saving time.",
+      "why": "across-the-line; spec only"
+    },
+    {
+      "id": "refund-on-later-day",
+      "risk": "An order paid on the report day and refunded on a later day.",
+      "why": "per-what; spec only"
+    },
+    {
+      "id": "refunded-amount-in-total",
+      "risk": "How the amount of a refunded order enters the day's total.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "no-orders",
+      "risk": "A store with no orders on the report day.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "order-at-local-midnight",
+      "risk": "An order placed exactly at 00:00:00 in the store's local time.",
+      "why": "across-the-line; spec only"
+    },
+    {
+      "id": "other-stores-report",
+      "risk": "A store manager opens the report of another store.",
+      "why": "who-else; spec only"
+    },
+    {
+      "id": "viewer-in-other-zone",
+      "risk": "A manager in a different time zone from the store opens yesterday's report.",
+      "why": "per-what; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

@@ -77,6 +77,43 @@
       "keywords": [["cursor", "last page", "pagination", "next page"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "client-error-page",
+      "risk": "The supplier answers a page request with a 4xx status such as 400 or 404.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "review-item-next-night",
+      "risk": "A product already on the manual review list comes back the next night with another price change.",
+      "why": "other-state; spec only"
+    },
+    {
+      "id": "zero-current-price",
+      "risk": "A product whose current price is 0 gets a price from the supplier.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "new-supplier-product",
+      "risk": "The supplier catalog contains a product the shop does not have yet.",
+      "why": "other-state; spec only"
+    },
+    {
+      "id": "run-overlaps-next-night",
+      "risk": "A sync slowed by retries is still running when the next night's sync starts.",
+      "why": "per-what; spec only"
+    },
+    {
+      "id": "backup-window-run",
+      "risk": "The sync runs during the supplier's backups around 02:00 UTC.",
+      "why": "across-the-line; spec only"
+    },
+    {
+      "id": "product-on-two-pages",
+      "risk": "The same product appears on two pages of the supplier catalog.",
+      "why": "per-what; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

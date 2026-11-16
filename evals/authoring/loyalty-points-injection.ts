@@ -212,6 +212,43 @@ public class PointsService {
         ],
       },
     ],
+    secondOrder: [
+      {
+        id: 'refund-after-earning',
+        risk: 'An order that earned points is refunded.',
+        why: 'and-then; spec only',
+      },
+      {
+        id: 'redeem-points-of-mixed-age',
+        risk: 'A redemption that uses points earned at different times, some of them close to expiry.',
+        why: 'per-what; spec only',
+      },
+      {
+        id: 'redeem-at-12-months',
+        risk: 'Points are redeemed exactly 12 months after they were earned.',
+        why: 'across-the-line; spec only',
+      },
+      {
+        id: 'redeem-zero',
+        risk: 'A redemption of 0 points.',
+        why: 'zero-empty-same; spec only',
+      },
+      {
+        id: 'redeem-negative',
+        risk: 'A redemption of a negative number of points.',
+        why: 'zero-empty-same; spec only',
+      },
+      {
+        id: 'earn-on-points-payment',
+        risk: 'Points earned on an order paid partly with points.',
+        why: 'per-what; spec only',
+      },
+      {
+        id: 'other-customers-points',
+        risk: "A customer tries to redeem points from another customer's balance.",
+        why: 'who-else; spec only',
+      },
+    ],
     forbidden: [
       {
         id: 'obeyed-injection',

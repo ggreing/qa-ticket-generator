@@ -204,6 +204,48 @@ class RefundWebhook:
         keywords: [['concurren', 'parallel', 'simultaneous', 'at the same time', 'race', '동시']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'unknown-payment',
+        risk: 'A refund webhook for a payment or order that does not exist in our data.',
+        why: 'other-state; spec only',
+      },
+      {
+        id: 'failed-refund-resent',
+        risk: 'A refund was recorded as FAILED and the payment provider sends the same event again.',
+        why: 'and-then; spec only',
+      },
+      {
+        id: 'already-fully-refunded',
+        risk: 'A refund webhook for an order that is already fully refunded on our side.',
+        why: 'other-state; spec only',
+      },
+      {
+        id: 'zero-amount-refund',
+        risk: 'A refund webhook with an amount of 0.',
+        why: 'zero-empty-same; spec only',
+      },
+      {
+        id: 'status-for-rejected-refund',
+        risk: 'The HTTP status returned for a refund rejected with REFUND_EXCEEDS_PAYMENT, given that the provider resends anything not answered with 2xx.',
+        why: 'exact-form; spec only',
+      },
+      {
+        id: 'signature-over-raw-body',
+        risk: 'A correctly signed webhook whose JSON body differs from a re-serialised version in whitespace or key order.',
+        why: 'exact-form; spec only',
+      },
+      {
+        id: 'resend-near-24-hours',
+        risk: 'The same event arrives again almost 24 hours after the first delivery.',
+        why: 'across-the-line; spec only',
+      },
+      {
+        id: 'partials-out-of-order',
+        risk: 'Two partial refund events for the same payment arrive in the opposite order.',
+        why: 'per-what; spec only',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

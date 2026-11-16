@@ -57,6 +57,38 @@
       "keywords": [["parallel", "concurren", "simultaneous", "150"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "rejected-requests-count",
+      "risk": "A limited key keeps sending requests while it waits, raising whether the rejected requests count toward its 100 in the window.",
+      "why": "and-then; judge r0-r1"
+    },
+    {
+      "id": "exact-window-edge",
+      "risk": "A request arrives exactly 60 seconds after the oldest counted request.",
+      "why": "across-the-line; judge r2"
+    },
+    {
+      "id": "retry-at-retry-after",
+      "risk": "A limited client waits exactly the number of seconds given in Retry-After and sends its next request.",
+      "why": "and-then"
+    },
+    {
+      "id": "unknown-key",
+      "risk": "Requests are sent with an API key that does not exist or is no longer valid.",
+      "why": "other-state; judge r0"
+    },
+    {
+      "id": "too-many-body",
+      "risk": "The body and content type of the 429 response a limited key receives.",
+      "why": "exact-form; judge r0-r1"
+    },
+    {
+      "id": "partner-several-keys",
+      "risk": "One integration partner spreads its traffic over several API keys to send more than 100 requests a minute in total.",
+      "why": "per-what; spec context"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

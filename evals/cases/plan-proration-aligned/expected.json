@@ -57,6 +57,43 @@
       "keywords": [["payment_failed", "declin", "charge fails", "payment fails", "failed charge", "402"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "same-price-change",
+      "risk": "A customer changes to a plan with the same price as the current one.",
+      "why": "zero-empty-same; judge r0"
+    },
+    {
+      "id": "upgrade-after-scheduled-downgrade",
+      "risk": "A customer upgrades mid-cycle after a downgrade was already scheduled for the renewal date.",
+      "why": "other-state"
+    },
+    {
+      "id": "downgrade-on-last-day",
+      "risk": "A downgrade is requested on the last day of the cycle.",
+      "why": "across-the-line; judge r0"
+    },
+    {
+      "id": "two-upgrades-in-cycle",
+      "risk": "Two upgrades in the same cycle, one after the other.",
+      "why": "per-what"
+    },
+    {
+      "id": "retry-after-declined",
+      "risk": "The customer retries the upgrade after PAYMENT_FAILED.",
+      "why": "and-then; judge r1"
+    },
+    {
+      "id": "renewal-after-upgrade",
+      "risk": "The first renewal charge after a mid-cycle upgrade.",
+      "why": "exact-form"
+    },
+    {
+      "id": "undo-scheduled-downgrade",
+      "risk": "The customer cancels a scheduled downgrade before the renewal date.",
+      "why": "and-then"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

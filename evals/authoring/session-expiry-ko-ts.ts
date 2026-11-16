@@ -164,6 +164,43 @@ export function logoutHandler(store: SessionStore) {
         keywords: [['device', 'other session', 'all session', 'every session', '기기', '모든 세션']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'logout-again',
+        risk: 'A logout request with a session that is already logged out.',
+        why: 'and-then; judge r2',
+      },
+      {
+        id: 'logout-other-users-session',
+        risk: 'A logout request that names a session belonging to another user.',
+        why: 'who-else; judge r0',
+      },
+      {
+        id: 'expired-session-reused',
+        risk: 'The same expired session is used again after it got 401.',
+        why: 'and-then; judge r1',
+      },
+      {
+        id: 'idle-exactly-30-min',
+        risk: 'A request exactly 30 minutes after the previous one.',
+        why: 'across-the-line',
+      },
+      {
+        id: 'store-down-on-logout',
+        risk: 'The session store fails while the user logs out.',
+        why: 'and-then; judge r1',
+      },
+      {
+        id: 'login-after-logout-all',
+        risk: 'The user logs in again on one device right after logging out of all devices.',
+        why: 'and-then',
+      },
+      {
+        id: 'request-during-logout',
+        risk: 'A request from a second device is in flight while the user logs out.',
+        why: 'across-the-line',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

@@ -220,6 +220,43 @@ class NoticeWorker:
         keywords: [['sent', 'failed', 'not_cancellable', 'already', '발송된', '이미']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'resend-failed-notice',
+        risk: 'The admin resends a notice whose send failed.',
+        why: 'and-then; judge r0-r2',
+      },
+      {
+        id: 'cancel-at-one-minute',
+        risk: 'A cancel request arrives exactly 1 minute before the scheduled send time.',
+        why: 'across-the-line; judge r0',
+      },
+      {
+        id: 'reschedule-too-soon',
+        risk: 'The send time of an already scheduled notice is changed to less than 10 minutes from now.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'saved-after-waiting',
+        risk: 'The admin fills in a send time 11 minutes ahead and saves only after a few minutes, so it is under 10 minutes from the moment of saving.',
+        why: 'across-the-line',
+      },
+      {
+        id: 'other-admin-cancels',
+        risk: 'An admin cancels a notice that another admin scheduled.',
+        why: 'who-else',
+      },
+      {
+        id: 'alert-to-removed-admin',
+        risk: 'A notice fails after the admin who scheduled it has been removed or deactivated.',
+        why: 'other-state; judge r2',
+      },
+      {
+        id: 'far-future-schedule',
+        risk: 'A notice is scheduled far in the future, such as a year ahead.',
+        why: 'zero-empty-same; judge r0',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

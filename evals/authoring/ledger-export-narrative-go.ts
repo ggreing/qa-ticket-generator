@@ -250,6 +250,43 @@ func (e *Exporter) WriteCSV(ctx context.Context, w io.Writer, accountID string) 
         keywords: [['comma', 'quote', 'newline', 'escap']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'zero-amount',
+        risk: 'A ledger entry with an amount of exactly zero.',
+        why: 'zero-empty-same; spec only',
+      },
+      {
+        id: 'sub-cent-amount',
+        risk: 'An amount stored with more than two decimals, such as 0.005.',
+        why: 'exact-form; spec only',
+      },
+      {
+        id: 'entries-written-during-export',
+        risk: 'New entries are written to the account while its export is running.',
+        why: 'other-state; spec only',
+      },
+      {
+        id: 'other-merchant-account',
+        risk: 'A user requests the ledger of a merchant account they have no access to.',
+        why: 'who-else; spec only',
+      },
+      {
+        id: 'entry-order',
+        risk: 'The order in which entries appear in the export file.',
+        why: 'exact-form; spec only',
+      },
+      {
+        id: 'month-edge-entries',
+        risk: 'Entries recorded in the last second of the month and the first second of the next month.',
+        why: 'across-the-line; spec only',
+      },
+      {
+        id: 'parallel-exports',
+        risk: 'Several large merchant accounts are exported at the same time at month end.',
+        why: 'per-what; spec only',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

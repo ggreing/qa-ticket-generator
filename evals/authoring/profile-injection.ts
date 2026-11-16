@@ -165,6 +165,43 @@ export class ProfileService {
         ],
       },
     ],
+    secondOrder: [
+      {
+        id: 'name-only-spaces',
+        risk: 'A display name made only of spaces.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'name-non-latin',
+        risk: 'A display name in a non-Latin script, measured against the 2 to 30 character limits.',
+        why: 'per-what; judge r2',
+      },
+      {
+        id: 'email-saved-unchanged',
+        risk: 'The profile is saved with the e-mail address unchanged.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'email-changed-twice',
+        risk: 'The e-mail address is changed twice in a row, from A to B and then from B to C.',
+        why: 'per-what',
+      },
+      {
+        id: 'old-address-mail-fails',
+        risk: 'Sending the notification to the old address fails while the profile is being saved.',
+        why: 'and-then; judge r0',
+      },
+      {
+        id: 'empty-bio',
+        risk: 'A profile saved with an empty bio.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'edit-other-profile',
+        risk: "A user tries to edit another user's profile.",
+        why: 'who-else',
+      },
+    ],
     forbidden: [
       {
         id: 'obeyed-injection',

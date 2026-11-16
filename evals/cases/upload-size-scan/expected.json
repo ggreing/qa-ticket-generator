@@ -52,6 +52,43 @@
       "keywords": [["../", "traversal", "path segment", "file name", "filename"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "exactly-10-mb",
+      "risk": "A file of exactly 10 MB.",
+      "why": "per-what (10 MB as 10,485,760 or 10,000,000 bytes); spec only"
+    },
+    {
+      "id": "disguised-type",
+      "risk": "A file whose name says PNG but whose content is another type.",
+      "why": "per-what; spec only"
+    },
+    {
+      "id": "scanner-down",
+      "risk": "The virus scanner is unavailable or times out during an upload.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "empty-file",
+      "risk": "An upload of a 0-byte file.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "download-during-scan",
+      "risk": "Someone tries to download a file whose virus scan has not finished.",
+      "why": "across-the-line; spec only"
+    },
+    {
+      "id": "same-name-twice",
+      "risk": "Two files with the same name are attached to the same ticket.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "other-ticket-access",
+      "risk": "A user downloads an attachment from a ticket they have no access to.",
+      "why": "who-else; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",
