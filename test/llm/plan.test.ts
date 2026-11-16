@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { lintCaseStyle, SPEC_GAP_PREFIX, STYLE_RULES } from '../../src/cases';
 import { type PlannedCase, type PlanRequest, TECHNIQUES } from '../../src/core/cases';
@@ -602,39 +604,11 @@ describe('round 1: what round 0 showed (duplicates 0.57, honesty 1.43)', () => {
   });
 });
 
-describe('round 2: the combinations the judge kept finding missing (spec coverage 1.43 in rounds 0 and 1)', () => {
-  const section = PLAN_SYSTEM.slice(
-    PLAN_SYSTEM.indexOf('# Questions a requirement does not ask for'),
-    PLAN_SYSTEM.indexOf('# One intent, one case'),
-  );
-
-  it('SPEC v3 §2.1 asks seven short questions of every requirement, one per kind of case that was missing', () => {
-    expect(PLAN_PROMPT_VERSION).toBe('2026-11-16.1');
-    expect(section.match(/^- /gm)).toHaveLength(7);
-    for (const question of [
-      '- Who else? Permission belongs to the action, not to the feature.',
-      '- Zero, empty, the same? For each value the requirement computes with or compares',
-      '- Per what? A limit, a timer, a count or a rounding rule holds per person, per session, per item or for the total',
-      '- Across the line? A period that begins before a boundary and ends after it, both ends of a time window',
-      '- And then? After a failure or a refusal: the retry, whether the failed attempt counted toward a limit',
-      '- What state is the other thing in? The things the requirement touches but does not own',
-      '- What exactly comes back? When the requirement names a response, a message or a stored record',
-    ]) {
-      expect(section, question).toContain(question);
-    }
-    // Questions, not slots: a question with nothing to act on is left, and none asks for a case per item.
-    expect(section).toContain('Where the requirement gives the question nothing to act on, leave it.');
-    expect(section).not.toMatch(/at least one case|a case for every question/i);
-  });
-
-  it('keeps what round 1 gained: one intent one case, values in testData, open outcomes as questions', () => {
-    expect(section).toContain('These questions add cases; they do not loosen what follows.');
-    expect(section).toContain('An answer the spec does not give is an open question and is written as one.');
-    expect(section).toContain('A second value of the same kind still belongs in `testData`');
-    expect(section).toContain(
-      'a situation you already have is not written again because another question leads to it too',
-    );
-    // The round 1 rules themselves are untouched and come after the questions.
+describe('round 2 was reverted: the plan prompt is the round 1 text again', () => {
+  it('SPEC v3 §2.1 the prompt in use has the round 1 rules and not the seven questions', () => {
+    expect(PLAN_PROMPT_VERSION).toBe('2026-11-16.2');
+    expect(PLAN_SYSTEM).not.toContain('Questions a requirement does not ask for');
+    expect(PLAN_SYSTEM).not.toContain('Who else?');
     for (const rule of [
       '# One intent, one case',
       'Another value of the same kind is not another case.',
@@ -645,24 +619,27 @@ describe('round 2: the combinations the judge kept finding missing (spec coverag
     ]) {
       expect(PLAN_SYSTEM, rule).toContain(rule);
     }
-    expect(PLAN_SYSTEM.indexOf('# Questions a requirement does not ask for')).toBeLessThan(
-      PLAN_SYSTEM.indexOf('# One intent, one case'),
-    );
-  });
-
-  it('every task sends the model through the questions after the techniques', () => {
     const requirements = requirementsOf(spec(SEVEN));
     for (const tail of [
       buildPlanTask(requirements, requirements),
       buildPlanTask(requirements.slice(0, 3), requirements),
-      buildPlanTask(requirements.slice(3, 5), requirements),
       buildPlanTask([], []),
     ]) {
-      expect(tail).toContain('the questions a requirement does not ask for');
+      expect(tail).not.toContain('the questions a requirement does not ask for');
     }
   });
 
-  it('the examples in the questions are about a subject no eval case has, so they cannot hand a case its answer', async () => {
+  it('the questions kept for a later round are about a subject no eval case has, so they cannot hand a case its answer', async () => {
+    // docs/quality/PLAN_QUESTIONS.md holds the section as it was; this keeps it fit to be used again.
+    const memo = readFileSync(resolve('docs/quality/PLAN_QUESTIONS.md'), 'utf8');
+    const section = /```text\n([\s\S]*?)\n```/.exec(memo)?.[1] ?? '';
+    expect(section.startsWith('# Questions a requirement does not ask for')).toBe(true);
+    expect(section.match(/^- /gm)).toHaveLength(7);
+    // Questions, not slots, and the round 1 rules restated.
+    expect(section).toContain('Where the requirement gives the question nothing to act on, leave it.');
+    expect(section).toContain('These questions add cases; they do not loosen what follows.');
+    expect(section).not.toMatch(/at least one case|a case for every question/i);
+
     const { CASES } = await import('../../evals/authoring/index');
     const material = JSON.stringify(CASES).toLowerCase();
     for (const word of ['playlist', 'collaborator', 'invitation', 'follower', 'archived']) {

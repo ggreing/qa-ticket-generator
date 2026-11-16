@@ -14,7 +14,7 @@ import { LANGUAGE_NAMES } from './i18n';
 import { languageStyle, STYLE_GUIDE } from './style';
 import { attr } from './user';
 
-export const PLAN_PROMPT_VERSION = '2026-11-16.1';
+export const PLAN_PROMPT_VERSION = '2026-11-16.2';
 
 /** Tags this module emits; data containing them is defused so it cannot close a section early. */
 const RESERVED =
@@ -55,20 +55,6 @@ The techniques are ways of finding cases, not slots to fill. A technique gives y
 The places where the spec is silent are where most missed cases come from. When the spec gives a limit and does not say whether the limit itself is included, when it describes an action and not what a second one does, when it describes success and not failure: that is a case. Write it, and state in \`whyEasyToMiss\` what the spec leaves undefined.
 
 In such a case the outcome is not yours to decide. A status code, an error name, a message or a rule that the spec does not give is a guess, and a guess written as an expected result gets tested as if the team had agreed to it. Above the decision line (see the style section), write only what has to hold whichever way the team decides: nothing stored twice, no server error, the earlier state intact. Put the options themselves in the decision line.
-
-# Questions a requirement does not ask for
-
-Going through the techniques finds the cases a requirement points at. The cases that were missing from earlier sheets came from a few questions that no technique asks outright. Put each of them to every requirement before you move on. Where the answer is a situation you have no case for, write the case. Where the requirement gives the question nothing to act on, leave it.
-
-- Who else? Permission belongs to the action, not to the feature. For each action the requirement names, think of the person it does not name: someone acting on another person's item, a role without the right, the same person in a second session. A playlist that only its owner may delete and only collaborators may add to needs a case for each of the two.
-- Zero, empty, the same? For each value the requirement computes with or compares: zero, empty or absent, negative, and the largest it can take. For each change it describes: changing to the value that is already there, such as saving a title that was not edited.
-- Per what? A limit, a timer, a count or a rounding rule holds per person, per session, per item or for the total, and the requirement often does not say which. Then several at once: three invitations that run out in the same minute.
-- Across the line? A period that begins before a boundary and ends after it, both ends of a time window, and the action that arrives just after something ran out, such as accepting an invitation one second late.
-- And then? After a failure or a refusal: the retry, whether the failed attempt counted toward a limit, and what the person can do next. After a success: taking it back, and whether what was used up is returned, such as a follower slot when a follower is removed.
-- What state is the other thing in? The things the requirement touches but does not own: an item that was archived or removed, an account that was closed, a link that was already used.
-- What exactly comes back? When the requirement names a response, a message or a stored record: its exact form, and that nothing is stored when the action is refused.
-
-These questions add cases; they do not loosen what follows. An answer the spec does not give is an open question and is written as one. A second value of the same kind still belongs in \`testData\`, and a situation you already have is not written again because another question leads to it too.
 
 # One intent, one case
 
@@ -192,13 +178,13 @@ export function buildPlanPrefix(req: PlanRequest, requirements: Requirement[]): 
 export function buildPlanTask(group: Requirement[], all: Requirement[]): string {
   if (all.length === 0) {
     return `<task>
-The spec has no labelled acceptance criteria. Identify its requirements yourself, label them R1, R2, and so on in the order they appear, and use those labels in \`acLabels\`. Then write the QA cases for all of them, going through all twelve techniques for each and then putting the questions a requirement does not ask for to it.
+The spec has no labelled acceptance criteria. Identify its requirements yourself, label them R1, R2, and so on in the order they appear, and use those labels in \`acLabels\`. Then write the QA cases for all of them, going through all twelve techniques for each.
 </task>`;
   }
   const labels = group.map((r) => r.label).join(', ');
   if (group.length === all.length) {
     return `<task>
-Write the QA cases for every requirement of the spec: ${labels}. Go through all twelve techniques for each one, then put the questions a requirement does not ask for to it.
+Write the QA cases for every requirement of the spec: ${labels}. Go through all twelve techniques for each one.
 </task>`;
   }
   const first = group[0]?.label === all[0]?.label;
@@ -206,7 +192,7 @@ Write the QA cases for every requirement of the spec: ${labels}. Go through all 
     ? 'Situations that read the same for the whole feature, whichever requirement is involved (the same request sent twice, a signed-out user, a dependency that is down, data from before the release), are written in this call: each once, listing the requirements it touches.'
     : 'Situations that read the same for the whole feature, whichever requirement is involved (the same request sent twice, a signed-out user, a dependency that is down, data from before the release), are written by the call that covers the first requirements. Write such a situation here only where one of these requirements changes what is observed.';
   return `<task>
-Write the QA cases for these requirements of the spec: ${labels}. Go through all twelve techniques for each one, then put the questions a requirement does not ask for to it.
+Write the QA cases for these requirements of the spec: ${labels}. Go through all twelve techniques for each one.
 
 The other requirements are covered by separate calls that run at the same time and cannot see your answer, so leave out cases that belong only to them. A case that needs one of these requirements together with another one belongs to the call whose list has the earlier of the two in spec order.
 
