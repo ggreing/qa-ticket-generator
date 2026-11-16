@@ -35,7 +35,9 @@ describe('--language: the language reports are written in (M3.5 final check)', (
     expect(parseArgs(['--language', 'ko'], { model: 'm', effort: 'high' }).language).toBe('ko');
     expect(parseArgs([], { model: 'm', effort: 'high' }).language).toBeNull();
     expect(USAGE).toContain('--language <code>');
-  });
+    // Nine dry runs over the whole dataset: about five seconds on a loaded machine, so the default
+    // limit of five failed this now and then.
+  }, 20_000);
 
   it('M3.5 an unsupported language stops before anything else, with the same message the Action gives', async () => {
     const h = harness();
