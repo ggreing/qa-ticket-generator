@@ -124,6 +124,43 @@ Roles in the back office today: admin, manager, support, viewer.
         keywords: [['429', 'rate limit', 'rate-limit', 'sixth', '6th']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'failed-exports-count',
+        risk: 'Exports that fail midway, checked for whether they count toward the 5 per hour.',
+        why: 'per-what; judge r1',
+      },
+      {
+        id: 'role-removed-in-session',
+        risk: 'A user whose admin role was removed after they signed in requests an export.',
+        why: 'other-state',
+      },
+      {
+        id: 'audit-on-refusal',
+        risk: 'An export refused with 403, checked for what is written to the audit log.',
+        why: 'exact-form',
+      },
+      {
+        id: 'zero-row-export',
+        risk: 'An export that contains no rows.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'hour-window-edge',
+        risk: 'A sixth export just after an hour has passed since the first of the previous five.',
+        why: 'across-the-line',
+      },
+      {
+        id: 'two-admins-limit',
+        risk: 'Two admins each run 5 exports in the same hour.',
+        why: 'per-what',
+      },
+      {
+        id: 'audit-entry-fields',
+        risk: "The exact fields of an export's audit entry, including when it happened.",
+        why: 'exact-form; judge r1',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-auth',

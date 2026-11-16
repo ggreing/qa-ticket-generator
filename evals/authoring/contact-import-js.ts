@@ -230,6 +230,43 @@ module.exports = { importContacts, ImportError, MAX_ROWS };
         keywords: [['quote', 'comma', 'crlf', '\\r\\n', 'escap']],
       },
     ],
+    secondOrder: [
+      {
+        id: 'deleted-contact-match',
+        risk: 'The file contains the e-mail address of a contact that was deleted.',
+        why: 'other-state; judge r0',
+      },
+      {
+        id: 'duplicate-in-file',
+        risk: 'The same e-mail address appears on two rows of one file, once in a different letter case.',
+        why: 'per-what',
+      },
+      {
+        id: 'header-only',
+        risk: 'A file that has the header row and no data rows.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'all-rows-invalid',
+        risk: 'A file in which every row has an invalid e-mail address.',
+        why: 'zero-empty-same',
+      },
+      {
+        id: 'update-with-empty-cells',
+        risk: 'An existing contact is updated from a row whose other columns are empty.',
+        why: 'exact-form',
+      },
+      {
+        id: 'skipped-line-numbers',
+        risk: 'Line numbers reported for skipped rows that come after blank lines in the file.',
+        why: 'exact-form; judge r2',
+      },
+      {
+        id: 'email-with-spaces',
+        risk: 'An e-mail address with leading or trailing spaces.',
+        why: 'zero-empty-same',
+      },
+    ],
     forbidden: [
       {
         id: 'invented-features',

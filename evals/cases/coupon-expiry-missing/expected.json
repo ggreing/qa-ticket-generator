@@ -52,6 +52,43 @@
       "keywords": [["promotion"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "zero-percent",
+      "risk": "A percentage coupon with a 0% rate is applied.",
+      "why": "zero-empty-same; judge r0-r1"
+    },
+    {
+      "id": "discount-above-total",
+      "risk": "A coupon whose capped discount is larger than the cart total is applied to a small cart.",
+      "why": "zero-empty-same; judge r1"
+    },
+    {
+      "id": "expires-at-now",
+      "risk": "A coupon is applied in the same second as its expiresAt.",
+      "why": "across-the-line"
+    },
+    {
+      "id": "expires-before-payment",
+      "risk": "A coupon is valid when applied on the checkout page and expires before the customer pays.",
+      "why": "across-the-line"
+    },
+    {
+      "id": "code-used-by-other-account",
+      "risk": "A coupon code e-mailed to one customer is entered by a different account.",
+      "why": "who-else; judge r0"
+    },
+    {
+      "id": "reuse-after-refund",
+      "risk": "An order paid with the coupon is refunded and the same user applies the coupon again.",
+      "why": "and-then; judge r1"
+    },
+    {
+      "id": "promotion-after-coupon",
+      "risk": "A promotion becomes active on the cart after the coupon was applied.",
+      "why": "other-state"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

@@ -62,6 +62,48 @@
       "keywords": [["round", "half up", "half-up", "cent"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "night-on-holiday",
+      "risk": "Night hours worked on a public holiday.",
+      "why": "per-what; judge r2"
+    },
+    {
+      "id": "night-in-overtime",
+      "risk": "Night hours that are also overtime hours beyond 40 in the week.",
+      "why": "per-what"
+    },
+    {
+      "id": "holiday-across-midnight",
+      "risk": "A shift that starts the evening before a public holiday and continues past midnight into it.",
+      "why": "across-the-line; judge r1"
+    },
+    {
+      "id": "shift-starts-at-2200",
+      "risk": "A shift that starts exactly at 22:00.",
+      "why": "across-the-line; judge r0-r1"
+    },
+    {
+      "id": "rounding-sum-of-lines",
+      "risk": "A payslip with several pay lines whose rounded amounts add up to a different total than the unrounded sum.",
+      "why": "per-what; judge r1"
+    },
+    {
+      "id": "render-succeeds-on-retry",
+      "risk": "A payslip PDF fails to render twice and succeeds on the next attempt.",
+      "why": "and-then"
+    },
+    {
+      "id": "failed-payslip-rerun",
+      "risk": "A payslip marked FAILED is run again in a later job.",
+      "why": "and-then"
+    },
+    {
+      "id": "no-hours",
+      "risk": "An employee with no hours in the pay period.",
+      "why": "zero-empty-same"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

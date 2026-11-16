@@ -47,6 +47,43 @@
       "keywords": [["roll", "none of", "no seats", "atomic", "partial", "all or nothing", "all-or-nothing"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "pay-after-expiry",
+      "risk": "A customer completes payment after their hold has already expired.",
+      "why": "across-the-line; judge r0"
+    },
+    {
+      "id": "expired-seat-held-by-other",
+      "risk": "A second customer holds the seat after the first hold expired, and then the first customer's payment arrives.",
+      "why": "other-state"
+    },
+    {
+      "id": "same-customer-same-seat",
+      "risk": "A customer requests a hold on a seat they already hold.",
+      "why": "who-else; judge r2"
+    },
+    {
+      "id": "hold-retry-after-lost-response",
+      "risk": "A hold succeeds but the response is lost and the customer's client sends the identical request again.",
+      "why": "and-then; judge r1-r2"
+    },
+    {
+      "id": "empty-hold",
+      "risk": "A hold request that lists no seats.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "seat-listed-twice",
+      "risk": "One hold request lists the same seat twice.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "same-seat-other-show",
+      "risk": "Two customers hold the same seat number for two different shows.",
+      "why": "per-what"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-payment",

@@ -58,6 +58,43 @@
       "keywords": [["full_name"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "null-full-name",
+      "risk": "A row whose full_name is NULL.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "leading-space",
+      "risk": "A full_name that starts with a space.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "other-space-characters",
+      "risk": "A full_name separated by a non-breaking or full-width space instead of a plain space.",
+      "why": "exact-form; spec only"
+    },
+    {
+      "id": "created-during-backfill",
+      "risk": "A user is created while the backfill is running.",
+      "why": "other-state; spec only"
+    },
+    {
+      "id": "rename-after-migration",
+      "risk": "A user changes their name after the migration has run.",
+      "why": "and-then; spec only"
+    },
+    {
+      "id": "name-longer-than-column",
+      "risk": "A first or last name longer than the new column allows.",
+      "why": "zero-empty-same; spec only"
+    },
+    {
+      "id": "migration-run-twice",
+      "risk": "The migration and its backfill are run a second time.",
+      "why": "and-then; spec only"
+    }
+  ],
   "forbidden": [
     {
       "id": "claims-column-dropped",

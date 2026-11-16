@@ -71,6 +71,43 @@
       "keywords": [["refund"], ["fail", "error", "timeout", "exception"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "cancel-cancelled-order",
+      "risk": "A cancel request for an order that is already CANCELLED.",
+      "why": "and-then"
+    },
+    {
+      "id": "double-cancel",
+      "risk": "Two cancel requests for the same PAID order arrive at the same time.",
+      "why": "per-what"
+    },
+    {
+      "id": "cancel-while-shipping",
+      "risk": "A PAID order is cancelled at the same moment the warehouse marks it SHIPPED.",
+      "why": "across-the-line; judge r2"
+    },
+    {
+      "id": "partially-refunded-order",
+      "risk": "Cancelling a PAID order that was already partly refunded.",
+      "why": "other-state; judge r0-r2"
+    },
+    {
+      "id": "no-actor-id",
+      "risk": "A status change made without an actor id, such as by a system job.",
+      "why": "zero-empty-same; judge r1"
+    },
+    {
+      "id": "other-customers-order",
+      "risk": "A customer calls the cancel endpoint for an order that belongs to another customer.",
+      "why": "who-else"
+    },
+    {
+      "id": "history-on-refusal",
+      "risk": "A refused cancel request, checked for what is written to order_status_history.",
+      "why": "exact-form"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

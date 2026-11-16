@@ -57,6 +57,33 @@
       "keywords": [["continue"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "seat-taken-while-selected",
+      "risk": "A seat the customer has selected is sold or held by someone else while they are still on the page.",
+      "why": "other-state; judge r1"
+    },
+    {
+      "id": "back-from-continue",
+      "risk": "The customer presses Continue and then goes back to the seat page.",
+      "why": "and-then"
+    },
+    {
+      "id": "same-showtime-again",
+      "risk": "The customer picks the showtime that is already selected.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "fast-clicks-at-limit",
+      "risk": "With 5 seats selected, the customer clicks two more seats in quick succession.",
+      "why": "per-what"
+    },
+    {
+      "id": "sold-out-showtime",
+      "risk": "A showtime whose seats are all sold or held.",
+      "why": "zero-empty-same"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

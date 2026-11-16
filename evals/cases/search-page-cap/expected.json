@@ -78,6 +78,48 @@
       "keywords": [["20 results", "20 items", "20 products", "default"]]
     }
   ],
+  "secondOrder": [
+    {
+      "id": "limit-zero",
+      "risk": "A search request with limit=0.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "limit-negative",
+      "risk": "A search request with a negative limit.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "exact-multiple-of-limit",
+      "risk": "A result count that is an exact multiple of the page size, so the last full page is the end.",
+      "why": "across-the-line; judge r2"
+    },
+    {
+      "id": "product-added-between-pages",
+      "risk": "A new product is created between two page requests.",
+      "why": "other-state; spec background"
+    },
+    {
+      "id": "cursor-product-deleted",
+      "risk": "The product the cursor points at is deleted before the next page is requested.",
+      "why": "other-state"
+    },
+    {
+      "id": "tampered-cursor",
+      "risk": "A request with a cursor that was edited or is malformed.",
+      "why": "exact-form"
+    },
+    {
+      "id": "limit-changed-mid-paging",
+      "risk": "The next page is requested with a different limit than the first page.",
+      "why": "zero-empty-same"
+    },
+    {
+      "id": "no-results",
+      "risk": "A search that matches no products at all.",
+      "why": "zero-empty-same"
+    }
+  ],
   "forbidden": [
     {
       "id": "invented-features",

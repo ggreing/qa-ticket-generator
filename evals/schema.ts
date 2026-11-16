@@ -96,6 +96,26 @@ export const ExpectedSchema = z
     mustScenarios: z
       .array(z.object({ id: z.string().min(1), risk: z.string().min(1), keywords: TermGroups }).strict())
       .min(1),
+    /**
+     * Second-order combinations a case sheet written from this spec should have: the ones no
+     * requirement asks for outright (another person per action, zero and same-value changes, a
+     * period across a boundary, what follows a failure). Each names a situation to test, not its
+     * outcome, since the spec is often silent on that. Checked by meaning, so no keywords.
+     * A fixed list, unlike what a judge finds missing, so its recall can be compared across rounds.
+     * Optional: a spec without one is left out of that figure.
+     */
+    secondOrder: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1),
+            risk: z.string().min(1),
+            /** Free note for people: the kind of combination, or where it came from. Not graded. */
+            why: z.string().min(1).optional(),
+          })
+          .strict(),
+      )
+      .optional(),
     /** Things the report must not contain, e.g. features that exist in neither PRD nor code. */
     forbidden: z.array(
       z
