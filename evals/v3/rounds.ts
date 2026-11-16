@@ -41,6 +41,12 @@ export interface RoundRecordV3 {
   /** Must-cover recall: by the coverage judge when it ran, else by keyword. */
   mustCover: number;
   mustCoverBy: 'judge' | 'keywords';
+  /**
+   * Share of the specs' second-order combinations that have a case, and how many that is over.
+   * Null when no spec had such a list yet. Absent in records written before the list existed.
+   */
+  secondOrder?: number | null;
+  secondOrderItems?: number;
   requirementCoverage: number;
   styleViolationsPer100: number;
   repeatedTitles: number;
@@ -50,7 +56,7 @@ export interface RoundRecordV3 {
   judgeCostUsd: number;
   decision: 'pending' | 'keep' | 'revert';
   /** Set when the stored sheets were scored again after the run: when, and which part. */
-  rescored?: { at: string; what: 'judge' | 'deterministic' };
+  rescored?: { at: string; what: 'judge' | 'deterministic' | 'coverage' };
 }
 
 const root = (deps: V3Deps): string => join(deps.evalsRoot, 'rounds', 'v3');
@@ -99,6 +105,8 @@ export function toRecordV3(round: number, change: string, r: PlanResults): Round
     casesPerSpec: r.summary.casesPerSpec,
     mustCover: mustCoverOf(r.summary),
     mustCoverBy: r.summary.mustCoverRecallJudge === null ? 'keywords' : 'judge',
+    secondOrder: r.summary.secondOrderRecall ?? null,
+    secondOrderItems: r.summary.secondOrderItems ?? 0,
     requirementCoverage: r.summary.requirementCoverage,
     styleViolationsPer100: r.summary.styleViolationsPer100,
     repeatedTitles: r.summary.repeatedTitles,
@@ -115,13 +123,15 @@ export function renderRoundsIndexV3(records: RoundRecordV3[]): string {
     '# Improvement rounds (v3: QA case sheets from a spec)',
     '',
     'Generated from `evals/rounds/v3/index.json` by the plan eval (`plan --round`, `--decision`). Do not edit by hand.',
-    'Scores are rubric v3 means on a 0–2 scale (docs/quality/RUBRIC.md). Must-cover, requirements with a case and',
-    'style violations are deterministic or checked against ground truth. A round is kept only if the overall rises',
-    'and none of those three gets worse. Rows are comparable only within one language. "(13/14)" after an overall',
-    'means the judge returned no usable score for the other sheets. The M3.5 rounds are in `ROUNDS.md`.',
+    'Scores are rubric v3 means on a 0–2 scale (docs/quality/RUBRIC.md). Must-cover, 2nd-order recall, requirements',
+    'with a case and style violations are deterministic or checked against ground truth. A round is kept only if the',
+    'overall rises and none of those four gets worse. 2nd-order recall is the share of a fixed list of combinations',
+    '(expected.secondOrder) that have a case; it is the figure coverage is compared by, since the judge-scored "Spec',
+    'coverage" reads about the same whatever the sheet. Rows are comparable only within one language. "(13/14)" after',
+    'an overall means the judge returned no usable score for the other sheets. The M3.5 rounds are in `ROUNDS.md`.',
     '',
-    '| Round | Date | Prompt | Change | Split | Lang | Overall | Case | Sheet | Spec coverage | Must-cover | Req. with a case | Style viol./100 | Cases/spec | Merged away | Cost | Decision |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Round | Date | Prompt | Change | Split | Lang | Overall | Case | Sheet | Spec coverage | Must-cover | 2nd-order recall | Req. with a case | Style viol./100 | Cases/spec | Merged away | Cost | Decision |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const r of [...records].sort(order)) {
     lines.push(
@@ -137,6 +147,7 @@ export function renderRoundsIndexV3(records: RoundRecordV3[]): string {
         score(r.sheetScore),
         score(r.criteria.coverage),
         `${pct(r.mustCover)}${r.mustCoverBy === 'keywords' ? ' (kw)' : ''}`,
+        r.secondOrder == null ? '—' : pct(r.secondOrder),
         pct(r.requirementCoverage),
         r.styleViolationsPer100.toFixed(1),
         r.casesPerSpec.toFixed(1),
@@ -218,6 +229,10 @@ export function compareV3(record: RoundRecordV3, records: RoundRecordV3[]): Comp
   const before = judgedBoth ? paired(base.specOverall) : null;
   const after = judgedBoth ? paired(record.specOverall) : null;
   const sameMust = base.mustCoverBy === record.mustCoverBy;
+  const sameList =
+    base.secondOrder != null &&
+    record.secondOrder != null &&
+    (base.secondOrderItems ?? 0) === (record.secondOrderItems ?? 0);
   const rows: ComparisonV3['rows'] = [
     { metric: 'Overall', before: score(before), after: score(after), change: dir(before, after), rule: true },
     {
@@ -225,6 +240,14 @@ export function compareV3(record: RoundRecordV3, records: RoundRecordV3[]): Comp
       before: sameMust ? pct(base.mustCover) : '—',
       after: pct(record.mustCover),
       change: sameMust ? dir(base.mustCover, record.mustCover) : 'n/a',
+      rule: true,
+    },
+    {
+      // Compared only over the same list: a list that grew or shrank is another yardstick.
+      metric: '2nd-order recall',
+      before: base.secondOrder == null ? '—' : pct(base.secondOrder),
+      after: record.secondOrder == null ? '—' : pct(record.secondOrder),
+      change: sameList ? dir(base.secondOrder ?? null, record.secondOrder ?? null) : 'n/a',
       rule: true,
     },
     {
@@ -347,7 +370,7 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
     `- Decision: ${record.decision}`,
     ...(record.rescored
       ? [
-          `- Scored again on ${record.rescored.at.slice(0, 10)}: ${record.rescored.what === 'judge' ? `rubric judge (rubric v${record.rubricVersion}) and deterministic metrics` : 'deterministic metrics only (style lint, keyword must-cover)'}. The sheets are the ones written on the date above.`,
+          `- Scored again on ${record.rescored.at.slice(0, 10)}: ${record.rescored.what === 'judge' ? `rubric judge (rubric v${record.rubricVersion}) and deterministic metrics` : record.rescored.what === 'coverage' ? 'second-order combinations (coverage judge) and deterministic metrics' : 'deterministic metrics only (style lint, keyword must-cover)'}. The sheets are the ones written on the date above.`,
         ]
       : []),
     '',
@@ -371,8 +394,8 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
   lines.push(
     '## Per spec',
     '',
-    '| Spec | Cases | P0 | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | Reqs without a case | Style viol. | Merged away | Cost |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Spec | Cases | P0 | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | 2nd-order | Reqs without a case | Style viol. | Merged away | Cost |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   );
   for (const run of r.runs) {
     const g = run.grade;
@@ -385,6 +408,9 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
         run.rubric ? run.rubric.sheet.coverage : '—',
         g ? pct(g.mustCoverRecall) : '—',
         g?.mustCoverRecallJudge !== undefined ? pct(g.mustCoverRecallJudge) : '—',
+        g?.secondOrder
+          ? `${g.secondOrder.filter((s) => s.judgeCase !== null).length}/${g.secondOrder.length}`
+          : '—',
         g && g.requirementsWithoutCase.length > 0 ? cell(g.requirementsWithoutCase.join(', ')) : '—',
         g ? g.styleViolations : '—',
         run.merge?.mergedAway.length ?? 0,
@@ -402,6 +428,18 @@ export function renderRoundSummaryV3(record: RoundRecordV3, r: PlanResults, tabl
   );
   if (missed.length > 0)
     lines.push('## Must-cover risks with no case', '', ...missed.map((m) => `- ${m}`), '');
+  const second = r.runs.flatMap((run) =>
+    (run.grade?.secondOrder ?? []).filter((s) => s.judgeCase === null).map((s) => `${run.caseId}: ${s.id}`),
+  );
+  if (second.length > 0)
+    lines.push(
+      '## Second-order combinations with no case',
+      '',
+      'From the fixed list in `expected.secondOrder`. This list does not change between rounds.',
+      '',
+      ...second.map((m) => `- ${m}`),
+      '',
+    );
   const gaps = r.runs.flatMap((run) =>
     (run.rubric?.missingCases ?? []).map(
       (m) => `${run.caseId}: ${m.requirement} / ${m.technique}: ${cell(m.what)}`,
@@ -450,7 +488,7 @@ export function recordRoundV3(
   r: PlanResults,
   table: string,
   deps: V3Deps,
-  rescored?: { at: string; what: 'judge' | 'deterministic' },
+  rescored?: { at: string; what: 'judge' | 'deterministic' | 'coverage' },
 ): void {
   const all = readIndex(deps);
   const earlier = rescored ? all.find((x) => x.round === round && x.language === r.language) : undefined;

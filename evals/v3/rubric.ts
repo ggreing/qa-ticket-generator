@@ -14,11 +14,18 @@ import type { LlmUsage, PrdDocument } from '../../src/core/contracts';
 import { estimateCostUsd } from '../../src/llm/pricing';
 import type { RubricClientLike } from '../rubric';
 
-/** 3.1 (after plan round 1): the judge is told what does and does not count as a duplicate. Anchors unchanged. */
-export const RUBRIC_V3_VERSION = 3.1;
+/**
+ * 3.1 (after plan round 1): the judge is told what does and does not count as a duplicate.
+ * 3.2 (after plan round 2): spec coverage weighs the same as the other sheet criteria, the index
+ * shows each case's steps and expected results, and an empty `missingCases` is a valid answer.
+ * The anchors are unchanged since 3.
+ */
+export const RUBRIC_V3_VERSION = 3.2;
 export const DEFAULT_JUDGE_MODEL = 'claude-sonnet-5-5';
 /** Cases scored in full per sheet. The whole sheet is still shown as an index. */
 export const CASE_SAMPLE = 20;
+/** Longest one-line summary of a case's steps and expected results in the index. */
+export const INDEX_SUMMARY_CHARS = 260;
 const MAX_TOKENS = 16_000;
 /** Measured on rubric v2: about 220 output tokens per scored item, plus the sheet-level part. */
 export const JUDGE_OUTPUT_PER_CASE = 260;
@@ -29,9 +36,14 @@ export const SHEET_CRITERIA = ['coverage', 'noDuplicates', 'honesty'] as const;
 export type CaseCriterion = (typeof CASE_CRITERIA)[number];
 export type SheetCriterion = (typeof SHEET_CRITERIA)[number];
 export type CriterionV3 = CaseCriterion | SheetCriterion;
-/** Coverage counts double: it is the reason the tool exists (SPEC v3 §8). */
+/**
+ * Equal weights since 3.2. Coverage counted double until rounds 0 to 2 showed that the judge's
+ * coverage score does not move with the sheet (0/8/6 sheets at 0/1/2 and 25 listed gaps in all
+ * three), so doubling it only damped the overall. Coverage is compared by the recall of the fixed
+ * list in `expected.secondOrder` instead.
+ */
 export const SHEET_WEIGHTS: Readonly<Record<SheetCriterion, number>> = {
-  coverage: 2,
+  coverage: 1,
   noDuplicates: 1,
   honesty: 1,
 };
@@ -164,7 +176,7 @@ const rubricText = (criteria: readonly CriterionV3[]): string =>
 
 export const JUDGE_SYSTEM_V3 = `You grade a QA case sheet that an AI wrote from a product spec. The team wants a sheet that has every case a tester must run, including the ones a person reading the spec would miss, written the way a working QA engineer writes them. Grade for that, not for how the sheet reads as prose.
 
-You get the spec, an index of every case in the sheet, and some of the cases in full. Score each case given in full on five criteria, and the sheet on three. Each score is 0, 1 or 2, with a one-line reason that names what earned or cost the points.
+You get the spec, an index of every case in the sheet with its steps and expected results on one line, and some of the cases in full. Score each case given in full on five criteria, and the sheet on three. Each score is 0, 1 or 2, with a one-line reason that names what earned or cost the points.
 
 Case criteria:
 ${rubricText(CASE_CRITERIA)}
@@ -173,7 +185,8 @@ Sheet criteria:
 ${rubricText(SHEET_CRITERIA)}
 
 How to apply it:
-- Spec coverage is the criterion that matters most. Work it out yourself: for each requirement of the spec, go through the techniques (${TECHNIQUES_TEXT}) and decide which apply, then look for a case in the index. List what has no case in \`missingCases\`. A technique applies only when the requirement gives it something to test; do not ask for a case per technique. Count what the spec leaves open as something that applies: a limit with no word on whether it is included, an action with no word on what a second one does.
+- Spec coverage: work it out yourself. For each requirement of the spec, go through the techniques (${TECHNIQUES_TEXT}) and decide which apply, then look for a case in the index. The index shows what every case does and expects, so a case you were not given in full still counts; read its line before you call something missing. List in \`missingCases\` only what you looked for and did not find. A technique applies only when the requirement gives it something to test; do not ask for a case per technique. Count what the spec leaves open as something that applies: a limit with no word on whether it is included, an action with no word on what a second one does.
+- An empty \`missingCases\` is a valid answer, and for a thorough sheet the expected one. Do not list a combination to have something to list, and never list one that you then describe as covered. The coverage score follows the list: nothing missing is a 2, one or two combinations a 1, three or more a 0.
 - A long sheet is not a fault. Only repeated test intent costs points under no duplicates, and you list those groups in \`duplicateGroups\`.
 - No duplicates: two cases repeat each other only when a tester who ran one would learn nothing from the other, which means the same setup, the same action and the same thing observed. They are not duplicates when they differ in the state they start from, in the actor, in the side of a limit they test (the last value that passes and the first value that fails are two cases, and so is the limit itself when the spec does not say whether it is included), or in what is observed, however alike their titles are. They are duplicates when they are several values of one kind with the same result, the same scenario filed under two techniques, or the same situation written once per requirement with nothing different to observe. Check each group against this before you list it.
 - Easy-to-miss value is about the case, not about how its \`whyEasyToMiss\` is worded. A plain happy path is a 1: it has to be there, and nobody would forget it.
@@ -287,10 +300,17 @@ export function buildJudgeInput(spec: PrdDocument, cases: QaCase[], sampled: QaC
     spec.acceptanceCriteria.length > 0
       ? `Acceptance criteria:\n${spec.acceptanceCriteria.map((a) => `- ${guard(a)}`).join('\n')}\n\n`
       : '';
+  // Every case in one line, so coverage and duplicates are judged on the whole sheet and not only
+  // on the titles of the cases that are not given in full.
+  const summary = (c: QaCase): string =>
+    guard(`${c.steps.join(' > ')} => ${c.expected.join('; ')}`.replace(/\s+/g, ' ')).slice(
+      0,
+      INDEX_SUMMARY_CHARS,
+    );
   const index = cases
     .map(
       (c) =>
-        `${c.caseId} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.priority} | ${c.origin} | ${guard(c.title)}`,
+        `${c.caseId} | ${c.acLabels.join(',') || '-'} | ${c.technique} | ${c.priority} | ${c.origin} | ${guard(c.title)} | ${summary(c)}`,
     )
     .join('\n');
   const full = sampled
@@ -306,7 +326,7 @@ export function buildJudgeInput(spec: PrdDocument, cases: QaCase[], sampled: QaC
     )
     .join('\n');
   const ids = sampled.map((c) => c.caseId);
-  return `<spec title="${guard(spec.title).replace(/"/g, "'")}">\n${criteria}${guard(spec.bodyMarkdown)}\n</spec>\n<case_index>\nid | requirements | technique | priority | origin | title\n${index}\n</case_index>\n<cases>\n${full}\n</cases>\nReturn one entry in \`cases\` for each of these ${ids.length} cases, with exactly these ids: ${ids.join(', ')}. Then list the missing cases and the duplicate groups for the whole sheet, and score the sheet.`;
+  return `<spec title="${guard(spec.title).replace(/"/g, "'")}">\n${criteria}${guard(spec.bodyMarkdown)}\n</spec>\n<case_index>\nid | requirements | technique | priority | origin | title | steps => expected\n${index}\n</case_index>\n<cases>\n${full}\n</cases>\nReturn one entry in \`cases\` for each of these ${ids.length} cases, with exactly these ids: ${ids.join(', ')}. Then list the missing cases and the duplicate groups for the whole sheet, and score the sheet.`;
 }
 
 async function judgeOnce(
@@ -393,7 +413,7 @@ export async function judgeSheet(
 export function estimateJudgeCost(model: string, spec: PrdDocument, caseCount: number): number {
   const sampled = Math.min(caseCount, CASE_SAMPLE);
   const input = Math.ceil(
-    (JUDGE_SYSTEM_V3.length + spec.bodyMarkdown.length + caseCount * 110 + sampled * 700) / 3.2,
+    (JUDGE_SYSTEM_V3.length + spec.bodyMarkdown.length + caseCount * 340 + sampled * 700) / 3.2,
   );
   return estimateCostUsd(model, {
     ...ZERO,

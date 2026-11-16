@@ -41,6 +41,14 @@ node evals/cli.mjs verify --from evals/results/<timestamp>-plan.json
   the figure rounds are compared by, and is kept apart from the rubric judge, which must not see
   the expected risks. The risks were written for the pull request, so a few of them cannot be
   derived from the spec alone; must-cover is not expected to reach 100% in the plan phase.
+- **Second-order recall** is how spec coverage is compared between rounds. `expected.json` may
+  list, per spec, the combinations no requirement asks for outright (`secondOrder`: another person
+  per action, zero and same-value changes, a period across a boundary, what follows a failure).
+  The same small model names the case that tests each one, and the recall is the share that have a
+  case, over every item of every spec with a list. A spec without a list is left out. The list is
+  fixed, so the figure means the same thing in every round. The rubric judge's "Spec coverage"
+  does not: asked what is missing it finds one to three things in almost any sheet, and read 1.43
+  with the same distribution in rounds 0, 1 and 2.
 - **Style violations** are counted with `lintCaseStyle` from `src/cases`, the same rule list the
   prompt states (`STYLE_RULES`). If that lint cannot run, a coarser stand-in is used and the results
   file says so (`lintSource: "fallback"`).
@@ -76,9 +84,10 @@ node evals/cli.mjs plan --calibrate evals/rounds/v3/0/raw/ratings.ko.json evals/
   `evals/rounds/v3/<n>/raw/plan[.<lang>].json` (not committed).
 - A round is compared with the latest earlier round marked keep **in the same language**. It is
   an improvement when the overall rises (on the sheets both rounds scored) and none of must-cover,
-  requirements with a case and style violations per 100 cases gets worse. The summary also lists
-  the must-cover risks with no case, what the rubric judge found missing, and what the merge
-  removed.
+  second-order recall, requirements with a case and style violations per 100 cases gets worse.
+  Second-order recall is compared only when both rounds were checked against a list of the same
+  length. The summary also lists the must-cover risks and the second-order combinations with no
+  case, what the rubric judge found missing, and what the merge removed.
 - The **review pack** shows each sampled sheet the way its tickets will read (index, then every
   case as rendered by `src/cases`), with the spec and its requirements. It asks for the five case
   criteria on 8 cases per sheet, the three sheet criteria, and two open lists: cases that are
@@ -96,11 +105,23 @@ node evals/cli.mjs plan --regrade evals/rounds/v3/0/raw/plan.ko.json --round 0
 # The rubric or the judge's instructions changed: judge the stored sheets again.
 node evals/cli.mjs plan --rejudge evals/rounds/v3/0/raw/plan.ko.json --round 0         # plan and cost
 node evals/cli.mjs plan --rejudge evals/rounds/v3/0/raw/plan.ko.json --round 0 --yes
+
+# The second-order lists were added or changed: check the stored sheets against them. A few cents.
+node evals/cli.mjs plan --regrade-coverage evals/rounds/v3/0/raw/plan.ko.json --round 0 --yes
+
+# How much does the judge move on its own? Judge one file a second time, then compare (offline).
+node evals/cli.mjs plan --rejudge evals/rounds/v3/1/raw/plan.ko.json --yes      # writes a new file
+node evals/cli.mjs plan --judge-noise evals/rounds/v3/1/raw/plan.ko.json evals/results/<time>-plan-rejudged.json
 ```
 
 - Nothing is generated: the sheets are the ones in the file. `--rejudge` calls only the rubric
-  judge; `--regrade` calls nothing. Both recompute the deterministic metrics, and both keep the
-  must-cover verdicts given when the sheet was written.
+  judge, `--regrade-coverage` only the small model for the second-order lists, and `--regrade`
+  nothing. All three recompute the deterministic metrics and keep the coverage verdicts given
+  earlier, as long as the checklist they were given for has not changed.
+- `--judge-noise` compares two judgings of identical sheets under one rubric version: the
+  difference of the overall, how far a sheet moves on average, and how many sheets changed on
+  each sheet criterion. A difference between two rounds that is not clearly larger is not a
+  result.
 - With `--round n` the round's record, summary and raw file are replaced, and the round keeps its
   change text and its keep/revert decision. The summary says the round was scored again. To
   compare two rounds after a rubric change, re-judge both: rounds scored under different rubric

@@ -60,6 +60,13 @@ export interface PlanGrade {
   mustCoverRecall: number;
   /** By the coverage judge, which reads for meaning in any language. Absent when it did not run. */
   mustCoverRecallJudge?: number;
+  /**
+   * The spec's second-order combinations (`expected.secondOrder`) and the case the coverage judge
+   * named for each (null = none). Absent when the spec has no such list or the judge did not run.
+   */
+  secondOrder?: { id: string; judgeCase: string | null }[];
+  /** Share of those combinations with a case. Absent with `secondOrder`. */
+  secondOrderRecall?: number;
   /** Requirements of the spec with no case at all. */
   requirementsWithoutCase: string[];
   requirementCoverage: number;
@@ -196,6 +203,23 @@ export function gradeVerify(evalCase: GradedCase, cases: QaCase[], result: Verif
   };
 }
 
+/** Adds the coverage judge's verdicts on the second-order combinations to a grade. */
+export function withSecondOrderVerdicts(
+  grade: PlanGrade,
+  ids: string[],
+  verdicts: Record<string, string | null>,
+): PlanGrade {
+  const secondOrder = ids.map((id) => ({ id, judgeCase: verdicts[id] ?? null }));
+  return {
+    ...grade,
+    secondOrder,
+    secondOrderRecall:
+      secondOrder.length === 0
+        ? 1
+        : secondOrder.filter((m) => m.judgeCase !== null).length / secondOrder.length,
+  };
+}
+
 const mean = (values: number[]): number =>
   values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length;
 
@@ -207,6 +231,13 @@ export interface PlanSummary {
   mustCoverRecall: number;
   /** By the coverage judge, over the specs it ran for; null when it ran for none. */
   mustCoverRecallJudge: number | null;
+  /**
+   * Share of the second-order combinations that have a case, over every item of every spec that
+   * has a list and was checked; null when none was. The figure spec coverage is compared by.
+   */
+  secondOrderRecall: number | null;
+  /** How many combinations that share is over. */
+  secondOrderItems: number;
   requirementCoverage: number;
   repeatedTitles: number;
   styleViolations: number;
@@ -218,6 +249,7 @@ export interface PlanSummary {
 export function summarizePlan(grades: PlanGrade[]): PlanSummary {
   const must = grades.flatMap((g) => g.mustCover);
   const judged = grades.filter((g) => g.mustCoverRecallJudge !== undefined).flatMap((g) => g.mustCover);
+  const second = grades.flatMap((g) => g.secondOrder ?? []);
   const cases = grades.reduce((n, g) => n + g.cases, 0);
   const violations = grades.reduce((n, g) => n + g.styleViolations, 0);
   return {
@@ -227,6 +259,9 @@ export function summarizePlan(grades: PlanGrade[]): PlanSummary {
     mustCoverRecall: must.length === 0 ? 1 : must.filter((m) => m.hit).length / must.length,
     mustCoverRecallJudge:
       judged.length === 0 ? null : judged.filter((m) => m.judgeCase != null).length / judged.length,
+    secondOrderRecall:
+      second.length === 0 ? null : second.filter((m) => m.judgeCase !== null).length / second.length,
+    secondOrderItems: second.length,
     requirementCoverage: mean(grades.map((g) => g.requirementCoverage)),
     repeatedTitles: grades.reduce((n, g) => n + g.repeatedTitles, 0),
     styleViolations: violations,
