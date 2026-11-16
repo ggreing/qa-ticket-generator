@@ -405,9 +405,9 @@ describe('plan eval says when a sheet ran into the output limit', () => {
       createProvider: () => provider,
     });
     const run = outcome.plan?.runs[0] as PlanRun;
-    // Planned: one call for the three requirements and the merge pass. Made: the cut-off one, two
-    // halves, and the merge.
-    expect(run.calls).toBe(4);
+    // Planned: one call for the three requirements, and no merge pass for a sheet written in one
+    // call. Made: the cut-off one and the two halves.
+    expect(run.calls).toBe(3);
     expect(run.extraCalls).toBe(2);
     expect(h.out()).toContain(
       `1 sheet(s) needed more calls than planned, because a reply was cut off at the output limit and written again in halves: rbac-export-role (+${run.extraCalls}). Those sheets cost more than estimated.`,
@@ -1444,5 +1444,60 @@ describe('plan --compare: two runs of the same specs side by side (no round reco
       'Cannot compare: The kept rounds were run in ko and this one in en.',
     );
     expect(await say(['--compare', a, 'dev.json'])).toContain('so the numbers are not comparable');
+    const elsewhere = results.runs.map((r, i) => ({ ...r, caseId: `other-${i}` }));
+    first.files['elsewhere.json'] = JSON.stringify({ ...results, runs: elsewhere });
+    expect(await say(['--compare', a, 'elsewhere.json'])).toContain(
+      'Cannot compare: the two runs have no sheet in common.',
+    );
+  });
+
+  it('takes every figure over the sheets both runs hold, not only the overall', async () => {
+    // Round 3's test comparison: one run had picked up four more specs, and its duplicate score and
+    // cases per spec were read as if they were over the same nine sheets.
+    const first = harness();
+    await runPlanEval(KO, first.deps);
+    const a = Object.keys(first.files)[0] as string;
+    const results = JSON.parse(first.files[a] as string) as PlanResults;
+    const one = results.runs[0] as PlanResults['runs'][number];
+    const extra = {
+      ...one,
+      caseId: 'only-in-b',
+      cases: [...one.cases, ...one.cases, ...one.cases],
+      grade: one.grade ? { ...one.grade, caseId: 'only-in-b', cases: one.cases.length * 3 } : one.grade,
+      rubric: one.rubric
+        ? { ...one.rubric, overall: 0, sheetScore: 0, sheet: { ...one.rubric.sheet, noDuplicates: 0 } }
+        : one.rubric,
+    };
+    // The stored means are the ones a 3-sheet run would print; they must not be what is compared.
+    first.files['wide.json'] = JSON.stringify({
+      ...results,
+      runs: [...results.runs, extra],
+      summary: { ...results.summary, casesPerSpec: 999 },
+      rubric: results.rubric ? { ...results.rubric, overall: 0.01 } : results.rubric,
+    });
+
+    const h = harness({}, first.store);
+    expect(await runPlanEval(['--compare', a, 'wide.json'], h.deps)).toMatchObject({ exitCode: 0 });
+    expect(h.lines[2]).toMatch(/^ {2}B: wide\.json .* 3 sheet\(s\) /);
+    expect(h.lines[3]).toBe(
+      '  Every figure below is over the 2 sheet(s) both runs hold. Left out: from B only-in-b.',
+    );
+    // The same two sheets on both sides: every row reads the same left and right.
+    const rows = h.lines.filter(
+      (l) => l.startsWith('| ') && !l.startsWith('| Metric') && !l.startsWith('| ---'),
+    );
+    expect(rows.length).toBeGreaterThan(8);
+    for (const row of rows) {
+      const [, , left, right] = row.split('|').map((s) => s.trim());
+      expect(right, row).toBe(left);
+    }
+    expect(h.out()).not.toContain('999');
+
+    // The other way round the note names the file the sheet came from.
+    const back = harness({}, first.store);
+    await runPlanEval(['--compare', 'wide.json', a], back.deps);
+    expect(back.lines[3]).toBe(
+      '  Every figure below is over the 2 sheet(s) both runs hold. Left out: from A only-in-b.',
+    );
   });
 });
