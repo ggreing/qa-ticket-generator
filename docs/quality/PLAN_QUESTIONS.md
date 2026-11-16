@@ -1,8 +1,8 @@
-# Plan prompt: the seven questions (tried in round 2, not in use)
+# Plan prompt: the seven questions
 
-Status: **removed from the prompt** after v3 round 2 (2026-11-16). Kept here so it can be tried again
-once spec coverage can be measured. The plan prompt in use is `2026-11-16.2`, whose text is that of
-`2026-11-13.2`.
+Status: **in the prompt again** since plan prompt `2026-11-16.3` (v3 round 3), in a changed form. This
+memo keeps the section as round 2 ran it, what the re-measurement showed, and what was changed for
+round 3. The text in use is in `src/llm/prompts/plan.ts`.
 
 ## Why it was written
 
@@ -21,7 +21,7 @@ techniques asks for outright:
 | Per what a rule applies, several at once                | 5     | rounding per line or on the total, expiring together     |
 | A change to the value already there                     | 3     | changing to a plan of the same price                     |
 
-## The section
+## The section as round 2 ran it (plan prompt 2026-11-16.1)
 
 It sat after the technique list and before "One intent, one case". Each task also ended with "then put
 the questions a requirement does not ask for to it." The examples are about a shared playlist on
@@ -44,34 +44,49 @@ Going through the techniques finds the cases a requirement points at. The cases 
 These questions add cases; they do not loosen what follows. An answer the spec does not give is an open question and is written as one. A second value of the same kind still belongs in `testData`, and a situation you already have is not written again because another question leads to it too.
 ```
 
-## What round 2 showed
+## What the rounds showed
 
-| Round | Prompt       | Overall | Spec coverage | No duplicates | Honesty | Cases/spec | Must-cover |
-| ----- | ------------ | ------- | ------------- | ------------- | ------- | ---------- | ---------- |
-| 1     | 2026-11-13.2 | 1.64    | 1.43          | 1.07          | 1.86    | 39.2       | 100%       |
-| 2     | 2026-11-16.1 | 1.60    | 1.43          | 0.86          | 1.86    | 42.8       | 100%       |
+Round 2 was first recorded as a revert, on a coverage score that could not have shown an improvement:
+the judge listed one to three missing combinations for almost any sheet, and the score read 1.43 with the
+same distribution in rounds 0, 1 and 2. Coverage is since compared by the recall of a fixed list per spec
+(`expected.secondOrder`, 96 combinations over the 14 dev specs), and the three rounds were scored again
+under rubric v3.2:
 
-Recorded as a revert: the overall fell and coverage did not move.
+| Round | Prompt       | Overall | 2nd-order recall | No duplicates | Honesty | Cases/spec |
+| ----- | ------------ | ------- | ---------------- | ------------- | ------- | ---------- |
+| 0     | 2026-11-13.1 | 1.70    | 86%              | 1.00          | 1.79    | 53.6       |
+| 1     | 2026-11-13.2 | 1.82    | 82%              | 1.36          | 2.00    | 39.2       |
+| 2     | 2026-11-16.1 | 1.75    | 91%              | 1.14          | 1.93    | 42.8       |
 
-## Why that result does not settle it
+Two judgings of round 1's sheets differ by 0.03 in the overall, so the 0.07 between rounds 1 and 2 is
+more than the judge's own movement. The questions found what they were written for (11 combinations
+gained, 3 lost) and cost on duplicates.
 
-The coverage score cannot show an improvement, whatever the prompt does (measured on the stored
-results of rounds 0, 1 and 2, all judged with rubric v3.1):
+## What round 2 got wrong, and what round 3 changes
 
-- The distribution of sheet scores was 0/8/6 (scores 0/1/2) in all three rounds, and the judge listed
-  exactly 25 missing combinations in each, for sheets of 54, 39 and 43 cases written by three prompts.
-- The judge is asked to list what is missing and does: one to three items per sheet, 41 of 42 times.
-  What it lists changes from round to round and gets finer. Round 1's items (a role without the
-  right, a holiday across midnight, the fields of an audit entry) are mostly gone from round 2's
-  list, replaced by ones like "rounding at exactly half a cent".
-- It reads 20 cases of a sheet in full and the rest as titles, and several items say so ("only in
-  index", "exists but unseen", "no gap").
+Round 2's sheets had 23 duplicate groups against 15 in round 1. Read one by one:
 
-So the questions may well have added the cases they were written for; this score would read 1.43
-either way. The fall in the overall came from three sheets moving one step on "no duplicates", which
-is within what the judge moves by between two readings of similar sheets.
+- **The same answer once per requirement** (about 8 groups). The section said "put each of them to every
+  requirement", and it was: a double tap written for two requirements, an empty result for two, a
+  refused request logged for two kinds of refusal. Round 3 puts each question to the requirements taken
+  together, once per action, value and period.
+- **Two ways of being empty** as two cases (a file with only a header and a file of zero bytes; no key and
+  an unknown key). Round 3: one case, the variants in `testData`.
+- **A late arrival written twice**, once as a boundary and once as a race, and a boundary repeated with a
+  time of day. Round 3: the two sides of a limit belong to the boundary technique; the question adds only
+  the period that spans the line and the late arrival, each once.
+- **A refused request sent again.** Round 3 says outright that this is not a case.
 
-Before this section is tried again, coverage needs a fixed target: a list per spec of the
-second-order combinations a sheet should have, checked the way must-cover is (a model names the case
-that tests each item, and only an existing case counts). That list does not move between rounds, and
-the stored sheets of rounds 0 to 2 can be checked against it without generating anything.
+"Who else?" was suspected and is not the cause: one group, and several of the gains.
+
+Honesty fell on one sheet, where a case brought in a payment step and a "sold" state that the spec does not
+have. Round 3 adds that the person, the value, the period and the later action have to be ones the spec
+itself mentions.
+
+The section now ends with four rules for whatever the questions turn up: a question is not a second route
+to a second case; one case for several requirements; nothing the spec does not name; open answers as open
+questions. The merge pass was changed with it: it runs for every sheet, also one written in a single call
+(five of the seven single-call sheets had duplicate groups in round 2 and no pass to remove them); it is
+told that the route by which a case was reached does not matter; and it sees every expected result, so it
+can drop a case whose observations are all among another's and keep both when each checks something the
+other does not.

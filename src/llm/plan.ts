@@ -42,10 +42,12 @@ import { addUsage, usageFromError, withBilledUsage, ZERO_USAGE } from './usage';
 export const AC_GROUP_SIZE = 3;
 /** Output the merge call is expected to write: a few index numbers per decision. */
 const MERGE_OUTPUT_TOKENS = 2_000;
-/** Rough size of one row of the case index shown to the merge call (title, setup, first result). */
-const INDEX_ROW_TOKENS = 110;
+/** Rough size of one row of the case index shown to the merge call (title, setup, results). */
+const INDEX_ROW_TOKENS = 150;
 /** Longest setup text shown per case in the merge index. */
 const INDEX_SETUP_CHARS = 240;
+/** Longest expected-results text shown per case in the merge index. */
+const INDEX_EXPECTED_CHARS = 240;
 /** Cases a group is expected to produce, for sizing the merge call before any call is made. */
 const EXPECTED_CASES_PER_REQUIREMENT = 14;
 const CHARS_PER_TOKEN = 3.2;
@@ -116,7 +118,7 @@ export function planPlanRun(
         sum + cost(shared + estimateTokens(buildPlanTask(g, requirements)), options.expectedOutputTokens),
       0,
     );
-    if (groups.length < 2) return calls;
+    if (groups.length === 0 || requirements.length === 0) return calls;
     const cases = groups.reduce((n, g) => n + g.length, 0) * EXPECTED_CASES_PER_REQUIREMENT;
     const mergeInput = estimateTokens(PLAN_MERGE_SYSTEM + prefix) + cases * INDEX_ROW_TOKENS;
     return calls + cost(mergeInput, MERGE_OUTPUT_TOKENS);
@@ -128,7 +130,10 @@ export function planPlanRun(
     requirements,
     groups,
     skipped: all.slice(groups.length),
-    merge: groups.length > 1,
+    // Every sheet gets the pass that removes repeats and re-ranks priorities, also one written in
+    // a single call: a long answer repeats itself too. A spec without requirements to group by
+    // is the exception; its one call is the whole run.
+    merge: requirements.length > 0,
     estimateUsd: estimate(groups),
   };
 }
@@ -415,7 +420,9 @@ export async function generatePlan(
       priority: c.priority,
       title: c.title,
       setup: [...c.preconditions, ...c.testData].join('; ').slice(0, INDEX_SETUP_CHARS),
-      expected: c.expected[0] ?? '',
+      // Every expected line: whether one case observes a part of what another does is what
+      // decides between a duplicate and two checks.
+      expected: c.expected.join('; ').slice(0, INDEX_EXPECTED_CHARS),
     }));
     try {
       calls++;
