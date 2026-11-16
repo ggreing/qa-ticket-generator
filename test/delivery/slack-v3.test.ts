@@ -375,11 +375,9 @@ describe('SPEC v3 §2.2 §5 createSlackNotifier — bot mode', () => {
     expect(logger.lines.join('\n')).not.toMatch(/xoxb|Wish list|SHOP-900/);
   });
 
-  it('SPEC v3 §5 plan runs post a new message each time, and nothing when generation was skipped', async () => {
+  it('SPEC v3 §5 plan runs post a new message each time', async () => {
     const { client, chat } = fakeSlack();
     const notifier = createSlackNotifier(BOT, silentLogger(), { client });
-    expect(await notifier?.postPlan(planSummary(), { skipped: 'spec_unchanged' })).toEqual({ ok: true });
-    expect(chat.postMessage).not.toHaveBeenCalled();
     expect(await notifier?.postPlan(planSummary())).toEqual({ ok: true });
     expect(await notifier?.postPlan(planSummary())).toEqual({ ok: true });
     expect(chat.postMessage).toHaveBeenCalledTimes(2);
@@ -398,13 +396,12 @@ describe('SPEC v3 §2.2 §5 createSlackNotifier — webhook mode', () => {
   const fakeFetch = (status = 200) =>
     vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => new Response('ok', { status }));
 
-  it('SPEC v3 §2.2 §5 posts each notice as JSON; no state, nothing on a skipped plan', async () => {
+  it('SPEC v3 §2.2 §5 posts each notice as JSON; no state', async () => {
     const fetch = fakeFetch();
     const notifier = createSlackNotifier(WEBHOOK, silentLogger(), {
       fetch: fetch as unknown as typeof globalThis.fetch,
     });
     expect(await notifier?.postVerify(verifyInput(), V2_STATE)).toEqual({ ok: true });
-    expect(await notifier?.postPlan(planSummary(), { skipped: 'spec_unchanged' })).toEqual({ ok: true });
     expect(await notifier?.postPlan(planSummary())).toEqual({ ok: true });
     expect(fetch).toHaveBeenCalledTimes(2);
     const [url, init] = fetch.mock.calls[0] ?? [];

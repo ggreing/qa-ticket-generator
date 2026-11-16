@@ -6,20 +6,19 @@
  *   channel and timestamp travel in the PR comment's hidden state (`statePatch`), as in v2. Thread
  *   replies left by an earlier v2 report on the same PR are removed, since the card above them now
  *   tells a different story. If the old message is gone, a new one is posted.
- * - Plan: a new message per run (a spec has no PR comment to keep state in). A run that skipped
- *   generation (`spec_unchanged`) sends nothing.
+ * - Plan: a new message per run (a spec has no PR comment to keep state in). The plan pipeline
+ *   does not call it for skipped, failed or dry runs.
  * - Webhook mode: a new message every time; webhooks cannot edit.
  *
  * Nothing here throws: a failure is logged without content and returned as a `slack_failed`
- * warning, so Slack can never break a run.
+ * warning, so Slack can never break a run. The contract lives in src/core/notify.ts.
  * Owner: qa-work-session-b.
  */
 
-import type { CaseSetSummary } from '../core/cases';
 import type { QtgConfig } from '../core/config';
-import type { DeliveryState, Logger, Warning } from '../core/contracts';
+import type { DeliveryState, Logger } from '../core/contracts';
+import type { SlackNoticeResult, SlackNotifier } from '../core/notify';
 import type { SlackMessage } from './render/slack-blocks';
-import type { VerifySummaryInput } from './render/verify-summary';
 import {
   createSlackClient,
   describeError,
@@ -28,28 +27,7 @@ import {
   type SlackChatClient,
   type SlackState,
 } from './slack';
-import { buildPlanNotice, buildVerifyNotice, type PlanChanges } from './slack-v3-blocks';
-
-export interface SlackNoticeResult {
-  ok: boolean;
-  /** To merge into the PR comment's DeliveryState (verify, bot mode). */
-  statePatch?: Pick<DeliveryState, 'slack'>;
-  warning?: Warning;
-}
-
-export interface PlanNoticeContext {
-  /** Spec-side overview a sink published (`SinkOutcome.summaryUrl` of the primary sink). */
-  listUrl?: string;
-  /** What the primary sink changed in this run. */
-  changes?: PlanChanges;
-  /** `PlanOutcome.skipped`: nothing was generated, so nothing is announced. */
-  skipped?: 'spec_unchanged';
-}
-
-export interface SlackNotifier {
-  postVerify(data: VerifySummaryInput, state: DeliveryState): Promise<SlackNoticeResult>;
-  postPlan(summary: CaseSetSummary, ctx?: PlanNoticeContext): Promise<SlackNoticeResult>;
-}
+import { buildPlanNotice, buildVerifyNotice } from './slack-v3-blocks';
 
 export interface SlackNotifierDeps {
   /** Bot mode client; defaults to a `WebClient` built from the bot token. */
@@ -96,10 +74,7 @@ export function createSlackNotifier(
     };
     return {
       postVerify: (data) => send('verify', () => buildVerifyNotice(data)),
-      async postPlan(summary, ctx = {}) {
-        if (ctx.skipped) return { ok: true };
-        return send('plan', () => buildPlanNotice(summary, ctx));
-      },
+      postPlan: (summary, ctx = {}) => send('plan', () => buildPlanNotice(summary, ctx)),
     };
   }
 
@@ -159,7 +134,6 @@ export function createSlackNotifier(
     },
 
     async postPlan(summary, ctx = {}) {
-      if (ctx.skipped) return { ok: true };
       try {
         await postMessage(buildPlanNotice(summary, ctx));
         logger.info('Slack: plan notice posted.');
