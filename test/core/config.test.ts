@@ -60,6 +60,33 @@ describe('resolveConfig', () => {
     );
   });
 
+  it('v0.2 defaults to the Claude API; Bedrock and Vertex need no Anthropic key and drop one if given', () => {
+    const repo = parseRepoConfig(null);
+    const plain = resolveConfig(inputs(base), repo);
+    expect(plain).toMatchObject({ llmProvider: 'anthropic', anthropicApiKey: 'sk-test' });
+
+    const bedrock = resolveConfig(inputs({ 'llm-provider': 'bedrock', 'aws-region': 'us-west-2' }), repo);
+    expect(bedrock).toMatchObject({ llmProvider: 'bedrock', awsRegion: 'us-west-2', anthropicApiKey: '' });
+    // A key left in the workflow is never sent anywhere on another platform.
+    expect(resolveConfig(inputs({ ...base, 'llm-provider': 'bedrock' }), repo).anthropicApiKey).toBe('');
+
+    const vertex = resolveConfig(inputs({ 'llm-provider': 'vertex', 'vertex-project-id': 'qa-proj' }), repo);
+    expect(vertex).toMatchObject({
+      llmProvider: 'vertex',
+      vertexProjectId: 'qa-proj',
+      vertexRegion: 'global',
+    });
+    expect(
+      resolveConfig(inputs({ 'llm-provider': 'vertex', 'vertex-region': 'us-east5' }), repo).vertexRegion,
+    ).toBe('us-east5');
+  });
+
+  it('v0.2 an unknown llm-provider is a config error; the key error says how to avoid the key', () => {
+    const repo = parseRepoConfig(null);
+    expect(() => resolveConfig(inputs({ ...base, 'llm-provider': 'azure' }), repo)).toThrow(/llm-provider/);
+    expect(() => resolveConfig(inputs({}), repo)).toThrow(/bedrock or vertex/);
+  });
+
   it('prefers slack bot mode over webhook and requires a channel', () => {
     const repo = parseRepoConfig(null);
     expect(

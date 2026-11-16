@@ -48,9 +48,20 @@ export function normalizeLanguage(value: string): Language {
   return lang;
 }
 
+/** Where Claude runs (v0.2): the Claude API, Amazon Bedrock or Google Vertex AI. */
+export type LlmPlatform = 'anthropic' | 'bedrock' | 'vertex';
+
 /** Fully resolved runtime configuration. */
 export interface QtgConfig {
+  /** '' when the platform is not `anthropic` (Bedrock and Vertex use the cloud's own credentials). */
   anthropicApiKey: string;
+  llmProvider: LlmPlatform;
+  /** Bedrock region; '' = the AWS_REGION / AWS_DEFAULT_REGION environment variable. */
+  awsRegion: string;
+  /** Vertex project; '' = resolved from the Google credentials (ADC). */
+  vertexProjectId: string;
+  /** Vertex region, `global` by default. */
+  vertexRegion: string;
   githubToken: string;
   model: string;
   effort: Effort;
@@ -148,10 +159,20 @@ export function parseRepoConfig(text: string | null): RepoConfig {
 
 /** Resolves inputs + repo config into QtgConfig. Throws QtgError('config_invalid') on bad values. */
 export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
-  const anthropicApiKey = input('anthropic-api-key').trim();
+  const llmProvider = oneOf(
+    input('llm-provider'),
+    'llm-provider',
+    ['anthropic', 'bedrock', 'vertex'] as const,
+    'anthropic',
+  );
   // Required even for dry-run: dry-run still generates the report, it only skips publishing.
-  if (!anthropicApiKey) {
-    throw new QtgError('config_invalid', 'Input "anthropic-api-key" is required.');
+  // Bedrock and Vertex authenticate with the cloud's own credentials, never with this key.
+  const anthropicApiKey = llmProvider === 'anthropic' ? input('anthropic-api-key').trim() : '';
+  if (llmProvider === 'anthropic' && !anthropicApiKey) {
+    throw new QtgError(
+      'config_invalid',
+      'Input "anthropic-api-key" is required (or set llm-provider to bedrock or vertex).',
+    );
   }
 
   const slackToken = input('slack-bot-token').trim();
@@ -184,6 +205,10 @@ export function resolveConfig(input: InputReader, repo: RepoConfig): QtgConfig {
 
   return {
     anthropicApiKey,
+    llmProvider,
+    awsRegion: input('aws-region').trim(),
+    vertexProjectId: input('vertex-project-id').trim(),
+    vertexRegion: input('vertex-region').trim() || 'global',
     githubToken: input('github-token').trim(),
     model: input('model').trim() || DEFAULTS.model,
     effort: oneOf(

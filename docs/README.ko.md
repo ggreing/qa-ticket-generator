@@ -154,6 +154,55 @@ fork에서 온 PR은 기본적으로 건너뜁니다. GitHub가 fork PR에는 se
 [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml)을 쓰면 되는데, 맨 위 경고는
 꼭 읽고 쓰세요.
 
+### Bedrock or Vertex AI
+
+회사에서 Claude를 AWS나 Google Cloud로 쓰고 있다면, Anthropic API 키 대신 그쪽을 쓸 수 있습니다. 클라우드가
+주는 짧은 수명의 자격 증명(OIDC)으로 로그인하므로 저장해 둘 키가 없습니다. 권한에 `id-token: write`를 추가하고,
+액션보다 먼저 클라우드에 로그인한 뒤 `llm-provider`를 지정하면 됩니다. `on:`, `if:`, 업로드 단계는 위
+워크플로 그대로 둡니다.
+
+Amazon Bedrock은 Bedrock의 Claude를 호출할 수 있는 role이 필요하고, 그 리전에서 모델이 켜져 있어야 합니다.
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write # 짧은 수명의 클라우드 자격 증명(OIDC)
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4 # 최신 릴리스를 확인하고 커밋 SHA로 고정
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/qa-ticket-generator
+          aws-region: us-east-1
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
+        with:
+          llm-provider: bedrock
+```
+
+Google Vertex AI는 Model Garden에서 Claude를 켜고, 서비스 계정에 Vertex AI User 역할을 주세요. `vertex-region`의
+기본값은 `global`입니다. 권한은 위와 같고, 두 `vars`는 workload identity provider와 서비스 계정을 담은 레포
+변수입니다.
+
+```yaml
+- uses: google-github-actions/auth@v2 # 최신 릴리스를 확인하고 커밋 SHA로 고정
+  with:
+    workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+    service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+- id: qa
+  uses: ggreing/qa-ticket-generator@v0
+  with:
+    llm-provider: vertex
+    vertex-project-id: my-project
+```
+
+`model` input은 `claude-opus-5-5` 그대로 두면 됩니다. Bedrock에서는 액션이 `anthropic.` 접두사를 붙여 줍니다.
+`us.anthropic.claude-opus-5-5` 같은 리전 간 ID나 ARN은 그대로 씁니다.
+
 ## Linking the spec
 
 기획 단계에서는 라벨을 붙인 이슈나 직접 실행할 때 넣은 `spec`이 기획서입니다. PR 대조 단계에서는 PR 본문에서
@@ -196,7 +245,8 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR 코멘트
 
 큰 PR은 여러 번에 나눠 호출하니까 비용이 더 듭니다. 그래서 실행마다 상한이 있습니다. `max-cost-usd`이고
 기본값은 $2예요. 넘을 것 같으면 덜 중요한 파일부터 빼고, 뭘 뺐는지 코멘트에 적습니다. 매 실행의 예상 비용은
-코멘트 맨 아래에 나옵니다.
+코멘트 맨 아래에 나옵니다. Bedrock과 Vertex AI에서도 예상 비용은 Anthropic 정가로 계산하므로, 실제 클라우드
+청구액과 다를 수 있습니다.
 
 기획서에서 케이스를 뽑는 일은 더 큽니다. 인수 조건 몇 개씩 나눠서 케이스를 쓴 뒤 합치기 때문입니다. 기획서
 하나에 $0.5\~2 정도로 예상하지만 아직 재 보지는 않았습니다. 같은 `max-cost-usd` 상한이 적용되고,
@@ -205,7 +255,8 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # PR 코멘트
 ## Where your code goes
 
 이 액션은 PR의 코드를 checkout하거나 실행하지 않습니다. diff, 변경된 파일, 연결된 티켓을 GitHub, Jira,
-Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 보내지 않고, 텔레메트리도 없습니다.
+Notion API로 읽어서 Anthropic API로 보냅니다. `llm-provider`를 지정했다면 Amazon Bedrock이나 Google Vertex AI의
+Claude로 보냅니다. 그 밖의 곳으로는 보내지 않고, 텔레메트리도 없습니다.
 
 보내기 전에 비밀값처럼 보이는 것(API 키, 토큰, 개인 키, 설정 파일 속 비밀번호)은 가립니다. PR 제목과 본문도
 마찬가지입니다. 몇 개를 가렸는지는 코멘트에 나옵니다. 로그에는 개수와 크기만 남고 파일 내용은 남지 않아요.
@@ -248,6 +299,9 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 - 코드 상태는 모델의 판단입니다. 전부 다시 보는 수동 실행에서는 몇 개가 바뀔 수 있습니다.
 - Jira sink가 쓰는 issue property(`qtg.case`)는 아직 실제 Jira 사이트에서 확인하지 않았습니다.
 - Notion sink는 아직 실제 Notion workspace에서 확인하지 않았습니다.
+- Bedrock과 Vertex AI는 아직 실제 계정에서 확인하지 않았습니다. 두 곳 모두 서버 측 거절 fallback이 꺼져 있어서,
+  모델이 거절한 요청은 실행 실패가 됩니다. Bedrock에서는 SDK가 API 버전 2026-10-21을 보내기 때문에 Claude 4.7
+  이후 모델만 됩니다.
 
 ## Configuration reference
 
@@ -256,10 +310,14 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 <!-- inputs:start -->
 | Input                   | 필수 | 기본값                            | 설명                                                                                      |
 | ----------------------- | ---- | --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `anthropic-api-key`     | ✅   | —                                 | Anthropic API 키.                                                                         |
+| `anthropic-api-key`     |      | —                                 | Anthropic API 키. `llm-provider`가 `bedrock`이나 `vertex`면 불필요.                       |
 | `github-token`          |      | `${{ github.token }}`             | PR을 읽고 코멘트를 쓸 때 사용.                                                            |
 | `model`                 |      | `claude-opus-5-5`                 | Claude 모델 ID.                                                                           |
 | `effort`                |      | `high`                            | `low`, `medium`, `high`, `xhigh`, `max`. 낮을수록 싸고 빠릅니다.                          |
+| `llm-provider`          |      | `anthropic`                       | `anthropic`, `bedrock`, `vertex`. 키 대신 클라우드 자격 증명.                             |
+| `aws-region`            |      | —                                 | Bedrock 리전. 기본은 `AWS_REGION`.                                                        |
+| `vertex-project-id`     |      | —                                 | Google Cloud 프로젝트. 기본은 자격 증명의 프로젝트.                                       |
+| `vertex-region`         |      | `global`                          | Vertex AI 리전. 예: `global`, `us-east5`.                                                 |
 | `language`              |      | `en`                              | `en`, `ko`, `ja`, `zh-CN` (`kr`, `jp`, `cn`, `zh`도 됨).                                  |
 | `trigger-label`         |      | `needs-ai-qa`                     | 실행을 시작하는 라벨.                                                                     |
 | `rerun-on-push`         |      | `true`                            | 라벨이 붙어 있는 동안 새 커밋마다 다시 실행.                                              |
@@ -281,7 +339,7 @@ Notion API로 읽어서 Anthropic API로 보냅니다. 그 밖의 곳으로는 �
 | `fail-on`               |      | `none`                            | 정합성이 `partial`이나 `misaligned`면 체크 실패.                                          |
 | `fail-on-error`         |      | `false`                           | 내부 오류 시 체크 실패. 기본은 경고만 남김.                                               |
 | `allow-fork-prs`        |      | `false`                           | fork PR 허용. 옵트인 워크플로에서만 쓰세요.                                               |
-| `server-fallback`       |      | `true`                            | Opus가 요청을 거절하면 Anthropic이 다른 모델로 재시도.                                    |
+| `server-fallback`       |      | `true`                            | Opus가 요청을 거절하면 Anthropic이 다른 모델로 재시도. Claude API 전용.                   |
 | `mode`                  |      | `auto`                            | `auto`는 이벤트로 판단, `plan`은 기획서로 QA 케이스 생성, `verify`는 PR 대조.             |
 | `spec`                  |      | —                                 | 수동 실행 시 기획서: 이슈 번호, Jira 키, Notion URL.                                      |
 | `plan-label`            |      | `needs-qa-plan`                   | 기획 단계를 시작하는 이슈 라벨.                                                           |

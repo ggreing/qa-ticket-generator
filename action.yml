@@ -7,8 +7,8 @@ branding:
 
 inputs:
   anthropic-api-key:
-    description: Anthropic API key.
-    required: true
+    description: Anthropic API key. Required unless llm-provider is bedrock or vertex.
+    required: false
   github-token:
     description: Token for reading the PR and writing the report comment.
     required: false
@@ -21,6 +21,20 @@ inputs:
     description: "Reasoning effort: low | medium | high | xhigh | max."
     required: false
     default: high
+  llm-provider:
+    description: "Where Claude runs: anthropic | bedrock | vertex. Bedrock and Vertex use the cloud's own credentials (OIDC), not an API key."
+    required: false
+    default: anthropic
+  aws-region:
+    description: Bedrock region. Defaults to AWS_REGION, which aws-actions/configure-aws-credentials sets.
+    required: false
+  vertex-project-id:
+    description: Google Cloud project for Vertex AI. Defaults to the project of the Google credentials.
+    required: false
+  vertex-region:
+    description: Vertex AI region, e.g. global, us-east5 or europe-west1.
+    required: false
+    default: global
   language:
     description: "Output language: en | ko | ja | zh-CN (aliases kr, jp, cn, zh accepted)."
     required: false
@@ -97,7 +111,7 @@ inputs:
     required: false
     default: "false"
   server-fallback:
-    description: Enable Anthropic server-side refusal fallback.
+    description: Enable Anthropic server-side refusal fallback (Claude API only; off on Bedrock and Vertex).
     required: false
     default: "true"
   mode:
