@@ -96,9 +96,15 @@ interface JiraIssue {
 }
 
 /**
+ * Names one description record exactly: a rewrite of the title or the body (a text update, or
+ * markObsolete's title prefix) changes it, so a property recorded over an older record is stale.
+ */
+export const recordKey = (p: SinkPayload): string => `${p.hash}:${p.digest.title}:${p.digest.body}`;
+
+/**
  * The case recorded in CASE_PROPERTY replaces the description payload's case only while it was
- * recorded for the text the description still holds (same hash). After a text update the
- * description payload is newer and the property is stale.
+ * recorded over the record the description still holds (`over`). After any description write
+ * (text update, markObsolete) the description is newer and the property is ignored.
  */
 export function withCaseRecord(
   payload: SinkPayload | null,
@@ -106,11 +112,18 @@ export function withCaseRecord(
   caseId: string,
 ): SinkPayload | null {
   if (!payload || typeof record !== 'object' || record === null) return payload;
-  const r = record as { v?: unknown; caseId?: unknown; hash?: unknown; case?: { caseId?: unknown } | null };
+  const r = record as {
+    v?: unknown;
+    caseId?: unknown;
+    hash?: unknown;
+    over?: unknown;
+    case?: { caseId?: unknown } | null;
+  };
   const ok =
     r.v === 1 &&
     r.caseId === caseId &&
     r.hash === payload.hash &&
+    r.over === recordKey(payload) &&
     typeof r.case === 'object' &&
     r.case !== null &&
     r.case.caseId === caseId;
@@ -458,16 +471,21 @@ export function createJiraCaseSink(
     async update(t, c, r, signal) {
       // Same text as written (only tool fields like specDigest moved): record the case in the
       // issue property instead of rewriting the description, so watchers get no mail.
+      const issue = await getIssue(t.ticketRef, signal);
+      const parts = splitDescription(issue.fields.description);
       if (sameTextUpdate(t, r)) {
+        const written = decodePayload(parts.payload, c.caseId);
         try {
-          await request(
-            'PUT',
-            `/rest/api/3/issue/${encodeURIComponent(t.ticketRef)}/properties/${CASE_PROPERTY}`,
-            signal,
-            { v: 1, caseId: c.caseId, hash: r.hash, case: c },
-            'recording a case',
-          );
-          return;
+          if (written?.hash === r.hash) {
+            await request(
+              'PUT',
+              `/rest/api/3/issue/${encodeURIComponent(t.ticketRef)}/properties/${CASE_PROPERTY}`,
+              signal,
+              { v: 1, caseId: c.caseId, hash: r.hash, over: recordKey(written), case: c },
+              'recording a case',
+            );
+            return;
+          }
         } catch (err) {
           if (isAbortError(err)) throw err;
           ctx.logger.debug(
@@ -475,8 +493,7 @@ export function createJiraCaseSink(
           );
         }
       }
-      const issue = await getIssue(t.ticketRef, signal);
-      const { tail } = splitDescription(issue.fields.description);
+      const { tail } = parts;
       const summary = clip(r.title);
       const tool = markdownToAdf(r.markdown).content;
       const description = {

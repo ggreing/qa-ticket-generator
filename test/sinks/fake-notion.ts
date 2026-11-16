@@ -76,6 +76,7 @@ export class FakeNotion {
       const filter = body.filter as { property: string; rich_text?: { equals: string } };
       const all = this.order
         .map((id) => this.pages.get(id) as Json)
+        .filter((p) => !p.in_trash)
         .filter((p) => {
           const spec = (p.properties as Json)[filter.property] as
             | { rich_text?: { plain_text: string }[] }
@@ -111,8 +112,10 @@ export class FakeNotion {
     if (page?.[1]) {
       const p = this.pages.get(page[1]);
       if (!p) return json({ object: 'error', status: 404, code: 'object_not_found' }, 404);
-      if (req.method === 'PATCH')
-        Object.assign(p.properties as Json, this.storeProps(body.properties as Json));
+      if (req.method === 'PATCH') {
+        if (body.properties) Object.assign(p.properties as Json, this.storeProps(body.properties as Json));
+        if (body.in_trash === true) p.in_trash = true;
+      }
       return json(p);
     }
     const kids = path.match(/^blocks\/(.+)\/children$/);
@@ -134,6 +137,15 @@ export class FakeNotion {
       });
     }
     const del = path.match(/^blocks\/(.+)$/);
+    if (del?.[1] && req.method === 'PATCH') {
+      // Editing one block's text, as a person would in the page.
+      const block = this.blocks.get(del[1]);
+      if (!block) return json({ object: 'error', status: 404, code: 'object_not_found' }, 404);
+      const type = block.type as string;
+      const value = (body[type] ?? {}) as { rich_text?: unknown };
+      if (value.rich_text) (block[type] as Json).rich_text = storeRich(value.rich_text);
+      return json(block);
+    }
     if (del?.[1] && req.method === 'DELETE') {
       for (const [parent, ids] of this.children)
         this.children.set(
