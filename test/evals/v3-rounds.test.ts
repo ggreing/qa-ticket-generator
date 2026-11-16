@@ -50,7 +50,7 @@ import type { StructuredProvider, StructuredRequest } from '../../src/llm/struct
 import { fakeEngine, gradedCases, makeEvalsRoot } from './support';
 
 const MODEL = 'claude-opus-5-5';
-const EVALS = makeEvalsRoot();
+const EVALS = makeEvalsRoot({ secondOrder: 'strip' });
 const graded = gradedCases();
 const coupon = graded.find((c) => c.id === 'coupon-expiry-missing') as (typeof graded)[number];
 const usage = (inputTokens: number, outputTokens: number): LlmUsage => ({
@@ -973,7 +973,7 @@ describe('second-order recall: a fixed list per spec, checked on the whole sheet
   }
   /** A copy of the eval set in which the named specs have a second-order list. */
   function rootWithLists(lists: Record<string, typeof SECOND>): string {
-    const root = makeEvalsRoot();
+    const root = makeEvalsRoot({ secondOrder: 'strip' });
     addLists(root, lists);
     return root;
   }
@@ -1180,7 +1180,7 @@ describe('second-order recall: a fixed list per spec, checked on the whole sheet
 
   it('--regrade-coverage checks stored sheets against a list added later: only that call, scores and verdicts kept', async () => {
     // Rounds 0 to 2 were written before any spec had a list.
-    const root = makeEvalsRoot();
+    const root = makeEvalsRoot({ secondOrder: 'strip' });
     const first = harness({ uncoveredRisk: 0 });
     await runPlanEval([...KO, '--round', '0', '--change', 'baseline'], { ...first.deps, evalsRoot: root });
     await runPlanEval(['--round', '0', '--decision', 'keep'], {

@@ -35,7 +35,7 @@ import type { StructuredProvider, StructuredRequest } from '../../src/llm/struct
 import { fakeEngine, gradedCases, makeEvalsRoot } from './support';
 
 const MODEL = 'claude-opus-5-5';
-const EVALS = makeEvalsRoot();
+const EVALS = makeEvalsRoot({ secondOrder: 'strip' });
 const dataset = loadDataset(EVALS).cases;
 const graded = gradedCases();
 const coupon = graded.find((c) => c.id === 'coupon-expiry-missing') as (typeof graded)[number];
