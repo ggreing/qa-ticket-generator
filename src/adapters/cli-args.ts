@@ -36,7 +36,8 @@ Options:
   -v, --version           Show the version
 
 Environment:
-  GITHUB_TOKEN, ANTHROPIC_API_KEY (required)
+  GITHUB_TOKEN (required), ANTHROPIC_API_KEY (required unless LLM_PROVIDER is bedrock or vertex;
+  those use AWS_REGION / AWS credentials or Google ADC with VERTEX_PROJECT_ID, VERTEX_REGION)
   SLACK_BOT_TOKEN, SLACK_CHANNEL, SLACK_WEBHOOK_URL, JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN,
   JIRA_PROJECT_KEYS, NOTION_TOKEN (optional). Any action input can be set as its upper-case
   env name, e.g. MAX_SCENARIOS=10.

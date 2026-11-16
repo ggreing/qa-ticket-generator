@@ -159,6 +159,55 @@ Fork PRs are skipped by default, because GitHub doesn't give them your secrets. 
 workflow in [`docs/examples/workflow-fork-opt-in.yml`](docs/examples/workflow-fork-opt-in.yml); please read
 the warning at the top before using it.
 
+### Bedrock or Vertex AI
+
+If your company runs Claude through AWS or Google Cloud, the action can use that instead of an Anthropic API
+key. It signs in with the cloud's own short-lived credentials (OIDC), so there is no key to store. Add
+`id-token: write` to the permissions, sign in to the cloud before the action runs, and set `llm-provider`.
+Keep `on:`, the `if:` and the upload step from the workflow above.
+
+For Amazon Bedrock, the role needs access to Claude in Bedrock, and the model has to be enabled in that region:
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write # short-lived cloud credentials (OIDC)
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4 # check the current release and pin a commit SHA
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/qa-ticket-generator
+          aws-region: us-east-1
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
+        with:
+          llm-provider: bedrock
+```
+
+For Google Vertex AI, enable Claude in the Model Garden and give the service account the Vertex AI User role.
+`vertex-region` is `global` by default. The permissions are the same as above, and the two `vars` are
+repository variables holding your workload identity provider and service account:
+
+```yaml
+- uses: google-github-actions/auth@v2 # check the current release and pin a commit SHA
+  with:
+    workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+    service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+- id: qa
+  uses: ggreing/qa-ticket-generator@v0
+  with:
+    llm-provider: vertex
+    vertex-project-id: my-project
+```
+
+The `model` input can stay `claude-opus-5-5`: on Bedrock the action adds the `anthropic.` prefix for you. A
+cross-region ID like `us.anthropic.claude-opus-5-5`, or an ARN, is used as given.
+
 ## Linking the spec
 
 For planning, the spec is the issue you label or the `spec` you give a manual run. For the PR check, the
@@ -202,7 +251,8 @@ sandbox PR, so treat it as a ballpark.
 
 Bigger PRs are split into several calls and cost more, so every run has a ceiling: `max-cost-usd`, $2 by
 default. If a run would go over it, the least important files are left out and the comment lists them. The
-estimated cost of each run is printed at the bottom of the comment.
+estimated cost of each run is printed at the bottom of the comment. On Bedrock and Vertex AI the estimate
+still uses Anthropic's list prices, so your cloud bill can differ.
 
 Planning a spec is a bigger job, because the cases are written a few acceptance criteria at a time and then
 merged. We expect about $0.5 to $2 per spec, but we haven't measured it yet. The same `max-cost-usd`
@@ -212,8 +262,8 @@ first to go.
 ## Where your code goes
 
 The action never checks out or runs the code in the PR. It reads the diff, the changed files and the linked
-tickets through the GitHub, Jira and Notion APIs, and sends them to Anthropic's API. Nothing goes anywhere
-else, and there is no telemetry.
+tickets through the GitHub, Jira and Notion APIs, and sends them to Anthropic's API, or to Claude on Amazon
+Bedrock or Google Vertex AI if you set `llm-provider`. Nothing goes anywhere else, and there is no telemetry.
 
 Before anything is sent, things that look like secrets (API keys, tokens, private keys, passwords in config)
 are masked, including in the PR title and description. The comment tells you how many were masked. Logs only
@@ -258,6 +308,9 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 - Code statuses are the model's judgement. A manual run checks everything again and can flip a few of them.
 - The `qtg.case` issue property the Jira sink uses hasn't been tried on a real Jira site yet.
 - The Notion sink hasn't been tried in a real Notion workspace yet.
+- Bedrock and Vertex AI haven't been tried on real accounts yet. On both, the server-side refusal fallback is
+  off, so a request the model declines fails the run. On Bedrock only Claude 4.7 and later models work,
+  because the SDK sends API version 2026-10-21.
 
 ## Configuration reference
 
@@ -266,10 +319,14 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 <!-- inputs:start -->
 | Input                   | Required | Default                           | Description                                                                                            |
 | ----------------------- | -------- | --------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `anthropic-api-key`     | ✅       | —                                 | Anthropic API key.                                                                                     |
+| `anthropic-api-key`     |          | —                                 | Anthropic API key. Not needed with `llm-provider` `bedrock` or `vertex`.                               |
 | `github-token`          |          | `${{ github.token }}`             | Used to read the PR and write the comment.                                                             |
 | `model`                 |          | `claude-opus-5-5`                 | Claude model id.                                                                                       |
 | `effort`                |          | `high`                            | `low`, `medium`, `high`, `xhigh` or `max`. Lower is cheaper and faster.                                |
+| `llm-provider`          |          | `anthropic`                       | `anthropic`, `bedrock` or `vertex`. Bedrock and Vertex use your cloud credentials, not a key.          |
+| `aws-region`            |          | —                                 | Bedrock region. Defaults to `AWS_REGION`.                                                              |
+| `vertex-project-id`     |          | —                                 | Google Cloud project. Defaults to the project of your credentials.                                     |
+| `vertex-region`         |          | `global`                          | Vertex AI region, e.g. `global` or `us-east5`.                                                         |
 | `language`              |          | `en`                              | `en`, `ko`, `ja` or `zh-CN` (`kr`, `jp`, `cn`, `zh` work too).                                         |
 | `trigger-label`         |          | `needs-ai-qa`                     | The label that starts a run.                                                                           |
 | `rerun-on-push`         |          | `true`                            | Run again on new commits while the label is on the PR.                                                 |
@@ -291,7 +348,7 @@ Found a security problem? Please report it privately, see [`SECURITY.md`](SECURI
 | `fail-on`               |          | `none`                            | Fail the check when alignment is `partial` or `misaligned`.                                            |
 | `fail-on-error`         |          | `false`                           | Fail the check on internal errors. By default they only show as a warning.                             |
 | `allow-fork-prs`        |          | `false`                           | Allow fork PRs. Only use this with the opt-in workflow.                                                |
-| `server-fallback`       |          | `true`                            | Let Anthropic retry on another model if Opus declines a request.                                       |
+| `server-fallback`       |          | `true`                            | Let Anthropic retry on another model if Opus declines a request. Claude API only.                      |
 | `mode`                  |          | `auto`                            | `auto` decides from the event, `plan` turns a spec into QA cases, `verify` checks a PR.                |
 | `spec`                  |          | —                                 | Spec for a manual plan run: issue number, Jira key or Notion URL.                                      |
 | `plan-label`            |          | `needs-qa-plan`                   | Issue label that starts the plan phase.                                                                |

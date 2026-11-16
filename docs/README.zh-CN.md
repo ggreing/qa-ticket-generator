@@ -147,6 +147,53 @@ jobs:
 来自 fork 的 PR 默认会跳过,因为 GitHub 不会把 secret 交给 fork 的 PR。确实需要的话可以用
 [`examples/workflow-fork-opt-in.yml`](examples/workflow-fork-opt-in.yml),但请先读完文件开头的警告。
 
+### Bedrock or Vertex AI
+
+如果你们公司是通过 AWS 或 Google Cloud 使用 Claude,可以用它来代替 Anthropic API key。它用云平台发的短期凭据
+(OIDC)登录,不需要保存任何 key。在 permissions 里加上 `id-token: write`,在 Action 之前先登录云平台,再设置
+`llm-provider` 就行。`on:`、`if:` 和上传步骤保持上面 workflow 的样子。
+
+用 Amazon Bedrock 时,需要一个能调用 Bedrock 上 Claude 的 role,并且该区域里要开通这个模型。
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write # 短期云凭据(OIDC)
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4 # 确认最新版本并固定到提交 SHA
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/qa-ticket-generator
+          aws-region: us-east-1
+      - id: qa
+        uses: ggreing/qa-ticket-generator@v0
+        with:
+          llm-provider: bedrock
+```
+
+用 Google Vertex AI 时,在 Model Garden 里启用 Claude,并给服务账号授予 Vertex AI User 角色。`vertex-region`
+默认是 `global`。permissions 和上面一样;两个 `vars` 是存放 workload identity provider 和服务账号的仓库变量。
+
+```yaml
+- uses: google-github-actions/auth@v2 # 确认最新版本并固定到提交 SHA
+  with:
+    workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+    service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+- id: qa
+  uses: ggreing/qa-ticket-generator@v0
+  with:
+    llm-provider: vertex
+    vertex-project-id: my-project
+```
+
+`model` input 保持 `claude-opus-5-5` 就行;在 Bedrock 上 Action 会自动加上 `anthropic.` 前缀。像
+`us.anthropic.claude-opus-5-5` 这样的跨区域 ID 或 ARN 会原样使用。
+
 ## Linking the spec
 
 规划时,需求就是你打了标签的 issue,或者手动运行时填的 `spec`。对照 PR 时,Action 会在 PR 描述里找需求链接:
@@ -185,7 +232,8 @@ npx qa-ticket-generator run --repo owner/repo --pr 123 --publish  # 发布 PR �
 耗时一分钟左右。这是用 10 个合成 PR 和 1 个沙盒 PR 测出来的,只能当个大致参考。
 
 大的 PR 会拆成几次调用,所以会更贵。因此每次运行都有上限:`max-cost-usd`,默认 $2。估计会超出时,会先去掉
-不太重要的文件,并在评论里列出去掉了哪些。每次运行的预估费用写在评论最底部。
+不太重要的文件,并在评论里列出去掉了哪些。每次运行的预估费用写在评论最底部。在 Bedrock 和 Vertex AI 上,预估
+费用仍按 Anthropic 的标价计算,和云平台的实际账单可能不同。
 
 从需求生成用例的工作量更大,因为要把验收标准分成几批分别写用例,最后再合并。我们估计一份需求大约 $0.5 到
 $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(默认 80)还会限制一份需求最多产生多少条
@@ -194,7 +242,8 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 ## Where your code goes
 
 这个 Action 不会 checkout 或运行 PR 里的代码。它通过 GitHub、Jira、Notion 的 API 读取 diff、改动的文件和
-关联的需求单,然后发给 Anthropic 的 API。不会发到别的地方,也没有遥测。
+关联的需求单,然后发给 Anthropic 的 API;如果设置了 `llm-provider`,则发给 Amazon Bedrock 或 Google Vertex AI
+上的 Claude。不会发到别的地方,也没有遥测。
 
 发送之前,看起来像密钥的东西(API key、token、私钥、配置里的密码)都会被遮盖,PR 标题和描述也一样。遮盖了
 几处会写在评论里。日志里只有数量和大小,不会有文件内容。
@@ -234,6 +283,8 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 - 代码状态是模型的判断。手动运行会全部重看,其中几条可能会变。
 - Jira sink 用到的 issue property(`qtg.case`)还没在真实的 Jira 站点上验证过。
 - Notion sink 还没在真实的 Notion workspace 里验证过。
+- Bedrock 和 Vertex AI 还没在真实账号上验证过。两者都关掉了服务端的拒绝回退,所以模型拒绝的请求会让这次运行
+  失败。在 Bedrock 上,由于 SDK 发送的 API 版本是 2026-10-21,只能用 Claude 4.7 及之后的模型。
 
 ## Configuration reference
 
@@ -242,10 +293,14 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 <!-- inputs:start -->
 | Input                   | 必填 | 默认值                            | 说明                                                                               |
 | ----------------------- | ---- | --------------------------------- | ---------------------------------------------------------------------------------- |
-| `anthropic-api-key`     | ✅   | —                                 | Anthropic API key。                                                                |
+| `anthropic-api-key`     |      | —                                 | Anthropic API key。`llm-provider` 为 `bedrock`/`vertex` 时不需要。                 |
 | `github-token`          |      | `${{ github.token }}`             | 用于读取 PR 和写评论。                                                             |
 | `model`                 |      | `claude-opus-5-5`                 | Claude 模型 ID。                                                                   |
 | `effort`                |      | `high`                            | `low`、`medium`、`high`、`xhigh`、`max`。越低越便宜越快。                          |
+| `llm-provider`          |      | `anthropic`                       | `anthropic`、`bedrock` 或 `vertex`。后两者使用云平台凭据。                         |
+| `aws-region`            |      | —                                 | Bedrock 区域。默认取 `AWS_REGION`。                                                |
+| `vertex-project-id`     |      | —                                 | Google Cloud 项目。默认取凭据所属的项目。                                          |
+| `vertex-region`         |      | `global`                          | Vertex AI 区域,如 `global`、`us-east5`。                                           |
 | `language`              |      | `en`                              | `en`、`ko`、`ja`、`zh-CN`(`kr`、`jp`、`cn`、`zh` 也行)。                           |
 | `trigger-label`         |      | `needs-ai-qa`                     | 触发运行的标签。                                                                   |
 | `rerun-on-push`         |      | `true`                            | 标签还在时,每次新提交都重新运行。                                                  |
@@ -267,7 +322,7 @@ $2,但还没有实际测过。同样受 `max-cost-usd` 上限约束,`max-cases`(
 | `fail-on`               |      | `none`                            | 符合度为 `partial` 或 `misaligned` 时让检查失败。                                  |
 | `fail-on-error`         |      | `false`                           | 内部错误时让检查失败。默认只给出警告。                                             |
 | `allow-fork-prs`        |      | `false`                           | 允许 fork 的 PR。只在 opt-in workflow 里使用。                                     |
-| `server-fallback`       |      | `true`                            | Opus 拒绝请求时,由 Anthropic 换一个模型重试。                                      |
+| `server-fallback`       |      | `true`                            | Opus 拒绝请求时,由 Anthropic 换一个模型重试。仅限 Claude API。                     |
 | `mode`                  |      | `auto`                            | `auto` 根据事件判断,`plan` 从需求生成 QA 用例,`verify` 对照 PR。                   |
 | `spec`                  |      | —                                 | 手动运行时的需求:issue 编号、Jira key 或 Notion 链接。                             |
 | `plan-label`            |      | `needs-qa-plan`                   | 启动计划阶段的 issue 标签。                                                        |

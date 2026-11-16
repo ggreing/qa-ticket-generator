@@ -28,7 +28,7 @@ import { renderVerifyComment, renderVerifySummaryMarkdown } from '../delivery/re
 import { createSlackDeliverer } from '../delivery/slack';
 import { createSlackNotifier } from '../delivery/slack-v3';
 import { createSummaryDeliverer, type SummarySink } from '../delivery/summary';
-import { createAnthropicProvider } from '../llm/anthropic';
+import { createAnthropicProvider, type PlatformOptions } from '../llm/anthropic';
 import { orchestrate } from '../llm/orchestrate';
 import { generatePlan } from '../llm/plan';
 import { isCosmeticPatch } from '../llm/scope';
@@ -222,9 +222,19 @@ function buildLlm(cfg: QtgConfig, logger: Logger) {
       effort: cfg.effort,
       serverFallback: cfg.serverFallback,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      platform: platformOf(cfg),
     },
     { logger },
   );
+}
+
+/** v0.2 — where Claude runs, from the llm-provider inputs. */
+export function platformOf(cfg: QtgConfig): PlatformOptions {
+  if (cfg.llmProvider === 'bedrock') return { kind: 'bedrock', awsRegion: cfg.awsRegion };
+  if (cfg.llmProvider === 'vertex') {
+    return { kind: 'vertex', region: cfg.vertexRegion, projectId: cfg.vertexProjectId };
+  }
+  return { kind: 'anthropic' };
 }
 
 function buildPrdProviders(req: ExecuteRequest, cfg: QtgConfig) {

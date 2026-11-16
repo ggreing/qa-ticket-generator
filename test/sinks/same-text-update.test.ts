@@ -153,6 +153,28 @@ describe('digest-only updates (same text)', () => {
     expect(kinds(planSync(await rig.sink.list(rig.spec, signal()), [c3], render))).toEqual(['unchanged']);
   });
 
+  it('§4.4 Jira: markObsolete after a property record is seen as obsolete (the property is stale)', async () => {
+    // Found by evals/e2e live-check against the fake: markObsolete keeps the text hash, so a
+    // property recorded before it must not bring the active case back.
+    const { jira, rig } = jiraRig();
+    const { ticketRef, c2 } = await digestOnlyUpdate(rig);
+    expect(jira.properties.get(ticketRef)?.[CASE_PROPERTY]).toBeDefined();
+    const [op] = planSync(await rig.sink.list(rig.spec, signal()), [], render);
+    expect(op?.op).toBe('obsolete');
+    if (op?.op === 'obsolete') await rig.sink.markObsolete(op.ticket, signal());
+    const [t] = await rig.sink.list(rig.spec, signal());
+    expect(t?.lastWritten?.lifecycle).toBe('obsolete');
+    expect(isObsoleteTitle(jira.issues.get(ticketRef)?.fields.summary ?? '')).toBe(true);
+    // Already obsolete and not in the next set: nothing more to do.
+    expect(kinds(planSync(await rig.sink.list(rig.spec, signal()), [], render))).toEqual([]);
+    // And a revival afterwards is a full rewrite, after which the case reads as active again.
+    const [revive] = planSync(await rig.sink.list(rig.spec, signal()), [c2], render);
+    expect(revive?.op).toBe('update');
+    if (revive?.op === 'update')
+      await rig.sink.update(revive.ticket, revive.case, render(revive.case), signal());
+    expect((await rig.sink.list(rig.spec, signal()))[0]?.lastWritten?.lifecycle).toBe('active');
+  });
+
   it('§4.2 Jira: falls back to the full update when the property cannot be set', async () => {
     const { jira, rig } = jiraRig();
     jira.rejectProperties = 403;

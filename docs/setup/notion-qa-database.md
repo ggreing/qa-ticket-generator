@@ -71,3 +71,19 @@ notion-qa-database-id: 0123456789abcdef0123456789abcdef
   goes there. The `qa-cases.md` file from the `file` sink always has it.
 - Reading a row takes about two API calls, and Notion allows an average of three requests a second, so a
   run over 60 existing cases spends about 40 seconds just reading.
+
+## Try it on your workspace first
+
+`evals/e2e/sinks-live.mjs` runs the Notion sink against your database without the model. Three fixed cases
+are created, read back, updated, edited by hand and marked obsolete, and every step prints a pass or fail
+line. It only writes with `--yes`. Run it from a clone of this repository after `npm ci`:
+
+```bash
+export NOTION_TOKEN=… NOTION_QA_DATABASE_ID=0123456789abcdef0123456789abcdef
+node evals/e2e/sinks-live.mjs --only notion                  # shows what it would do, sends nothing
+node evals/e2e/sinks-live.mjs --only notion --yes            # writes three test rows
+node evals/e2e/sinks-live.mjs --only notion --yes --cleanup  # the same, then moves them to the trash
+```
+
+`담당자` can't be set without a real person in your workspace, so the script tells you how to check it by
+hand.

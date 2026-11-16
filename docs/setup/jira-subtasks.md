@@ -65,3 +65,20 @@ When the spec no longer produces a case, its summary gets `[Obsolete]` (or `[해
 
 The tool only trusts sub-tasks created by its own account. A sub-task someone else labels `qtg-case` is
 ignored.
+
+## 5. Try it on your site first
+
+`evals/e2e/sinks-live.mjs` runs the Jira sink against your site without the model. Three fixed cases are
+created, read back, updated, edited by hand, marked obsolete and summarised, and every step prints a pass
+or fail line. It only writes with `--yes`. Run it from a clone of this repository after `npm ci`:
+
+```bash
+export JIRA_BASE_URL=https://acme.atlassian.net JIRA_EMAIL=… JIRA_API_TOKEN=… JIRA_PROJECT=PROJ
+node evals/e2e/sinks-live.mjs --only jira                    # shows what it would do, sends nothing
+node evals/e2e/sinks-live.mjs --only jira --yes              # creates a test story and three sub-tasks
+node evals/e2e/sinks-live.mjs --only jira --yes --cleanup    # the same, then closes them
+```
+
+It creates a story to hold the sub-tasks; set `JIRA_STORY=PROJ-123` to use one you already have, and
+`JIRA_SUBTASK_TYPE` if your project calls the type `Subtask`. Assignee and status depend on your workflow,
+so the script prints what to check by hand instead of setting them.

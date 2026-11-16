@@ -57,7 +57,7 @@ export class FakeJira {
     if (path === '/rest/api/3/search/jql' && req.method === 'POST') {
       const parent = String(body.jql).match(/parent = "([^"]+)"/)?.[1];
       const all = [...this.issues.values()].filter(
-        (i) => i.fields.parent.key === parent && i.fields.labels.includes('qtg-case'),
+        (i) => i.fields.parent?.key === parent && i.fields.labels.includes('qtg-case'),
       );
       const start = Number(body.nextPageToken ?? 0);
       const size = Number(body.maxResults ?? 50);
@@ -101,6 +101,12 @@ export class FakeJira {
       return json({ id: '1', key, self: `${BASE}/rest/api/3/issue/${key}` }, 201);
     }
     const prop = path.match(/^\/rest\/api\/3\/issue\/([A-Z]+-\d+)\/properties\/([^/]+)$/);
+    if (prop?.[1] && prop[2] && req.method === 'GET') {
+      const value = this.properties.get(prop[1])?.[prop[2]];
+      return value === undefined
+        ? json({ errorMessages: ['The property was not found.'] }, 404)
+        : json({ key: prop[2], value });
+    }
     if (prop?.[1] && prop[2] && req.method === 'PUT') {
       if (!this.issues.has(prop[1])) return json({ errorMessages: ['Issue does not exist'] }, 404);
       if (this.rejectProperties) return json({ errorMessages: ['no'] }, this.rejectProperties);
@@ -142,6 +148,27 @@ export class FakeJira {
       const c = { id: String(this.cseq++), author: { accountId: this.account }, body: body.body };
       this.comments.set(comments[1], [...list, c]);
       return json(c, 201);
+    }
+    // Status transitions (the live check closes its sub-tasks with a `done` one).
+    const transitions = path.match(/^\/rest\/api\/3\/issue\/([A-Z]+-\d+)\/transitions$/);
+    if (transitions?.[1]) {
+      const issue = this.issues.get(transitions[1]);
+      if (!issue) return json({ errorMessages: ['Issue does not exist'] }, 404);
+      if (req.method === 'GET') {
+        return json({
+          transitions: [
+            {
+              id: '21',
+              name: 'Start',
+              to: { name: 'In Progress', statusCategory: { key: 'indeterminate' } },
+            },
+            { id: '31', name: 'Done', to: { name: 'Done', statusCategory: { key: 'done' } } },
+          ],
+        });
+      }
+      const id = (body.transition as { id?: string } | undefined)?.id;
+      issue.fields.status = { name: id === '31' ? 'Done' : 'In Progress' };
+      return new Response(null, { status: 204 });
     }
     const editComment = path.match(/^\/rest\/api\/3\/issue\/([A-Z]+-\d+)\/comment\/(\d+)$/);
     if (editComment?.[1] && req.method === 'PUT') {
