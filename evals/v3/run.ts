@@ -49,7 +49,7 @@ import {
 } from './grade';
 import { reportJudgeNoise, rescorePlan } from './rejudge';
 import { buildReviewPackV3, calibrateV3 } from './review';
-import { decideRoundV3, recordRoundV3, roundResultsPath } from './rounds';
+import { compareResultFiles, decideRoundV3, recordRoundV3, roundResultsPath } from './rounds';
 import {
   DEFAULT_JUDGE_MODEL,
   estimateJudgeCost,
@@ -112,6 +112,8 @@ export interface V3Options {
   regradeCoverage: string | null;
   /** plan: two judgings of the same sheets, to compare. Offline. */
   judgeNoise: [string, string] | null;
+  /** plan: two result files of the same specs, compared by the round rule. Offline. */
+  compare: [string, string] | null;
   yes: boolean;
   help: boolean;
 }
@@ -143,6 +145,9 @@ plan, scoring saved sheets again (nothing is generated):
                         asked of ${COVERAGE_MODEL}; a few cents, needs --yes like a run
   --judge-noise <a.json> <b.json>
                         how far two judgings of the same sheets are apart; offline
+  --compare <a.json> <b.json>
+                        two runs of the same specs (say, the test split under two prompts), B
+                        against A by the rule rounds are kept by; offline, records nothing
 plan, offline (no API call, no key):
   --round <n> --decision keep|revert     record the decision for a round
   --review-pack <plan-results.json> [--sample <n>] [--out <path>]
@@ -178,6 +183,7 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     regrade: null,
     regradeCoverage: null,
     judgeNoise: null,
+    compare: null,
     yes: false,
     help: false,
   };
@@ -202,6 +208,7 @@ export function parseV3Args(argv: string[], defaults: { model: string; effort: E
     else if (flag === '--regrade') o.regrade = value();
     else if (flag === '--regrade-coverage') o.regradeCoverage = value();
     else if (flag === '--judge-noise') o.judgeNoise = [value(), value()];
+    else if (flag === '--compare') o.compare = [value(), value()];
     else if (flag === '--out') o.out = value();
     else if (flag === '--calibrate') o.calibrate = [value(), value()];
     else if (flag === '--round' || flag === '--sample') {
@@ -536,6 +543,7 @@ export async function runPlanEval(argv: string[], deps: V3Deps): Promise<V3Outco
     return rescorePlan(options.regradeCoverage, 'coverage', options, deps);
   if (options.judgeNoise !== null)
     return none(reportJudgeNoise(options.judgeNoise[0], options.judgeNoise[1], deps));
+  if (options.compare !== null) return none(compareResultFiles(options.compare[0], options.compare[1], deps));
   const withSpec = s.cases.filter((c) => c.prdDocuments.length > 0);
   const withoutSpec = s.cases.filter((c) => c.prdDocuments.length === 0).map((c) => c.id);
   if (withSpec.length === 0) {

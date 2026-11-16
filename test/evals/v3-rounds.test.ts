@@ -405,9 +405,10 @@ describe('plan eval says when a sheet ran into the output limit', () => {
       createProvider: () => provider,
     });
     const run = outcome.plan?.runs[0] as PlanRun;
-    // Planned: one call for the three requirements. Made: the cut-off one, then two halves, then a merge.
-    expect(run.calls).toBeGreaterThan(1);
-    expect(run.extraCalls).toBe(run.calls - 1);
+    // Planned: one call for the three requirements and the merge pass. Made: the cut-off one, two
+    // halves, and the merge.
+    expect(run.calls).toBe(4);
+    expect(run.extraCalls).toBe(2);
     expect(h.out()).toContain(
       `1 sheet(s) needed more calls than planned, because a reply was cut off at the output limit and written again in halves: rbac-export-role (+${run.extraCalls}). Those sheets cost more than estimated.`,
     );
@@ -1363,5 +1364,85 @@ describe('rubric v3.2: the judge reads every case of the sheet in one line', () 
     const last = index.at(-1) as string;
     expect(last.split(' | ').at(-1)).toHaveLength(INDEX_SUMMARY_CHARS);
     expect(input.match(/<\/case_index>/g)).toHaveLength(1);
+  });
+});
+
+describe('plan --compare: two runs of the same specs side by side (no round recorded)', () => {
+  it('compares B against A by the rule rounds are kept by, offline', async () => {
+    const first = harness({ coverage: 1 });
+    await runPlanEval(KO, first.deps);
+    const a = Object.keys(first.files)[0] as string;
+    // The second run starts a day later, so its results file has another name.
+    const second = harness({ coverage: 2 }, first.store);
+    let later = Date.UTC(2026, 10, 14, 9, 0, 0);
+    const outcome = await runPlanEval(KO, {
+      ...second.deps,
+      now: () => {
+        later += 1_000;
+        return later;
+      },
+    });
+    const b = (outcome.resultsPath as string)
+      .replace(/\\/g, '/')
+      .replace(/^.*evals\/results/, 'evals/results');
+    expect(Object.keys(first.files)).toContain(b);
+    const before = Object.keys(first.files).length;
+
+    const o = harness({}, first.store);
+    expect(
+      await runPlanEval(['--compare', a, b], {
+        ...o.deps,
+        env: {},
+        createRubricClient: () => {
+          throw new Error('offline');
+        },
+        createProvider: () => {
+          throw new Error('offline');
+        },
+      }),
+    ).toMatchObject({ exitCode: 0, executed: false });
+    expect(o.lines[0]).toBe('Comparison of two plan runs (B against A)');
+    expect(o.lines[1]).toMatch(
+      /^ {2}A: \S+ {3}prompt \S+ {3}selected {3}ko {3}2 sheet\(s\) {3}rubric v3\.2$/,
+    );
+    expect(o.out()).toContain('| Metric | A | B | |');
+    expect(o.out()).toMatch(/\| Overall \| \d\.\d\d \| \d\.\d\d \| better \|/);
+    expect(o.out()).toContain('| Spec coverage (0–2) (context) | 1.00 | 2.00 | better |');
+    expect(o.out()).toContain('| 2nd-order recall | — | — | — |'); // neither run had a list
+    expect(o.out()).toContain(
+      'By the rule rounds are kept by, B improves on A. The overall rose and no deterministic metric got worse.',
+    );
+    expect(o.lines.at(-1)).toMatch(/^The overall is compared on 2 sheet\(s\) that both runs scored\./);
+    // Nothing is written and no round is recorded.
+    expect(Object.keys(first.files)).toHaveLength(before);
+    expect(Object.keys(first.files).some((f) => f.includes('rounds/v3'))).toBe(false);
+
+    // The other way round, the same rule says no.
+    const back = harness({}, first.store);
+    await runPlanEval(['--compare', b, a], back.deps);
+    expect(back.out()).toContain(
+      'By the rule rounds are kept by, B does not improve on A. The overall did not rise.',
+    );
+  });
+
+  it('refuses files it cannot read and runs that are not comparable', async () => {
+    const first = harness();
+    await runPlanEval(KO, first.deps);
+    const a = Object.keys(first.files)[0] as string;
+    const results = JSON.parse(first.files[a] as string) as PlanResults;
+    first.files['english.json'] = JSON.stringify({ ...results, language: 'en' });
+    first.files['dev.json'] = JSON.stringify({ ...results, split: 'dev' });
+    const say = async (argv: string[]) => {
+      const h = harness({}, first.store);
+      expect(await runPlanEval(argv, h.deps)).toMatchObject({ exitCode: 2 });
+      return h.out();
+    };
+    expect(await say(['--compare', a, 'nope.json'])).toBe(
+      'Cannot compare: nope.json is not a readable plan results file.',
+    );
+    expect(await say(['--compare', a, 'english.json'])).toContain(
+      'Cannot compare: The kept rounds were run in ko and this one in en.',
+    );
+    expect(await say(['--compare', a, 'dev.json'])).toContain('so the numbers are not comparable');
   });
 });

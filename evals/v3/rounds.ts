@@ -332,6 +332,62 @@ export function compareV3(record: RoundRecordV3, records: RoundRecordV3[]): Comp
   };
 }
 
+/**
+ * `plan --compare <a.json> <b.json>`: two result files of the same specs, compared by the rule
+ * rounds are kept by, without recording either as a round. For runs that are not rounds, such as
+ * the test split under two prompts. Offline.
+ */
+export function compareResultFiles(pathA: string, pathB: string, deps: V3Deps): number {
+  const read = (path: string): PlanResults | null => {
+    try {
+      const r = JSON.parse(deps.readFile(path)) as PlanResults;
+      return r.kind === 'plan' && Array.isArray(r.runs) ? r : null;
+    } catch {
+      return null;
+    }
+  };
+  const a = read(pathA);
+  const b = read(pathB);
+  if (!a || !b) {
+    deps.print(`Cannot compare: ${!a ? pathA : pathB} is not a readable plan results file.`);
+    return 2;
+  }
+  const base: RoundRecordV3 = { ...toRecordV3(0, 'A', a), decision: 'keep' };
+  const record = toRecordV3(1, 'B', b);
+  const c = compareV3(record, [base]);
+  const shared = Object.keys(record.specOverall).filter((k) => base.specOverall[k] !== undefined).length;
+  deps.print('Comparison of two plan runs (B against A)');
+  deps.print(
+    `  A: ${pathA}   prompt ${a.promptVersion}   ${a.split}   ${a.language}   ${a.runs.length} sheet(s)   rubric v${a.rubricVersion ?? '—'}`,
+  );
+  deps.print(
+    `  B: ${pathB}   prompt ${b.promptVersion}   ${b.split}   ${b.language}   ${b.runs.length} sheet(s)   rubric v${b.rubricVersion ?? '—'}`,
+  );
+  if (c.rows.length === 0) {
+    deps.print(`Cannot compare: ${c.reason}`);
+    return 2;
+  }
+  deps.print('');
+  deps.print('| Metric | A | B | |');
+  deps.print('| --- | --- | --- | --- |');
+  for (const r of c.rows)
+    deps.print(
+      `| ${r.rule ? r.metric : `${r.metric} (context)`} | ${r.before} | ${r.after} | ${r.change === 'n/a' ? '—' : r.change} |`,
+    );
+  deps.print('');
+  deps.print(
+    c.recommendation === 'keep'
+      ? `By the rule rounds are kept by, B improves on A. ${c.reason}`
+      : c.recommendation === 'revert'
+        ? `By the rule rounds are kept by, B does not improve on A. ${c.reason}`
+        : `No verdict: ${c.reason}`,
+  );
+  deps.print(
+    `The overall is compared on ${shared} sheet(s) that both runs scored. A difference no larger than the judge's own movement (plan --judge-noise) is not a result.`,
+  );
+  return 0;
+}
+
 export function formatComparisonV3(round: number, c: ComparisonV3): string[] {
   const advice =
     c.recommendation === 'none'

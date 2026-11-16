@@ -60,6 +60,14 @@ function request(overrides: Partial<PlanRequest> = {}): PlanRequest {
   return { spec: spec(SEVEN), related: [], existing: [], language: 'en', maxCases: 80, ...overrides };
 }
 
+/** A cap that two requirement groups and their merge pass fit under, and three do not. */
+const TWO_GROUPS_USD =
+  planPlanRun(
+    request({ spec: spec(SEVEN.slice(0, 5)) }),
+    { estimateCostUsd: (u: LlmUsage) => estimateCostUsd(MODEL, u) },
+    { maxCostUsd: 1e9, expectedOutputTokens: 12_000 },
+  ).estimateUsd + 0.01;
+
 function draft(
   title: string,
   overrides: Partial<PlanOutput['cases'][number]> = {},
@@ -147,7 +155,6 @@ describe('requirements of a spec (SPEC v3 §2.1)', () => {
 
 describe('planPlanRun — grouping and cost plan (SPEC v3 §6, LLM-10)', () => {
   const pricing = { estimateCostUsd: (u: LlmUsage) => estimateCostUsd(MODEL, u) };
-
   it('SPEC v3 §6 covers the requirements at most three per call, spread evenly, and adds a merge call when there are several groups', () => {
     expect(AC_GROUP_SIZE).toBe(3);
     const plan = planPlanRun(request(), pricing, OPTIONS);
@@ -161,23 +168,28 @@ describe('planPlanRun — grouping and cost plan (SPEC v3 §6, LLM-10)', () => {
     expect(plan.estimateUsd).toBeGreaterThan(0.72);
     expect(plan.estimateUsd).toBeLessThan(1);
 
+    // A sheet written in one call still gets the pass that removes repeats (round 3): a long answer
+    // repeats itself too.
     const small = planPlanRun(request({ spec: spec(SEVEN.slice(0, 2)) }), pricing, OPTIONS);
     expect(small.groups).toHaveLength(1);
-    expect(small.merge).toBe(false);
-    expect(small.estimateUsd).toBeLessThan(0.3);
-    // A spec without any label is one call for the whole text.
+    expect(small.merge).toBe(true);
+    expect(small.estimateUsd).toBeGreaterThan(0.25);
+    expect(small.estimateUsd).toBeLessThan(0.4);
+    // A spec without any label is one call for the whole text, and that call is the whole run.
     const prose = planPlanRun(request({ spec: spec([], 'Plain prose.') }), pricing, OPTIONS);
     expect(prose.groups).toEqual([[]]);
+    expect(prose.merge).toBe(false);
   });
 
   it('LLM-10 leaves out the last groups while the estimate is over the cap', () => {
-    const plan = planPlanRun(request(), pricing, { ...OPTIONS, maxCostUsd: 0.6 });
+    // A cap that two groups and their merge pass fit under, and three do not.
+    const plan = planPlanRun(request(), pricing, { ...OPTIONS, maxCostUsd: TWO_GROUPS_USD });
     expect(plan.groups.map((g) => g.map((r) => r.label))).toEqual([
       ['AC1', 'AC2', 'AC3'],
       ['AC4', 'AC5'],
     ]);
     expect(plan.skipped.map((g) => g.map((r) => r.label))).toEqual([['AC6', 'AC7']]);
-    expect(plan.estimateUsd).toBeLessThanOrEqual(0.6);
+    expect(plan.estimateUsd).toBeLessThanOrEqual(TWO_GROUPS_USD);
     const one = planPlanRun(request(), pricing, { ...OPTIONS, maxCostUsd: 0.01 });
     expect(one.groups).toHaveLength(1);
     expect(one.estimateUsd).toBeGreaterThan(0.01); // still over: generatePlan refuses to start
@@ -213,14 +225,22 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
     expect(result).toMatchObject({ dropped: 0, warnings: [] });
   });
 
-  it('SPEC v3 §2.1 a spec with few requirements is one call and no merge', async () => {
+  it('SPEC v3 §2.1 a spec with few requirements is one call for the cases and one to remove repeats', async () => {
     const p = provider(perLabel);
     const result = await run(request({ spec: spec(SEVEN.slice(0, 3)) }), p);
-    expect(p.calls).toHaveLength(1);
+    expect(p.planCalls()).toHaveLength(1);
     expect(p.calls[0]?.tail).toContain('every requirement of the spec: AC1, AC2, AC3.');
     expect(p.calls[0]?.sharePrefix).toBe(false);
-    expect(result.calls).toBe(1);
+    expect(p.calls).toHaveLength(2);
+    expect(p.calls[1]?.system).toEqual([PLAN_MERGE_SYSTEM]);
+    expect(result.calls).toBe(2);
     expect(result.cases).toHaveLength(3);
+    expect(result.diagnostics.mergeRan).toBe(true);
+    // A spec with nothing to group by is one call and nothing more.
+    const prose = provider(() => [draft('Whole spec case', { acLabels: [] })]);
+    const whole = await run(request({ spec: spec([], 'Plain prose.') }), prose);
+    expect(prose.calls).toHaveLength(1);
+    expect(whole.diagnostics.mergeRan).toBe(false);
   });
 
   it('SPEC v3 §2.1 a spec without labelled criteria asks the model to name the requirements itself', async () => {
@@ -247,7 +267,7 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
     const merge = p.calls.at(-1) as Call;
     expect(merge.system).toEqual([PLAN_MERGE_SYSTEM]);
     expect(merge.tail).toContain(
-      'index | requirements | technique | priority | title | setup | first expected result',
+      'index | requirements | technique | priority | title | setup | expected results',
     );
     // The setup column carries the state and the data, which is where look-alike cases differ.
     expect(merge.tail).toContain(
@@ -348,8 +368,9 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
       'AC3',
     ]);
     expect(result.cases.map((c) => c.acLabels[0])).toEqual(['AC1', 'AC2', 'AC3']);
-    expect(result.calls).toBe(3);
-    expect(result.usage.outputTokens).toBe(32_000 + 4_000 + 4_000); // the cut-off call is paid for too
+    expect(result.calls).toBe(4); // the cut-off call, its two halves, and the pass that removes repeats
+    // The cut-off call is paid for too; then the two halves and the merge pass.
+    expect(result.usage.outputTokens).toBe(32_000 + 4_000 + 4_000 + 4_000);
 
     // One requirement that still does not fit cannot be split further.
     const stuck = provider(() => new QtgError('llm_truncated', 'cut off', { usage: usage(3_000, 32_000) }));
@@ -368,12 +389,12 @@ describe('generatePlan (SPEC v3 §2.1, §4.1, §6)', () => {
     expect(none.calls).toHaveLength(0);
 
     const some = provider(perLabel);
-    const result = await run(request(), some, { ...OPTIONS, maxCostUsd: 0.6 });
+    const result = await run(request(), some, { ...OPTIONS, maxCostUsd: TWO_GROUPS_USD });
     expect(some.planCalls()).toHaveLength(2);
     expect(result.cases.map((c) => c.acLabels[0])).toEqual(['AC1', 'AC2', 'AC3', 'AC4', 'AC5']);
     expect(result.warnings).toContainEqual({
       code: 'cost_cap',
-      message: 'No cases were written for AC6, AC7 because the estimated cost exceeded max-cost-usd ($0.60).',
+      message: `No cases were written for AC6, AC7 because the estimated cost exceeded max-cost-usd ($${TWO_GROUPS_USD.toFixed(2)}).`,
     });
   });
 
@@ -604,42 +625,85 @@ describe('round 1: what round 0 showed (duplicates 0.57, honesty 1.43)', () => {
   });
 });
 
-describe('round 2 was reverted: the plan prompt is the round 1 text again', () => {
-  it('SPEC v3 §2.1 the prompt in use has the round 1 rules and not the seven questions', () => {
-    expect(PLAN_PROMPT_VERSION).toBe('2026-11-16.2');
-    expect(PLAN_SYSTEM).not.toContain('Questions a requirement does not ask for');
-    expect(PLAN_SYSTEM).not.toContain('Who else?');
+describe('round 3: the seven questions again, asked once per action, value and period', () => {
+  const section = PLAN_SYSTEM.slice(
+    PLAN_SYSTEM.indexOf('# Questions a requirement does not ask for'),
+    PLAN_SYSTEM.indexOf('# One intent, one case'),
+  );
+
+  it('SPEC v3 §2.1 the seven questions are in the prompt, put to the requirements together and not one by one', () => {
+    expect(PLAN_PROMPT_VERSION).toBe('2026-11-16.3');
+    expect(
+      section.match(
+        /^- (Who else|Zero, empty, the same|Per what|Across the line|And then|What state is the other thing in|What exactly comes back)\?/gm,
+      ),
+    ).toHaveLength(7);
+    // Round 2 asked each question of every requirement and got the same answer once per requirement.
+    expect(section).toContain(
+      'put each question to them taken together: once for each action they describe, each value they compute with, each period they set. Not once per requirement.',
+    );
+    expect(section).not.toContain('Put each of them to every requirement');
+    expect(section).toContain('Where there is nothing for the question to act on, leave it.');
+    expect(section).not.toMatch(/at least one case|a case for every question/i);
+  });
+
+  it('each question says where round 2 wrote the same thing twice', () => {
+    // Two ways of being empty, written as two cases.
+    expect(section).toContain(
+      'Several ways of being empty (nothing sent, a blank, a name that does not exist) are one case',
+    );
+    // The same sum by two clients and by two addresses.
+    expect(section).toContain('The same total reached by two routes is one case.');
+    // A late arrival written once as a boundary and once as a race.
+    expect(section).toContain(
+      "The two sides of a limit are already the boundary technique's cases; this question adds the period that spans the line and the late arrival, each once.",
+    );
+    // A refused request repeated.
+    expect(section).toContain('A refused request sent again with nothing changed in between is not a case.');
+  });
+
+  it('what the questions turn up obeys four rules: no second route, no copy per requirement, nothing outside the spec, open answers as questions', () => {
+    expect(section).toContain('A question is a second way to reach a case, not a reason for a second case.');
+    expect(section).toContain(
+      'If a technique already gave you a case with the same setup, the same action and the same thing observed, the question is answered.',
+    );
+    expect(section).toContain(
+      'A situation that holds for several requirements is one case that lists them and checks what each of them needs.',
+    );
+    // Round 2's honesty loss: a payment step and a "sold" state the spec never had.
+    expect(section).toContain(
+      'The person, the value, the period and the later action have to be ones the spec itself mentions.',
+    );
+    expect(section).toContain(
+      'A step, a role or a state that the spec never names is outside the spec, however natural it seems.',
+    );
+    expect(section).toContain('An answer the spec does not give is an open question and is written as one');
+    // The round 1 rules themselves are untouched and come after the questions.
     for (const rule of [
       '# One intent, one case',
       'Another value of the same kind is not another case.',
       'the last value that passes and the first value that fails are separate cases',
       'The techniques are ways of finding cases, not slots to fill.',
       'In such a case the outcome is not yours to decide.',
-      'what happens while the release is being deployed, is not a case of this spec',
     ]) {
       expect(PLAN_SYSTEM, rule).toContain(rule);
     }
+  });
+
+  it('every task sends the model through the questions once the techniques are done', () => {
     const requirements = requirementsOf(spec(SEVEN));
     for (const tail of [
       buildPlanTask(requirements, requirements),
       buildPlanTask(requirements.slice(0, 3), requirements),
+      buildPlanTask(requirements.slice(3, 5), requirements),
       buildPlanTask([], []),
     ]) {
-      expect(tail).not.toContain('the questions a requirement does not ask for');
+      expect(tail).toContain('the questions a requirement does not ask for');
+      expect(tail).toContain('once per action, value and period');
     }
   });
 
-  it('the questions kept for a later round are about a subject no eval case has, so they cannot hand a case its answer', async () => {
-    // docs/quality/PLAN_QUESTIONS.md holds the section as it was; this keeps it fit to be used again.
-    const memo = readFileSync(resolve('docs/quality/PLAN_QUESTIONS.md'), 'utf8');
-    const section = /```text\n([\s\S]*?)\n```/.exec(memo)?.[1] ?? '';
-    expect(section.startsWith('# Questions a requirement does not ask for')).toBe(true);
-    expect(section.match(/^- /gm)).toHaveLength(7);
-    // Questions, not slots, and the round 1 rules restated.
-    expect(section).toContain('Where the requirement gives the question nothing to act on, leave it.');
-    expect(section).toContain('These questions add cases; they do not loosen what follows.');
-    expect(section).not.toMatch(/at least one case|a case for every question/i);
-
+  it('the examples in the questions are about a subject no eval case has, so they cannot hand a case its answer', async () => {
     const { CASES } = await import('../../evals/authoring/index');
     const material = JSON.stringify(CASES).toLowerCase();
     for (const word of ['playlist', 'collaborator', 'invitation', 'follower', 'archived']) {
@@ -661,9 +725,51 @@ describe('round 2 was reverted: the plan prompt is the round 1 text again', () =
       'subscription',
       'notice',
       'order',
+      'payment',
     ]) {
       expect(section.toLowerCase(), word).not.toMatch(new RegExp(`\\b${word}\\b`));
     }
+  });
+
+  it('the memo keeps the section as round 2 ran it, for comparison', () => {
+    const memo = readFileSync(resolve('docs/quality/PLAN_QUESTIONS.md'), 'utf8');
+    const round2 = /```text\n([\s\S]*?)\n```/.exec(memo)?.[1] ?? '';
+    expect(round2.startsWith('# Questions a requirement does not ask for')).toBe(true);
+    expect(round2).toContain('Put each of them to every requirement before you move on.');
+    expect(memo).toContain('2026-11-16.3');
+  });
+
+  it('the merge pass treats two routes to one case as one case, and keeps the wider of two observations', () => {
+    expect(PLAN_MERGE_SYSTEM).toContain('How a case was arrived at does not matter.');
+    expect(PLAN_MERGE_SYSTEM).toContain('once as a boundary and once as a late arrival');
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'everything one of them observes is among what the other observes, the narrower one is a duplicate: keep the wider',
+    );
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'When each observes something the other does not, keep both, because dropping either would lose a check.',
+    );
+    // What round 1 established still stands.
+    expect(PLAN_MERGE_SYSTEM).toContain(
+      'the state they start from (a PAID order and a PENDING order are two cases)',
+    );
+    expect(PLAN_MERGE_SYSTEM).toContain('A group without a reason is not applied.');
+    expect(PLAN_MERGE_SYSTEM).toContain('When in doubt, keep both');
+  });
+
+  it('the merge index shows every expected result of a case, so a narrower observation can be told from a different one', async () => {
+    const p = provider((labels) =>
+      labels.map((label) =>
+        draft(`Limit reached for ${label}`, {
+          acLabels: [label],
+          expected: ['"Wish list is full" shown', 'Count stays 100', 'x'.repeat(400)],
+        }),
+      ),
+    );
+    await run(request(), p);
+    const row = (p.calls.at(-1) as Call).tail.split('\n').find((line) => line.startsWith('0 | ')) as string;
+    const expected = row.split(' | ')[6] as string;
+    expect(expected.startsWith('"Wish list is full" shown; Count stays 100; xxx')).toBe(true);
+    expect(expected).toHaveLength(240);
   });
 });
 
@@ -838,14 +944,14 @@ describe('generatePlan diagnostics — what the merge step removed (merge-misjud
     expect(d.priorityChanges).toBe(1); // index 2 was already P2
   });
 
-  it('says when no merge ran: a single group, or a merge call that failed', async () => {
+  it('says whether the merge ran: also for a single group, not when the call failed', async () => {
     const single = await run(request({ spec: spec(SEVEN.slice(0, 2)) }), provider(perLabel));
     expect(single.diagnostics).toEqual({
       generated: 2,
       afterMerge: 2,
       mergedAway: [],
       priorityChanges: 0,
-      mergeRan: false,
+      mergeRan: true,
       unexplainedGroups: 0,
     });
     const failed = await run(
