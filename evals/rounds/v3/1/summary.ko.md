@@ -5,75 +5,69 @@
 - Change: prompt 2026-11-13.2: one intent one case, open outcomes as questions, merge with reasons
 - Split: selected
 - Language: ko
-- Rubric judge: claude-sonnet-5-5, rubric v3.1
+- Rubric judge: claude-sonnet-5-5, rubric v3.2
 - Must-cover checked by: coverage judge (any language)
 - Style violations counted by: lintCaseStyle
 - Decision: keep
-- Scored again on 2026-11-13: rubric judge (rubric v3.1) and deterministic metrics. The sheets are the ones written on the date above.
+- Scored again on 2026-11-16: second-order combinations (coverage judge) and deterministic metrics. The sheets are the ones written on the date above.
 
 ## Run
 
-| Variant                | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) | Req. with a case | Style viol./100 | Repeated titles | Merged away | Cost  | Judge cost |
-| ---------------------- | ----- | ------ | ------- | ---- | ----- | ------------- | ---------- | --------------- | ------------------ | ---------------- | --------------- | --------------- | ----------- | ----- | ---------- |
-| claude-opus-5-5 · high | 14    | 0      | 1.64    | 1.83 | 1.45  | 1.43          | 39.2       | 56%             | 100%               | 100%             | 0.0             | 0               | 7           | $7.42 | $0.86      |
+| Variant                | Specs | Errors | Overall | Case | Sheet | Spec coverage | Cases/spec | Must-cover (kw) | Must-cover (judge) | 2nd-order recall | Req. with a case | Style viol./100 | Repeated titles | Merged away | Cost  | Judge cost |
+| ---------------------- | ----- | ------ | ------- | ---- | ----- | ------------- | ---------- | --------------- | ------------------ | ---------------- | ---------------- | --------------- | --------------- | ----------- | ----- | ---------- |
+| claude-opus-5-5 · high | 14    | 0      | 1.82    | 1.86 | 1.79  | 2.00          | 39.2       | 56%             | 100%               | 82%              | 100%             | 0.0             | 0               | 7           | $7.42 | $0.99      |
 
 | Criterion          | Mean (0–2) |
 | ------------------ | ---------- |
-| Actionability      | 1.77       |
-| Traceability       | 1.80       |
-| Priority           | 1.92       |
-| Easy-to-miss value | 1.66       |
-| QA-sheet style     | 1.98       |
-| Spec coverage      | 1.43       |
-| No duplicates      | 1.07       |
-| Honesty            | 1.86       |
+| Actionability      | 1.80       |
+| Traceability       | 1.85       |
+| Priority           | 1.94       |
+| Easy-to-miss value | 1.70       |
+| QA-sheet style     | 2.00       |
+| Spec coverage      | 2.00       |
+| No duplicates      | 1.36       |
+| Honesty            | 2.00       |
 
 ## Per spec
 
-| Spec                         | Cases | P0  | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | Reqs without a case | Style viol. | Merged away | Cost  |
-| ---------------------------- | ----- | --- | ------- | ------------- | --------------- | ------------------ | ------------------- | ----------- | ----------- | ----- |
-| api-rate-limit-aligned       | 39    | 12  | 1.41    | 1             | 80%             | 100%               | —                   | 0           | 1           | $0.66 |
-| booking-hold-aligned         | 29    | 6   | 1.78    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.37 |
-| contact-import-js            | 34    | 8   | 1.52    | 1             | 40%             | 100%               | —                   | 0           | 0           | $0.43 |
-| coupon-expiry-missing        | 45    | 18  | 1.56    | 1             | 50%             | 100%               | —                   | 0           | 0           | $0.63 |
-| notice-schedule-ko-narrative | 43    | 9   | 1.52    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.40 |
-| order-cancel-state-java      | 38    | 21  | 1.52    | 1             | 83%             | 100%               | —                   | 0           | 5           | $0.61 |
-| payroll-rules-mapreduce      | 52    | 10  | 1.43    | 1             | 67%             | 100%               | —                   | 0           | 0           | $0.89 |
-| plan-proration-aligned       | 50    | 11  | 1.53    | 1             | 20%             | 100%               | —                   | 0           | 1           | $0.97 |
-| profile-injection            | 34    | 4   | 1.94    | 2             | 0%              | 100%               | —                   | 0           | 0           | $0.34 |
-| rbac-export-role             | 32    | 8   | 1.83    | 2             | 100%            | 100%               | —                   | 0           | 0           | $0.38 |
-| search-page-cap              | 43    | 6   | 1.78    | 2             | 25%             | 100%               | —                   | 0           | 0           | $0.49 |
-| seat-picker-aligned          | 39    | 9   | 1.77    | 2             | 40%             | 100%               | —                   | 0           | 0           | $0.51 |
-| session-expiry-ko-ts         | 38    | 9   | 1.58    | 1             | 100%            | 100%               | —                   | 0           | 0           | $0.48 |
-| stock-reserve-go             | 33    | 12  | 1.76    | 2             | 40%             | 100%               | —                   | 0           | 0           | $0.26 |
+| Spec                         | Cases | P0  | Overall | Spec coverage | Must-cover (kw) | Must-cover (judge) | 2nd-order | Reqs without a case | Style viol. | Merged away | Cost  |
+| ---------------------------- | ----- | --- | ------- | ------------- | --------------- | ------------------ | --------- | ------------------- | ----------- | ----------- | ----- |
+| api-rate-limit-aligned       | 39    | 12  | 1.93    | 2             | 80%             | 100%               | 5/6       | —                   | 0           | 1           | $0.66 |
+| booking-hold-aligned         | 29    | 6   | 1.76    | 2             | 25%             | 100%               | 7/7       | —                   | 0           | 0           | $0.37 |
+| contact-import-js            | 34    | 8   | 1.72    | 2             | 40%             | 100%               | 5/7       | —                   | 0           | 0           | $0.43 |
+| coupon-expiry-missing        | 45    | 18  | 1.79    | 2             | 50%             | 100%               | 5/7       | —                   | 0           | 0           | $0.63 |
+| notice-schedule-ko-narrative | 43    | 9   | 1.91    | 2             | 100%            | 100%               | 4/7       | —                   | 0           | 0           | $0.40 |
+| order-cancel-state-java      | 38    | 21  | 1.76    | 2             | 83%             | 100%               | 6/7       | —                   | 0           | 5           | $0.61 |
+| payroll-rules-mapreduce      | 52    | 10  | 1.77    | 2             | 67%             | 100%               | 8/8       | —                   | 0           | 0           | $0.89 |
+| plan-proration-aligned       | 50    | 11  | 1.94    | 2             | 20%             | 100%               | 5/7       | —                   | 0           | 1           | $0.97 |
+| profile-injection            | 34    | 4   | 1.74    | 2             | 0%              | 100%               | 7/7       | —                   | 0           | 0           | $0.34 |
+| rbac-export-role             | 32    | 8   | 1.80    | 2             | 100%            | 100%               | 7/7       | —                   | 0           | 0           | $0.38 |
+| search-page-cap              | 43    | 6   | 1.77    | 2             | 25%             | 100%               | 8/8       | —                   | 0           | 0           | $0.49 |
+| seat-picker-aligned          | 39    | 9   | 1.74    | 2             | 40%             | 100%               | 3/5       | —                   | 0           | 0           | $0.51 |
+| session-expiry-ko-ts         | 38    | 9   | 1.97    | 2             | 100%            | 100%               | 6/7       | —                   | 0           | 0           | $0.48 |
+| stock-reserve-go             | 33    | 12  | 1.92    | 2             | 40%             | 100%               | 3/6       | —                   | 0           | 0           | $0.26 |
 
-## What the rubric judge found missing
+## Second-order combinations with no case
 
-- api-rate-limit-aligned: AC2 / invalid_input: Retry-After header format is a whole integer, not decimal
-- api-rate-limit-aligned: AC1 / boundary: 429 header presence on other response bodies and 429 body format
-- booking-hold-aligned: AC3 / boundary: 5 seats rejected: only in index; open on error code
-- booking-hold-aligned: AC1 / failure and timeout: retry after ErrSeatTaken or response lost on successful hold
-- contact-import-js: AC2 / boundary: invalid skipped row list at 10,000 rows is covered; no case on very long email length limit
-- contact-import-js: AC3 / permission: role without import permission uploading a file
-- coupon-expiry-missing: AC1 / state_transition: Per-user redemption limit when the same coupon is sent to multiple accounts or an order is refunded after use (partially covered by C21)
-- coupon-expiry-missing: AC2 / equivalence: Coupon with 0% or negative rate / cart total below any discount
-- notice-schedule-ko-narrative: AC3 / data_integrity: Resend or retry action after failure is not covered; the spec says the admin decides to resend
-- notice-schedule-ko-narrative: AC2 / boundary: Hidden cancel button state near cutoff on UI
-- order-cancel-state-java: AC2 / state_transition: Cancel with SHIPPED and DELIVERED returns 409 body checks per status (C06 only in index)
-- order-cancel-state-java: AC4 / invalid_input: Actor id missing or null on status change
-- payroll-rules-mapreduce: AC2 / boundary: exactly 06:00 end and 22:00 start inclusion with a shift starting at 06:00 or ending at 22:00 as open question
-- payroll-rules-mapreduce: AC3 / boundary: holiday spanning midnight, shift crossing into or out of a holiday
-- payroll-rules-mapreduce: Rounding / equivalence: rounding applied per line vs total, multiple lines summed
-- plan-proration-aligned: AC2 / data_integrity: downgrade leaves no refund and no credit in payment history
-- plan-proration-aligned: AC4 / idempotency: repeated upgrade retry after PAYMENT_FAILED charges once
-- profile-injection: AC1 / state_transition: Edit then cancel or leave screen: unsaved name not persisted
-- rbac-export-role: AC3 / idempotency: counter state after 403-denied or failed exports (partially present)
-- rbac-export-role: AC2 / data_integrity: audit entry fields persisted exactly (timestamp, immutability)
-- seat-picker-aligned: AC1 / boundary: Select at 6 then deselect and reselect counted limit (covered); 0 seats vs. 1 seat count is covered; no gap
-- seat-picker-aligned: AC2 / locale and time: Hold expiry timing while the user is on the screen
-- session-expiry-ko-ts: AC3 / failure: 로그아웃 시 세션 저장소 장애 상태 처리
-- session-expiry-ko-ts: AC1 / idempotency: 401 후 동일 만료 토큰 반복 요청 시 응답 동일
-- stock-reserve-go: AC2 / concurrency: Multiple reservations expiring together restoring stock correctly
+From the fixed list in `expected.secondOrder`. This list does not change between rounds.
+
+- api-rate-limit-aligned: too-many-body
+- contact-import-js: deleted-contact-match
+- contact-import-js: skipped-line-numbers
+- coupon-expiry-missing: discount-above-total
+- coupon-expiry-missing: reuse-after-refund
+- notice-schedule-ko-narrative: resend-failed-notice
+- notice-schedule-ko-narrative: reschedule-too-soon
+- notice-schedule-ko-narrative: far-future-schedule
+- order-cancel-state-java: partially-refunded-order
+- plan-proration-aligned: same-price-change
+- plan-proration-aligned: undo-scheduled-downgrade
+- seat-picker-aligned: fast-clicks-at-limit
+- seat-picker-aligned: sold-out-showtime
+- session-expiry-ko-ts: logout-other-users-session
+- stock-reserve-go: other-users-reservation
+- stock-reserve-go: expire-together
+- stock-reserve-go: confirm-twice
 
 ## Cases the merge step removed
 
@@ -93,21 +87,22 @@ Compared with round 0 (the last one kept):
 
 | Metric                             | Round 0 | Round 1 |        |
 | ---------------------------------- | ------- | ------- | ------ |
-| Overall                            | 1.51    | 1.64    | better |
+| Overall                            | 1.70    | 1.82    | better |
 | Must-cover (judge)                 | 98%     | 100%    | better |
+| 2nd-order recall                   | 86%     | 82%     | worse  |
 | Req. with a case                   | 100%    | 100%    | same   |
 | Style viol./100                    | 0.0     | 0.0     | same   |
 | Cases/spec (context)               | 53.6    | 39.2    | worse  |
 | Merged away (context)              | 18      | 7       | —      |
-| Actionability (0–2) (context)      | 1.73    | 1.77    | better |
-| Traceability (0–2) (context)       | 1.69    | 1.80    | better |
-| Priority (0–2) (context)           | 1.91    | 1.92    | better |
-| Easy-to-miss value (0–2) (context) | 1.58    | 1.66    | better |
-| QA-sheet style (0–2) (context)     | 1.98    | 1.98    | worse  |
-| Spec coverage (0–2) (context)      | 1.43    | 1.43    | same   |
-| No duplicates (0–2) (context)      | 0.64    | 1.07    | better |
-| Honesty (0–2) (context)            | 1.50    | 1.86    | better |
+| Actionability (0–2) (context)      | 1.77    | 1.80    | better |
+| Traceability (0–2) (context)       | 1.75    | 1.85    | better |
+| Priority (0–2) (context)           | 1.91    | 1.94    | better |
+| Easy-to-miss value (0–2) (context) | 1.64    | 1.70    | better |
+| QA-sheet style (0–2) (context)     | 1.99    | 2.00    | better |
+| Spec coverage (0–2) (context)      | 2.00    | 2.00    | same   |
+| No duplicates (0–2) (context)      | 1.00    | 1.36    | better |
+| Honesty (0–2) (context)            | 1.79    | 2.00    | better |
 
 Rows marked "context" do not affect the recommendation.
 
-Recommendation for round 1: KEEP. The overall rose and no deterministic metric got worse. Record the decision with plan --round 1 --decision keep|revert.
+Recommendation for round 1: REVERT. A deterministic metric got worse: 2nd-order recall. Record the decision with plan --round 1 --decision keep|revert.
