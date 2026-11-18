@@ -120,6 +120,24 @@ describe('release.yml', () => {
   });
 });
 
+describe('package.json', () => {
+  const pkg = JSON.parse(read('package.json')) as Record<string, unknown>;
+
+  // dist/ is a self-contained bundle (the Action runs it without node_modules), so a runtime
+  // dependency would only make `npx qa-ticket-generator` download packages it never loads.
+  it('REL the npm package declares no runtime dependencies', () => {
+    for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+      expect(Object.keys((pkg[field] as Record<string, string> | undefined) ?? {}), field).toEqual([]);
+    }
+  });
+
+  it('REL the build bundles everything (no esbuild externals)', () => {
+    const build = read('scripts/build.mjs');
+    expect(build).toMatch(/bundle: true/);
+    expect(build).not.toMatch(/external\s*:|packages\s*:\s*'external'/);
+  });
+});
+
 describe('docs/RELEASE.md', () => {
   const md = read('docs/RELEASE.md');
 

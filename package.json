@@ -1,6 +1,6 @@
 {
   "name": "qa-ticket-generator",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Turn a spec into QA test case tickets (GitHub Issues, Jira, Notion, CSV) with Claude, then check each pull request against them. GitHub Action and CLI.",
   "license": "Apache-2.0",
   "author": "ggreing",
@@ -38,25 +38,23 @@
     "eval": "node evals/cli.mjs run",
     "eval:build-cases": "node evals/cli.mjs build-cases"
   },
-  "dependencies": {
+  "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
     "@anthropic-ai/bedrock-sdk": "1.1.1",
     "@anthropic-ai/sdk": "^1.8.0",
     "@anthropic-ai/vertex-sdk": "1.1.1",
+    "@biomejs/biome": "^2.6.7",
     "@notionhq/client": "^5.31.1",
     "@slack/web-api": "^8.3.0",
-    "web-tree-sitter": "^0.27.2",
-    "yaml": "^2.9.1",
-    "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.6.7",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^5.1.0",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2",
     "undici": "^8.12.4",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "web-tree-sitter": "^0.27.2",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   }
 }
