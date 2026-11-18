@@ -53,6 +53,21 @@ Actions → Variables). Until then a tag releases the Action alone: the GitHub R
 created and the npm job shows as skipped. Once the variable is set, npm gets every version from the
 next tag on (a version released without npm is not published there afterwards).
 
+### Switching npm on (one time)
+
+Trusted publishing can only be configured for a package that already exists, so the first version (`0.2.1`)
+was published by the maintainer from its release commit with `npm publish --access public` (2FA in the
+browser, no provenance). A new trusted-publisher configuration **expires if no publish succeeds within two
+days**, so set it up right before the next tag, not earlier:
+
+1. `npm trust github qa-ticket-generator --repo ggreing/qa-ticket-generator --file release.yml --env release --allow-publish`
+   (needs an npm CLI that has `npm trust`, e.g. 11.19; asks for 2FA). `--allow-publish` is needed because the workflow runs
+   `npm publish`, not `npm stage publish`.
+2. Set the repository variable `NPM_PUBLISH` to `true`.
+3. Push the next version tag within two days. If the npm job fails, the GitHub Release is not created;
+   fix the cause and re-run the failed jobs (see Troubleshooting). If the configuration expired, delete it
+   (`npm trust list`, `npm trust revoke --id <id> qa-ticket-generator`) and create a new one.
+
 ## Releasing a version
 
 1. **Prepare `main`.** Open a PR that bumps `version` in `package.json` (e.g. `0.1.0`) and updates docs if needed.
