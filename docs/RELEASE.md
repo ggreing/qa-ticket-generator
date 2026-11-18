@@ -58,7 +58,10 @@ next tag on (a version released without npm is not published there afterwards).
 Trusted publishing can only be configured for a package that already exists, so the first version (`0.2.1`)
 was published by the maintainer from its release commit with `npm publish --access public` (2FA in the
 browser, no provenance). A new trusted-publisher configuration **expires if no publish succeeds within two
-days**, so set it up right before the next tag, not earlier:
+days**, so set it up right before the next tag, not earlier.
+
+**Status:** done. The trusted publisher is configured and `NPM_PUBLISH` is `true`; `0.2.2` was the first
+version published by `release.yml` (with provenance). The steps are kept for recreating the configuration:
 
 1. `npm trust github qa-ticket-generator --repo ggreing/qa-ticket-generator --file release.yml --env release --allow-publish`
    (needs an npm CLI that has `npm trust`, e.g. 11.19; asks for 2FA). `--allow-publish` is needed because the workflow runs
